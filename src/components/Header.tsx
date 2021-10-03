@@ -25,7 +25,7 @@ const Header = (props: { acumulatedBytes: string }) => {
   const [localSize, setLocalSize] = useState<number>(0);
 
   useEffect(() => {
-    setLocalSize(localSize + props.acumulatedBytes.length);
+    setLocalSize((size) => size + props.acumulatedBytes.length);
   }, [props.acumulatedBytes]);
 
   return (

@@ -1,9 +1,9 @@
 import React, { useContext } from "react";
 import { HealthContext } from "context";
-import { Navbar, Nav, NavbarBrand, NavItem, Spinner, Badge } from "reactstrap";
+import { Navbar, Nav, NavbarBrand, NavItem, Badge } from "reactstrap";
 
 const NavBar = () => {
-  const { isSyncing, isNodeConnected } = useContext(HealthContext);
+  const { isSyncing } = useContext(HealthContext);
 
   return (
     <Navbar
@@ -25,7 +25,9 @@ const NavBar = () => {
           <Badge className="ml-4 badge-dot badge-md nav-link-inner--text">
             <i className={!isSyncing ? "bg-success" : "bg-warning"} />
           </Badge>
-          <span className="h5 text-gray">{!isSyncing ? "Connected" : "Connecting..."}</span>
+          <span className="h5 text-gray">
+            {!isSyncing ? "Connected" : "Connecting..."}
+          </span>
         </NavItem>
       </Nav>
     </Navbar>

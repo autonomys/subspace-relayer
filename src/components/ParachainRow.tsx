@@ -18,12 +18,14 @@ const ParachainRow = ({
       <th scope="row">
         <Media className="align-items-center">
           <a
+            rel="noreferrer"
             className="avatar rounded-circle"
             onClick={(e) => e.preventDefault()}
             href={web}
             target="_blank"
           >
             <img
+              alt="parachain logo"
               src={
                 require("../assets/img/parachains/" +
                   chain.toLocaleLowerCase() +
@@ -31,7 +33,7 @@ const ParachainRow = ({
               }
             />
           </a>
-          <a href={web} target="_blank" className="h3 pl-3">
+          <a href={web} rel="noreferrer" target="_blank" className="h3 pl-3">
             {chain}
           </a>
         </Media>
@@ -50,7 +52,11 @@ const ParachainRow = ({
       </td>
       <td>
         {explorer && lastBlockHeight && (
-          <a target="_blank" href={explorer + "/" + lastBlockHeight}>
+          <a
+            rel="noreferrer"
+            target="_blank"
+            href={explorer + "/" + lastBlockHeight}
+          >
             <span className="h3">
               {"# "}
               {lastBlockHeight.toLocaleString()}
@@ -65,7 +71,11 @@ const ParachainRow = ({
               {lastBlockHash}
             </UncontrolledTooltip>
             <h3 data-placement="top" id={chain}>
-              <a target="_blank" href={explorer + "/" + lastBlockHash}>
+              <a
+                rel="noreferrer"
+                target="_blank"
+                href={explorer + "/" + lastBlockHash}
+              >
                 {lastBlockHash.slice(0, 21) +
                   "..." +
                   lastBlockHash.slice(
