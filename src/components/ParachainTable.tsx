@@ -101,7 +101,7 @@ const ParachainTable = () => {
               <Table className="table-flush align-items-center" responsive>
                 <thead className="thead-light">
                   <tr>
-                    <th scope="col">{"Parachain"}</th>
+                    <th scope="col">{"Network"}</th>
                     <th scope="col">{"Last Updated"}</th>
                     <th scope="col">{"Last Block Height"}</th>
                     <th scope="col">{"Last Block Hash"}</th>

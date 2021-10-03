@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Media, UncontrolledTooltip } from "reactstrap";
+import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import moment from "moment";
 import { ParachainProps } from "config/interfaces/Parachain";
 
@@ -39,7 +39,7 @@ const ParachainRow = ({
         </Media>
       </th>
       <td>
-        {lastUpdate && (
+        {lastUpdate ? (
           <>
             <Badge color="green" className="h1 mr-4 badge-dot badge-lg">
               <i className="bg-success" />
@@ -47,6 +47,15 @@ const ParachainRow = ({
             <span className="h3">
               {lastUpdate && moment(lastUpdate).format("LLL")}
             </span>
+          </>
+        ) : (
+          <>
+            <Spinner
+              className="mr-4"
+              color="text-primary"
+              size={"sm"}
+            ></Spinner>
+            <span className="h5 text-gray">Listening pending feeds ...</span>
           </>
         )}
       </td>
