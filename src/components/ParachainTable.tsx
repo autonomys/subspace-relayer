@@ -21,17 +21,30 @@ const ParachainTable = () => {
   const [parachainsFeed, setParachainsFeeds] = useState<ParachainProps[]>([
     ...parachains,
   ]);
-  const [moreStorage, setMoreStorage] = useState<string>("");
+  const [moreStorage, setMoreStorage] = useState<number>(0);
+  const [moreBlocks, setMoreBlocks] = useState<number>(0);
 
   useEffect(() => {
     if (!isApiReady) return;
 
     api.rpc.chain
       .subscribeNewHeads(async (lastHeader) => {
+        // TODO : Refactor with custom types
+        const total: any = await api.query.feeds.totals(0);
+        const size: number = api.registry
+          .createType("u64", total["size_"])
+          .toNumber();
+        const objects: number = api.registry
+          .createType("u64", total["objects"])
+          .toNumber();
+
+        setMoreStorage(size);
+        setMoreBlocks(objects);
+
         const signedBlock = await api.rpc.chain.getBlock(lastHeader.hash);
         //TODO : Improve this each
         signedBlock.block.extrinsics.forEach(
-          ({ method: { method, section, args } }) => {
+          async ({ method: { method, section, args } }, index) => {
             if (section === "feeds" && method === "put") {
               const feed_id: number = api.registry
                 .createType("u64", args[0])
@@ -56,7 +69,6 @@ const ParachainTable = () => {
                   subspaceHash: signedBlock.block.header.hash.toHex(),
                   ...parachains[feed_id],
                 };
-                setMoreStorage(args[1].toString());
                 setParachainsFeeds((parachainsFeed) => {
                   const newParachainsFeed = [...parachainsFeed];
                   newParachainsFeed[feed_id] = newParaFeed;
@@ -77,7 +89,6 @@ const ParachainTable = () => {
                   subspaceHash: signedBlock.block.header.hash.toHex(),
                   ...parachains[feed_id],
                 };
-                setMoreStorage(data_.toString());
                 setParachainsFeeds((parachainsFeed) => {
                   const newParachainsFeed = [...parachainsFeed];
                   newParachainsFeed[feed_id] = newParaFeed;
@@ -93,7 +104,7 @@ const ParachainTable = () => {
 
   return (
     <div>
-      <Header acumulatedBytes={moreStorage}></Header>
+      <Header acumulatedBytes={moreStorage} totalBlocks={moreBlocks}></Header>
       <Container className="pl-5 pr-5 pt-4" fluid>
         <Row>
           <div className="col">

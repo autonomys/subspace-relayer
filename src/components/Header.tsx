@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext } from "react";
 import { HealthContext, SystemContext } from "context";
 import {
   Card,
@@ -19,20 +19,15 @@ const bytesToSize = (bytes: number): string => {
   return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
 };
 
-const Header = (props: { acumulatedBytes: string }) => {
+const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
   const { version } = useContext(SystemContext);
   const { isSyncing, best } = useContext(HealthContext);
-  const [localSize, setLocalSize] = useState<number>(0);
-
-  useEffect(() => {
-    setLocalSize((size) => size + props.acumulatedBytes.length);
-  }, [props.acumulatedBytes]);
 
   return (
     <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
       <Container fluid>
         <Row>
-          <Col lg="6" xl="3">
+          <Col lg="2">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
@@ -51,22 +46,18 @@ const Header = (props: { acumulatedBytes: string }) => {
                       </span>
                     </CardTitle>
                   </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-atom" />
-                    </div>
-                  </Col>
+              
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col lg="6" xl="3">
+          <Col lg="2">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase mb-0">
-                      <h2>Subspace Blocks</h2>
+                      <h2>Blocks</h2>
                       <span className="h2 font-weight-bold mb-0 text-primary">
                         {!isSyncing && best && "# " + best.toLocaleString()}
                         {isSyncing && (
@@ -88,7 +79,7 @@ const Header = (props: { acumulatedBytes: string }) => {
               </CardBody>
             </Card>
           </Col>
-          <Col lg="6" xl="3">
+          <Col lg="3">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
@@ -96,7 +87,8 @@ const Header = (props: { acumulatedBytes: string }) => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2>Relayer Storage</h2>
                       <span className="h2 font-weight-bold mb-0 text-primary">
-                        {localSize && bytesToSize(localSize)}
+                        {props.acumulatedBytes &&
+                          bytesToSize(props.acumulatedBytes)}
                         {isSyncing && (
                           <Spinner
                             className="ml-2"
@@ -116,13 +108,36 @@ const Header = (props: { acumulatedBytes: string }) => {
               </CardBody>
             </Card>
           </Col>
-          <Col lg="6" xl="3">
+          <Col lg="3">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Relayer Version</h2>
+                      <h2>Stored Blocks</h2>
+                      <span className="h2 font-weight-bold mb-0 ml-2 text-primary">
+                        {props.totalBlocks &&
+                          props.totalBlocks.toLocaleString()}
+                      </span>
+                    </CardTitle>
+                  </div>
+                  <Col className="col-auto">
+                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
+                      <i className="fas fa-archive" />
+                    </div>
+                  </Col>
+                </Row>
+              </CardBody>
+            </Card>
+          </Col>
+
+          <Col lg="2">
+            <Card className="card-stats mb-4 mb-xl-0">
+              <CardBody>
+                <Row>
+                  <div className="col">
+                    <CardTitle className="text-uppercase text-muted mb-0">
+                      <h2>Version</h2>
                       <span className="h2 font-weight-bold mb-0 text-primary">
                         {version?.substring(0, 5)}
                         {isSyncing && (
