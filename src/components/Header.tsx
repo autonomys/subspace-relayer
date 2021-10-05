@@ -21,7 +21,7 @@ const bytesToSize = (bytes: number): string => {
 
 const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
   const { version } = useContext(SystemContext);
-  const { isSyncing, best } = useContext(HealthContext);
+  const { isSyncing } = useContext(HealthContext);
 
   return (
     <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
@@ -33,7 +33,7 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase mb-0">
-                      <h2>Parachains</h2>
+                      <h2>Chains</h2>
                       <span className="h2 font-weight-bold mb-0 text-primary">
                         {parachains.length - 1}
                         {isSyncing && (
@@ -46,46 +46,18 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
                       </span>
                     </CardTitle>
                   </div>
-              
+                  
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col lg="2">
-            <Card className="card-stats mb-4 mb-xl-0">
-              <CardBody>
-                <Row>
-                  <div className="col">
-                    <CardTitle className="text-uppercase mb-0">
-                      <h2>Blocks</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
-                        {!isSyncing && best && "# " + best.toLocaleString()}
-                        {isSyncing && (
-                          <Spinner
-                            className="ml-2"
-                            color="text-primary"
-                            size={"6"}
-                          ></Spinner>
-                        )}
-                      </span>
-                    </CardTitle>
-                  </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-cubes"></i>
-                    </div>
-                  </Col>
-                </Row>
-              </CardBody>
-            </Card>
-          </Col>
-          <Col lg="3">
+          <Col lg="4">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Relayer Storage</h2>
+                      <h2>Total Storage</h2>
                       <span className="h2 font-weight-bold mb-0 text-primary">
                         {props.acumulatedBytes &&
                           bytesToSize(props.acumulatedBytes)}
@@ -108,13 +80,13 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
               </CardBody>
             </Card>
           </Col>
-          <Col lg="3">
+          <Col lg="4">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Stored Blocks</h2>
+                      <h2>Total Blocks Archived</h2>
                       <span className="h2 font-weight-bold mb-0 ml-2 text-primary">
                         {props.totalBlocks &&
                           props.totalBlocks.toLocaleString()}
@@ -150,11 +122,6 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
                       </span>
                     </CardTitle>
                   </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-code-branch" />
-                    </div>
-                  </Col>
                 </Row>
               </CardBody>
             </Card>

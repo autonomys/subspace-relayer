@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import moment from "moment";
 import { ParachainProps } from "config/interfaces/Parachain";
@@ -13,6 +13,17 @@ const ParachainRow = ({
   subspaceHash,
   web,
 }: ParachainProps) => {
+  const [count, setCount] = useState<number>(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCount(count + 1), 1000);
+    return () => clearInterval(timer);
+  }, [count]);
+
+  useEffect(() => {
+    setCount(0);
+  }, [lastUpdate]);
+
   return (
     <tr className="text-capitalizem">
       <th scope="row">
@@ -41,12 +52,18 @@ const ParachainRow = ({
       <td>
         {lastUpdate ? (
           <>
-            <Badge color="green" className="h1 mr-4 badge-dot badge-lg">
-              <i className="bg-success" />
+            <Badge className="h1 mr-4 badge-dot badge-lg">
+              <i
+                className={
+                  count < 60
+                    ? "bg-success"
+                    : count >= 60 && count < 120
+                    ? "bg-yellow"
+                    : "bg-red"
+                }
+              />
             </Badge>
-            <span className="h3">
-              {lastUpdate && moment(lastUpdate).format("LLL")}
-            </span>
+            <span className="h3">{moment(lastUpdate).calendar()}</span>
           </>
         ) : (
           <>
@@ -60,7 +77,7 @@ const ParachainRow = ({
         )}
       </td>
       <td>
-        {explorer && lastBlockHeight && (
+        {lastBlockHeight && (
           <a
             rel="noreferrer"
             target="_blank"

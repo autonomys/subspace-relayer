@@ -30,16 +30,6 @@ const ParachainTable = () => {
     api.rpc.chain
       .subscribeNewHeads(async (lastHeader) => {
         // TODO : Refactor with custom types
-        const total: any = await api.query.feeds.totals(0);
-        const size: number = api.registry
-          .createType("u64", total["size_"])
-          .toNumber();
-        const objects: number = api.registry
-          .createType("u64", total["objects"])
-          .toNumber();
-
-        setMoreStorage(size);
-        setMoreBlocks(objects);
 
         const signedBlock = await api.rpc.chain.getBlock(lastHeader.hash);
         //TODO : Improve this each
@@ -61,13 +51,13 @@ const ParachainTable = () => {
                 const metadata = JSON.parse(metadata_);
 
                 const newParaFeed: ParachainProps = {
+                  ...parachains[feed_id],
                   status: "Connected",
                   lastUpdate: Date.now(),
                   lastBlockHash: String(metadata.hash),
                   lastBlockHeight: Number(metadata.number),
                   blockSize: formatBytes(data_.length),
                   subspaceHash: signedBlock.block.header.hash.toHex(),
-                  ...parachains[feed_id],
                 };
                 setParachainsFeeds((parachainsFeed) => {
                   const newParachainsFeed = [...parachainsFeed];
@@ -81,13 +71,13 @@ const ParachainTable = () => {
                   .toHuman();
                 const metadata = JSON.parse(metadata_);
                 const newParaFeed: ParachainProps = {
+                  ...parachains[feed_id],
                   status: "Connected",
                   lastUpdate: Date.now(),
                   lastBlockHash: String(metadata.hash),
                   lastBlockHeight: Number(metadata.number),
                   blockSize: formatBytes(data_.length),
                   subspaceHash: signedBlock.block.header.hash.toHex(),
-                  ...parachains[feed_id],
                 };
                 setParachainsFeeds((parachainsFeed) => {
                   const newParachainsFeed = [...parachainsFeed];
@@ -98,6 +88,22 @@ const ParachainTable = () => {
             }
           }
         );
+
+        let newMoreStorage = 0;
+        let newMoreBlocks = 0;
+        for (let i = 0; i < parachains.length; i++) {
+          const total: any = await api.query.feeds.totals(parachains[i].feedId);
+          const size: number = api.registry
+            .createType("u64", total["size_"])
+            .toNumber();
+          const objects: number = api.registry
+            .createType("u64", total["objects"])
+            .toNumber();
+          newMoreStorage += size;
+          newMoreBlocks += objects;
+        }
+        setMoreStorage(newMoreStorage);
+        setMoreBlocks(newMoreBlocks);
       })
       .catch((e) => console.error(e));
   }, [api, isApiReady]);
@@ -112,7 +118,7 @@ const ParachainTable = () => {
               <Table className="table-flush align-items-center" responsive>
                 <thead className="thead-light">
                   <tr>
-                    <th scope="col">{"Network"}</th>
+                    <th scope="col">{"Chains"}</th>
                     <th scope="col">{"Last Updated"}</th>
                     <th scope="col">{"Last Block Height"}</th>
                     <th scope="col">{"Last Block Hash"}</th>

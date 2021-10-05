@@ -1,8 +1,5 @@
-export interface ParachainProps  {
-  name?: string;
+export interface ParachainProps {
   status?: string;
-  explorer?: string;
-  web?: string;
   lastUpdate?: number;
   lastBlockHeight?: number;
   lastBlockHash?: string;
@@ -12,5 +9,7 @@ export interface ParachainProps  {
   paraId: number;
   feedId: number;
   chain: string;
+  web: string;
+  explorer: string;
 }
 
