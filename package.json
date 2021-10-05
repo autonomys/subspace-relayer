@@ -16,8 +16,6 @@
     "reactstrap": "^8.9.0"
   },
   "devDependencies": {
-    "node-sass": "6.0.1",
-    "node-sass-package-importer": "5.3.2",
     "@types/react-router-dom": "^5.1.7",
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",
@@ -27,12 +25,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "eject": "react-scripts eject",
-    "install:clean": "rm -rf node_modules/ && rm -rf package-lock.json && npm install && npm start",
-    "compile:scss": "node-sass --importer node_modules/node-sass-package-importer/dist/cli.js src/assets/scss/subspace-relayer.scss src/assets/css/subspace-relayer.css",
-    "minify:scss": "node-sass --importer node_modules/node-sass-package-importer/dist/cli.js src/assets/scss/subspace-relayer.scss src/assets/css/subspace-relayer.min.css --output-style compressed",
-    "map:scss": "node-sass --importer node_modules/node-sass-package-importer/dist/cli.js src/assets/scss/subspace-relayer.scss src/assets/css/subspace-relayer.css --source-map true",
-    "build:scss": "npm run compile:scss && npm run minify:scss && npm run map:scss"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [

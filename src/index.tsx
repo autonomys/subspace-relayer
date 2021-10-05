@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import App from "./App";
 
 import "@fortawesome/fontawesome-free/css/all.min.css";
-import "assets/scss/subspace-relayer.scss";
+import "assets/css/subspace-relayer.min.css";
 
 ReactDOM.render(
   <React.StrictMode>
