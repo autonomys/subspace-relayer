@@ -39,52 +39,28 @@ const ParachainTable = () => {
               const feed_id: number = api.registry
                 .createType("u64", args[0])
                 .toNumber();
-              //TODO : Handle this if, it validates for feedId=0 as kusama block its known type
-              if (feed_id === 0) {
-                const data_: any = api.registry
-                  .createType("Bytes", args[1])
-                  .toHuman();
+              const data_: any = api.registry
+                .createType("Bytes", args[1])
+                .toHuman();
+              const metadata_: any = api.registry
+                .createType("Bytes", args[2])
+                .toHuman();
+              const metadata = JSON.parse(metadata_);
 
-                const metadata_: any = api.registry
-                  .createType("Bytes", args[2])
-                  .toHuman();
-                const metadata = JSON.parse(metadata_);
-
-                const newParaFeed: ParachainProps = {
-                  ...parachains[feed_id],
-                  status: "Connected",
-                  lastUpdate: Date.now(),
-                  lastBlockHash: String(metadata.hash),
-                  lastBlockHeight: Number(metadata.number),
-                  blockSize: formatBytes(data_.length),
-                  subspaceHash: signedBlock.block.header.hash.toHex(),
-                };
-                setParachainsFeeds((parachainsFeed) => {
-                  const newParachainsFeed = [...parachainsFeed];
-                  newParachainsFeed[feed_id] = newParaFeed;
-                  return [...newParachainsFeed];
-                });
-              } else if (feed_id >= 1) {
-                const data_: any = api.registry.createType("Bytes", args[1]);
-                const metadata_: any = api.registry
-                  .createType("Bytes", args[2])
-                  .toHuman();
-                const metadata = JSON.parse(metadata_);
-                const newParaFeed: ParachainProps = {
-                  ...parachains[feed_id],
-                  status: "Connected",
-                  lastUpdate: Date.now(),
-                  lastBlockHash: String(metadata.hash),
-                  lastBlockHeight: Number(metadata.number),
-                  blockSize: formatBytes(data_.length),
-                  subspaceHash: signedBlock.block.header.hash.toHex(),
-                };
-                setParachainsFeeds((parachainsFeed) => {
-                  const newParachainsFeed = [...parachainsFeed];
-                  newParachainsFeed[feed_id] = newParaFeed;
-                  return [...newParachainsFeed];
-                });
-              }
+              const newParaFeed: ParachainProps = {
+                ...parachains[feed_id],
+                status: "Connected",
+                lastUpdate: Date.now(),
+                lastBlockHash: String(metadata.hash),
+                lastBlockHeight: Number(metadata.number),
+                blockSize: formatBytes(data_.length),
+                subspaceHash: signedBlock.block.header.hash.toHex(),
+              };
+              setParachainsFeeds((parachainsFeed) => {
+                const newParachainsFeed = [...parachainsFeed];
+                newParachainsFeed[feed_id] = newParaFeed;
+                return [...newParachainsFeed];
+              });
             }
           }
         );
