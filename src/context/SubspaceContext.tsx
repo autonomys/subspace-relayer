@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
+import { logger } from "@polkadot/util";
 import { ApiPromise } from "@polkadot/api";
 import { TypeRegistry } from "@polkadot/types";
-import { logger } from "@polkadot/util";
-import { ApiPromiseContextProviderProps } from "./ContextTypes";
-import types from "./types.json";
+import {
+  ApiPromiseContextProviderProps,
+  ApiPromiseContextType,
+} from "context/interfaces";
 
-export interface ApiPromiseContextType {
-  api: ApiPromise;
-  isApiReady: boolean;
-}
+import customTypes from "context/utils/types.json";
 
 const l = logger("api-context");
 const registry = new TypeRegistry();
@@ -21,17 +20,14 @@ export function ApiPromiseContextProvider(
 ): React.ReactElement {
   const { children = null, provider } = props;
   const [apiPromise] = useState<ApiPromise>(
-    new ApiPromise({ provider, types })
+    new ApiPromise({ provider, types: customTypes })
   );
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     apiPromise.isReady
-      .then((_) => {
-        if (types) {
-          registry.register(types);
-        }
-
+      .then(() => {
+        registry.register(customTypes);
         l.log(`Api ready OK.`);
         setIsReady(true);
       })
