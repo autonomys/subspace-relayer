@@ -119,7 +119,7 @@ const ParachainRow = ({
               target="_blank"
               rel="noreferrer"
               href={
-                process.env.REACT_APP_POLKADOT_APP_SPARTAN + "/" + subspaceHash
+                process.env.REACT_APP_POLKADOT_APP_SUBSPACE + "/" + subspaceHash
               }
             >
               {subspaceHash.slice(0, 12) +
