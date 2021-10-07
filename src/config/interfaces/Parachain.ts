@@ -9,6 +9,7 @@ export interface ParachainProps {
   paraId: number;
   feedId: number;
   chain: string;
+  chainName: string;
   web: string;
   explorer: string;
 }

@@ -29,7 +29,6 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "eject": "react-scripts eject",
-    "install:clean": "rm -rf node_modules/ && rm -rf package-lock.json && npm install && npm start",
     "compile:scss": "node-sass --importer node_modules/node-sass-package-importer/dist/cli.js src/assets/scss/subspace-relayer.scss src/assets/css/subspace-relayer.css",
     "minify:scss": "node-sass --importer node_modules/node-sass-package-importer/dist/cli.js src/assets/scss/subspace-relayer.scss src/assets/css/subspace-relayer.min.css --output-style compressed",
     "map:scss": "node-sass --importer node_modules/node-sass-package-importer/dist/cli.js src/assets/scss/subspace-relayer.scss src/assets/css/subspace-relayer.css --source-map true",

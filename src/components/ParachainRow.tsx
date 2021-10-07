@@ -5,6 +5,7 @@ import { ParachainProps } from "config/interfaces/Parachain";
 
 const ParachainRow = ({
   chain,
+  chainName,
   lastUpdate,
   explorer,
   lastBlockHeight,
@@ -31,21 +32,18 @@ const ParachainRow = ({
           <a
             rel="noreferrer"
             className="avatar rounded-circle"
-            onClick={(e) => e.preventDefault()}
             href={web}
             target="_blank"
           >
             <img
               alt="parachain logo"
               src={
-                require("../assets/img/parachains/" +
-                  chain.toLocaleLowerCase() +
-                  ".png").default
+                require("../assets/img/parachains/" + chain + ".png").default
               }
             />
           </a>
           <a href={web} rel="noreferrer" target="_blank" className="h3 pl-3">
-            {chain}
+            {chainName}
           </a>
         </Media>
       </th>
@@ -118,6 +116,8 @@ const ParachainRow = ({
         {subspaceHash && (
           <h3>
             <a
+              target="_blank"
+              rel="noreferrer"
               href={
                 process.env.REACT_APP_POLKADOT_APP_SPARTAN + "/" + subspaceHash
               }
