@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
-import moment from "moment";
+import { formatDistance } from "date-fns";
 import { ParachainProps } from "config/interfaces/Parachain";
 
 const ParachainRow = ({
@@ -50,7 +50,7 @@ const ParachainRow = ({
       <td>
         {lastUpdate ? (
           <>
-            <Badge className="h1 mr-4 badge-dot badge-lg">
+            <Badge className="mr-2 badge-dot badge-lg">
               <i
                 className={
                   count < 60
@@ -61,7 +61,7 @@ const ParachainRow = ({
                 }
               />
             </Badge>
-            <span className="h3">{moment(lastUpdate).calendar()}</span>
+            <span>{formatDistance(lastUpdate, Date.now())}</span>
           </>
         ) : (
           <>
@@ -70,7 +70,7 @@ const ParachainRow = ({
               color="text-primary"
               size={"sm"}
             ></Spinner>
-            <span className="h5 text-gray">Listening pending feeds ...</span>
+            <span>Listening pending feeds ...</span>
           </>
         )}
       </td>
@@ -81,7 +81,7 @@ const ParachainRow = ({
             target="_blank"
             href={explorer + "/" + lastBlockHeight}
           >
-            <span className="h3">
+            <span className="text-lg">
               {"# "}
               {lastBlockHeight.toLocaleString()}
             </span>
@@ -94,7 +94,7 @@ const ParachainRow = ({
             <UncontrolledTooltip delay={0} placement="top" target={chain}>
               {lastBlockHash}
             </UncontrolledTooltip>
-            <h3 data-placement="top" id={chain}>
+            <span className="text-lg"  data-placement="top" id={chain}>
               <a
                 rel="noreferrer"
                 target="_blank"
@@ -107,14 +107,14 @@ const ParachainRow = ({
                     lastBlockHash.length
                   )}
               </a>
-            </h3>
+            </span>
           </>
         )}
       </td>
-      <td>{blockSize && <h3>{blockSize}</h3>}</td>
+      <td>{blockSize &&  <span className="text-lg">{blockSize}</span>}</td>
       <td>
         {subspaceHash && (
-          <h3>
+          <span className="text-lg">
             <a
               target="_blank"
               rel="noreferrer"
@@ -129,7 +129,7 @@ const ParachainRow = ({
                   subspaceHash.length
                 )}
             </a>
-          </h3>
+          </span>
         )}
       </td>
     </tr>
