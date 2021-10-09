@@ -6,6 +6,7 @@ import {
   HealthContextProviderProps,
   HealthContextType,
 } from "context/interfaces";
+import { useProvider } from "./ProviderContext";
 
 const SYNCING_THRESHOLD = 2000;
 let wasSyncing = true;
@@ -41,7 +42,8 @@ export const HealthContext: React.Context<HealthContextType> =
 export function HealthContextProvider(
   props: HealthContextProviderProps
 ): React.ReactElement {
-  const { children = null, provider } = props;
+  const { children = null } = props;
+  const provider = useProvider()
   const { header, health } = useContext(SystemContext);
   const [isSyncing, setIsSyncing] = useState(true);
 
