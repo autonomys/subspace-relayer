@@ -5,24 +5,13 @@ import { parachains } from "config/AvailableParachain";
 import Header from "./Header";
 import ParachainRow from "./ParachainRow";
 import { ParachainProps } from "config/interfaces/Parachain";
-
-// TODO: Move
-const formatBytes = (a: number, b = 2, k = 1024): string => {
-  let d = Math.floor(Math.log(a) / Math.log(k));
-  return 0 === a
-    ? "0 Bytes"
-    : parseFloat((a / Math.pow(k, d)).toFixed(Math.max(0, b))) +
-        " " +
-        ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"][d];
-};
+import { bytesToSize } from "components/utils";
 
 const ParachainTable = () => {
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const [parachainsFeed, setParachainsFeeds] = useState<ParachainProps[]>([
     ...parachains,
   ]);
-  const [moreStorage, setMoreStorage] = useState<number>(0);
-  const [moreBlocks, setMoreBlocks] = useState<number>(0);
 
   useEffect(() => {
     if (!isApiReady) return;
@@ -42,10 +31,12 @@ const ParachainTable = () => {
               const data_: any = api.registry
                 .createType("Bytes", args[1])
                 .toHuman();
+              //  console.log(data_);
               const metadata_: any = api.registry
                 .createType("Bytes", args[2])
                 .toHuman();
               const metadata = JSON.parse(metadata_);
+              //   console.log(metadata);
 
               const newParaFeed: ParachainProps = {
                 ...parachains[feed_id],
@@ -53,7 +44,7 @@ const ParachainTable = () => {
                 lastUpdate: Date.now(),
                 lastBlockHash: String(metadata.hash),
                 lastBlockHeight: Number(metadata.number),
-                blockSize: formatBytes(data_.length),
+                blockSize: bytesToSize(data_.length),
                 subspaceHash: signedBlock.block.header.hash.toHex(),
               };
               setParachainsFeeds((parachainsFeed) => {
@@ -64,29 +55,13 @@ const ParachainTable = () => {
             }
           }
         );
-
-        let newMoreStorage = 0;
-        let newMoreBlocks = 0;
-        for (let i = 0; i < parachains.length; i++) {
-          const total: any = await api.query.feeds.totals(parachains[i].feedId);
-          const size: number = api.registry
-            .createType("u64", total["size_"])
-            .toNumber();
-          const objects: number = api.registry
-            .createType("u64", total["objects"])
-            .toNumber();
-          newMoreStorage += size;
-          newMoreBlocks += objects;
-        }
-        setMoreStorage(newMoreStorage);
-        setMoreBlocks(newMoreBlocks);
       })
       .catch((e) => console.error(e));
   }, [api, isApiReady]);
 
   return (
     <div>
-      <Header acumulatedBytes={moreStorage} totalBlocks={moreBlocks}></Header>
+      <Header></Header>
       <Container className="pl-5 pr-5 pt-4" fluid>
         <Row>
           <div className="col">
@@ -96,10 +71,19 @@ const ParachainTable = () => {
                   <tr>
                     <th scope="col">{"Chains"}</th>
                     <th scope="col">{"Last Updated"}</th>
-                    <th scope="col">{"Last Block Height"}</th>
-                    <th scope="col">{"Last Block Hash"}</th>
-                    <th scope="col">{"Block Size"}</th>
-                    <th scope="col">{"Subspace Tx Hash"}</th>
+                    <th scope="col" className="text-right">
+                      {"Last Block Hash"}
+                    </th>
+                    <th scope="col" className="text-right">
+                      {"Last Block Height"}
+                    </th>
+                    <th scope="col">{"Last Block Size"}</th>
+                    <th scope="col" className="text-right">
+                      {"Subspace Tx Hash"}
+                    </th>
+                    <th scope="col" className="text-right">
+                      {"Archived Blocks"}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

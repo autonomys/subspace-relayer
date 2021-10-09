@@ -3,6 +3,7 @@ import { ApiOptions } from "@polkadot/api/types";
 import { ProviderInterface } from "@polkadot/rpc-provider/types";
 import { WsProvider } from "@polkadot/rpc-provider";
 import { Text } from "@polkadot/types";
+import { Totals } from "config/interfaces/Parachain";
 import {
   BlockHash,
   ChainProperties,
@@ -30,6 +31,11 @@ export interface HealthContextProviderProps {
   provider?: WsProvider;
 }
 
+export interface RelayerContextProviderProps {
+  children?: React.ReactElement;
+  provider?: ProviderInterface;
+}
+
 export interface ApiPromiseContextType {
   api: ApiPromise;
   isApiReady: boolean;
@@ -40,6 +46,10 @@ export interface HealthContextType {
   hasPeers: boolean;
   isNodeConnected: boolean;
   isSyncing: boolean;
+}
+
+export interface RelayerContextType {
+  feedsTotals: Array<Totals>;
 }
 
 export interface SystemContextType {
