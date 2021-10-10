@@ -1,6 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
 import { ApiOptions } from "@polkadot/api/types";
-import { ProviderInterface } from "@polkadot/rpc-provider/types";
 import { WsProvider } from "@polkadot/rpc-provider";
 import { Text } from "@polkadot/types";
 import { Totals } from "config/interfaces/Parachain";
@@ -11,9 +10,17 @@ import {
   Health,
 } from "@polkadot/types/interfaces";
 
+export interface ProviderContextType {
+  provider: WsProvider;
+}
+
+export interface ProviderContextProps {
+  provider: WsProvider;
+  children?: React.ReactElement;
+}
+
 export interface ApiRxContextProviderProps {
   children?: React.ReactElement;
-  provider: ProviderInterface;
 }
 
 export interface ApiPromiseContextProviderProps
@@ -23,17 +30,14 @@ export interface ApiPromiseContextProviderProps
 
 export interface SystemContextProviderProps {
   children?: React.ReactElement;
-  provider?: ProviderInterface;
 }
 
 export interface HealthContextProviderProps {
   children?: React.ReactElement;
-  provider?: WsProvider;
 }
 
 export interface RelayerContextProviderProps {
   children?: React.ReactElement;
-  provider?: ProviderInterface;
 }
 
 export interface ApiPromiseContextType {

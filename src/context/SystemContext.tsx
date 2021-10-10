@@ -18,6 +18,7 @@ import {
 } from "context/interfaces";
 
 import { providerConnected } from "./utils";
+import { useProvider } from "context";
 
 function distinctCodecChanged<T extends Codec>(): MonoTypeOperatorFunction<T> {
   return distinctUntilChanged<T>((x, y) => x.eq(y));
@@ -31,7 +32,9 @@ export const SystemContext: React.Context<SystemContextType> =
 export function SystemContextProvider(
   props: SystemContextProviderProps
 ): React.ReactElement {
-  const { children = null, provider } = props;
+  const { children = null } = props;
+  const provider = useProvider();
+
   const [chain, setChain] = useState<Text>();
   const [genesisHash, setGenesisHash] = useState<BlockHash>();
   const [header, setHeader] = useState<Header>();

@@ -9,6 +9,7 @@ import { Totals } from "config/interfaces/Parachain";
 import { parachains } from "config/AvailableParachain";
 import { ApiPromiseContext, SystemContext } from "context";
 import { ApiPromise } from "@polkadot/api";
+import { useProvider } from "./ProviderContext";
 
 async function getFeedTotals(api: ApiPromise, n?: number): Promise<Totals[]> {
   const feedsTotals: Array<Totals> = Array<Totals>();
@@ -26,7 +27,8 @@ export const RelayerContext: React.Context<RelayerContextType> =
 export function RelayerContextProvider(
   props: RelayerContextProviderProps
 ): React.ReactElement {
-  const { children = null, provider } = props;
+  const { children = null } = props;
+  const provider = useProvider();
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const { header } = useContext(SystemContext);
   const [feedsTotals, setFeedsTotals] = useState<Totals[]>(
