@@ -1,22 +1,30 @@
-import React from "react";
-import { ApiPromiseContextProvider } from "context/SubspaceContext";
-import MainLayout from "components/MainLayout";
 import { WsProvider } from "@polkadot/rpc-provider";
+import { useState } from "react";
+import {
+  ApiPromiseContextProvider,
+  HealthContextProvider,
+  ProviderContextProvider,
+  SystemContextProvider,
+} from "context";
+import MainLayout from "layout/MainLayout";
 
-const WS_PROVIDER = process.env.REACT_APP_WS_PROVIDER;
+const WS_PROVIDER = process.env.REACT_APP_WS_PROVIDER || "ws://localhost:9944";
 
 const App = () => {
-  if (!WS_PROVIDER) {
-    console.error("WS_PROVIDER not found from env");
-    return null;
-  }
+  console.info("Connecting to: ", WS_PROVIDER);
 
-  const provider = new WsProvider(WS_PROVIDER);
+  const [provider] = useState<WsProvider>(new WsProvider(WS_PROVIDER));
 
   return (
-    <ApiPromiseContextProvider provider={provider}>
-      <MainLayout />
-    </ApiPromiseContextProvider>
+    <ProviderContextProvider provider={provider}>
+      <SystemContextProvider>
+        <HealthContextProvider>
+          <ApiPromiseContextProvider>
+            <MainLayout />
+          </ApiPromiseContextProvider>
+        </HealthContextProvider>
+      </SystemContextProvider>
+    </ProviderContextProvider>
   );
 };
 
