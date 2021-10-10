@@ -6,7 +6,7 @@ import {
   ApiPromiseContextProviderProps,
   ApiPromiseContextType,
 } from "context/interfaces";
-
+import { useProvider } from "./ProviderContext";
 import customTypes from "context/utils/types.json";
 
 const l = logger("api-context");
@@ -18,7 +18,9 @@ export const ApiPromiseContext: React.Context<ApiPromiseContextType> =
 export function ApiPromiseContextProvider(
   props: ApiPromiseContextProviderProps
 ): React.ReactElement {
-  const { children = null, provider } = props;
+  const { children = null } = props;
+  const provider = useProvider();
+
   const [apiPromise] = useState<ApiPromise>(
     new ApiPromise({ provider, types: customTypes })
   );
