@@ -10,14 +10,7 @@ import {
   Spinner,
 } from "reactstrap";
 import { parachains } from "config/AvailableParachain";
-
-// TODO: Move
-const bytesToSize = (bytes: number): string => {
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = parseFloat(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
-  if (i === 0) return `${bytes} ${sizes[i]}`;
-  return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
-};
+import { bytesToSize } from "./utils";
 
 const Header = () => {
   const { version } = useContext(SystemContext);
@@ -43,6 +36,7 @@ const Header = () => {
     }
   }, [feedsTotals]);
 
+  // TODO: Card to component.
   return (
     <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
       <Container fluid>
@@ -106,7 +100,8 @@ const Header = () => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2>Total Blocks Archived</h2>
                       <span className="h2 font-weight-bold mb-0 ml-2 text-primary">
-                        {acumulatedObjects && acumulatedObjects.toLocaleString()}
+                        {acumulatedObjects &&
+                          acumulatedObjects.toLocaleString()}
                       </span>
                     </CardTitle>
                   </div>
