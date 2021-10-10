@@ -1,71 +1,118 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { ApiPromiseContext } from "context/SubspaceContext";
-import { Table } from "reactstrap";
+import { Card, Container, Row, Table } from "reactstrap";
+import { parachains } from "config/AvailableParachain";
+import Header from "./Header";
+import ParachainRow from "./ParachainRow";
+import { ParachainProps } from "config/interfaces/Parachain";
+
+// TODO: Move
+const formatBytes = (a: number, b = 2, k = 1024): string => {
+  let d = Math.floor(Math.log(a) / Math.log(k));
+  return 0 === a
+    ? "0 Bytes"
+    : parseFloat((a / Math.pow(k, d)).toFixed(Math.max(0, b))) +
+        " " +
+        ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"][d];
+};
 
 const ParachainTable = () => {
   const { api, isApiReady } = useContext(ApiPromiseContext);
+  const [parachainsFeed, setParachainsFeeds] = useState<ParachainProps[]>([
+    ...parachains,
+  ]);
+  const [moreStorage, setMoreStorage] = useState<number>(0);
+  const [moreBlocks, setMoreBlocks] = useState<number>(0);
 
   useEffect(() => {
-    if (!isApiReady) {
-      return;
-    } else {
-      console.log("Api ready and working on component");
-      api.rpc.chain.subscribeNewHeads(async (lastHeader) => {
+    if (!isApiReady) return;
+
+    api.rpc.chain
+      .subscribeNewHeads(async (lastHeader) => {
+        // TODO : Refactor with custom types
+
         const signedBlock = await api.rpc.chain.getBlock(lastHeader.hash);
-        // TODO : Logs to state. Move all this data to a table row component and update on new feed update
-        for (
-          let index = 0;
-          index < signedBlock.block.extrinsics.length;
-          index++
-        ) {
-          const {
-            meta,
-            method: { args, method, section },
-          } = signedBlock.block.extrinsics[index];
+        //TODO : Improve this each
+        signedBlock.block.extrinsics.forEach(
+          async ({ method: { method, section, args } }, index) => {
+            if (section === "feeds" && method === "put") {
+              const feed_id: number = api.registry
+                .createType("u64", args[0])
+                .toNumber();
+              const data_: any = api.registry
+                .createType("Bytes", args[1])
+                .toHuman();
+              const metadata_: any = api.registry
+                .createType("Bytes", args[2])
+                .toHuman();
+              const metadata = JSON.parse(metadata_);
 
-          console.log("-------------------------------------------------");
-          console.log("Section", section);
-          console.log("Method", method);
-          console.log("meta", meta);
-          console.log(`(${args.map((a) => a.toString()).join(", ")})`);
+              const newParaFeed: ParachainProps = {
+                ...parachains[feed_id],
+                status: "Connected",
+                lastUpdate: Date.now(),
+                lastBlockHash: String(metadata.hash),
+                lastBlockHeight: Number(metadata.number),
+                blockSize: formatBytes(data_.length),
+                subspaceHash: signedBlock.block.header.hash.toHex(),
+              };
+              setParachainsFeeds((parachainsFeed) => {
+                const newParachainsFeed = [...parachainsFeed];
+                newParachainsFeed[feed_id] = newParaFeed;
+                return [...newParachainsFeed];
+              });
+            }
+          }
+        );
 
-          const allRecords = await api.query.system.events.at(
-            signedBlock.block.header.hash
-          );
-
-          const events = allRecords
-            .filter(
-              ({ phase }) =>
-                phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(index)
-            )
-            .map(({ event }) => `${event.section}.${event.method}`);
-
-          console.log("events", events);
-
-          // TODO: Getting undefined on all events. Event timestamp set. 
-          console.log(
-            `${section}.${method}:: ${events.join(", ") || "no events"}`
-          );
-          console.log("-------------------------------------------------");
+        let newMoreStorage = 0;
+        let newMoreBlocks = 0;
+        for (let i = 0; i < parachains.length; i++) {
+          const total: any = await api.query.feeds.totals(parachains[i].feedId);
+          const size: number = api.registry
+            .createType("u64", total["size_"])
+            .toNumber();
+          const objects: number = api.registry
+            .createType("u64", total["objects"])
+            .toNumber();
+          newMoreStorage += size;
+          newMoreBlocks += objects;
         }
-      });
-    }
+        setMoreStorage(newMoreStorage);
+        setMoreBlocks(newMoreBlocks);
+      })
+      .catch((e) => console.error(e));
   }, [api, isApiReady]);
 
   return (
-    <Table className="mt-4">
-      <thead>
-        <tr>
-          <th>Chain</th>
-          <th>Status</th>
-          <th>Last Updated</th>
-          <th>Last Block Height</th>
-          <th>Block Size</th>
-          <th>Subspace Tx Hash</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </Table>
+    <div>
+      <Header acumulatedBytes={moreStorage} totalBlocks={moreBlocks}></Header>
+      <Container className="pl-5 pr-5 pt-4" fluid>
+        <Row>
+          <div className="col">
+            <Card className="shadow">
+              <Table className="table-flush align-items-center" responsive>
+                <thead className="thead-light">
+                  <tr>
+                    <th scope="col">{"Chains"}</th>
+                    <th scope="col">{"Last Updated"}</th>
+                    <th scope="col">{"Last Block Height"}</th>
+                    <th scope="col">{"Last Block Hash"}</th>
+                    <th scope="col">{"Block Size"}</th>
+                    <th scope="col">{"Subspace Tx Hash"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parachainsFeed?.map((parachain: ParachainProps) => (
+                    <ParachainRow {...parachain} key={parachain.chain} />
+                  ))}
+                </tbody>
+              </Table>
+            </Card>
+          </div>
+        </Row>
+      </Container>
+    </div>
   );
 };
 
