@@ -15,8 +15,7 @@ async function getFeedTotals(api: ApiPromise, n?: number): Promise<Totals[]> {
   const feedsTotals: Array<Totals> = Array<Totals>();
   for (const { feedId } of parachains) {
     const totals = await api.query.feeds.totals(feedId);
-    const _totals: Totals = api.registry.createType("Totals", totals);
-    feedsTotals.push(_totals);
+    feedsTotals.push(api.registry.createType("Totals", totals));
   }
   return feedsTotals;
 }
