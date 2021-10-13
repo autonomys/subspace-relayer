@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { ApiPromiseContext } from "context/SubspaceContext";
+import { ApiPromiseContext, RelayerContextProvider } from "context";
 import { Card, Container, Row, Table } from "reactstrap";
 import { parachains } from "config/AvailableParachain";
 import Header from "./Header";
@@ -23,28 +23,24 @@ const ParachainTable = () => {
         const signedBlock = await api.rpc.chain.getBlock(lastHeader.hash);
         //TODO : Improve this each
         signedBlock.block.extrinsics.forEach(
-          async ({ method: { method, section, args } }, index) => {
+          async ({ method: { method, section, args } }) => {
             if (section === "feeds" && method === "put") {
               const feed_id: number = api.registry
                 .createType("u64", args[0])
                 .toNumber();
-              const data_: any = api.registry
+              const data: any = api.registry
                 .createType("Bytes", args[1])
                 .toHuman();
-              //  console.log(data_);
-              const metadata_: any = api.registry
-                .createType("Bytes", args[2])
-                .toHuman();
-              const metadata = JSON.parse(metadata_);
-              //   console.log(metadata);
-
+              const metadata = JSON.parse(
+                api.registry.createType("Bytes", args[2]).toHuman() as string
+              );
               const newParaFeed: ParachainProps = {
                 ...parachains[feed_id],
                 status: "Connected",
                 lastUpdate: Date.now(),
                 lastBlockHash: String(metadata.hash),
                 lastBlockHeight: Number(metadata.number),
-                blockSize: bytesToSize(data_.length),
+                blockSize: bytesToSize(data.length),
                 subspaceHash: signedBlock.block.header.hash.toHex(),
               };
               setParachainsFeeds((parachainsFeed) => {
@@ -61,7 +57,9 @@ const ParachainTable = () => {
 
   return (
     <div>
-      <Header></Header>
+      <RelayerContextProvider>
+        <Header />
+      </RelayerContextProvider>
       <Container className="pl-5 pr-5 pt-4" fluid>
         <Row>
           <div className="col">
@@ -71,18 +69,15 @@ const ParachainTable = () => {
                   <tr>
                     <th scope="col">{"Chains"}</th>
                     <th scope="col">{"Last Updated"}</th>
-                    <th scope="col" className="text-right">
+                    <th scope="col" className="text-left">
                       {"Last Block Hash"}
                     </th>
-                    <th scope="col" className="text-right">
+                    <th scope="col" className="text-left">
                       {"Last Block Height"}
                     </th>
                     <th scope="col">{"Last Block Size"}</th>
                     <th scope="col" className="text-right">
                       {"Subspace Tx Hash"}
-                    </th>
-                    <th scope="col" className="text-right">
-                      {"Archived Blocks"}
                     </th>
                   </tr>
                 </thead>

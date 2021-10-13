@@ -1,9 +1,8 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistance } from "date-fns";
 import { ParachainProps } from "config/interfaces/Parachain";
-import { RelayerContext } from "context";
-import { bytesToSize, prettyHash } from "components/utils";
+import { prettyHash } from "components/utils";
 
 const ParachainRow = ({
   chain,
@@ -15,10 +14,8 @@ const ParachainRow = ({
   blockSize,
   subspaceHash,
   web,
-  feedId,
 }: ParachainProps) => {
   const [count, setCount] = useState<number>(0);
-  const { feedsTotals } = useContext(RelayerContext);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
@@ -31,7 +28,7 @@ const ParachainRow = ({
 
   return (
     <tr>
-      <th scope="row" className="col-md-1">
+      <th scope="row" className="col-md-2">
         <Media className="align-items-center">
           <a
             rel="noreferrer"
@@ -51,7 +48,7 @@ const ParachainRow = ({
           </a>
         </Media>
       </th>
-      <td className="col-md-1 text-md">
+      <td className="col-md-2 text-md">
         {lastUpdate ? (
           <>
             <Badge className="mr-2 badge-dot badge-lg">
@@ -78,7 +75,7 @@ const ParachainRow = ({
           </>
         )}
       </td>
-      <td className="col-md-3 text-lg text-right">
+      <td className="col-md-3 text-lg text-left">
         {lastBlockHash && (
           <>
             <UncontrolledTooltip delay={0} placement="top" target={chain}>
@@ -110,8 +107,10 @@ const ParachainRow = ({
           </a>
         )}
       </td>
-      <td className="col-md-1 text-lg">{blockSize && <span>{blockSize}</span>}</td>
-      <td className="col-md-3 text-lg text-right">
+      <td className="col-md-2 text-lg">
+        {blockSize && <span>{blockSize}</span>}
+      </td>
+      <td className="col-md-2 text-lg text-right">
         {subspaceHash && (
           <span>
             <a
@@ -125,15 +124,6 @@ const ParachainRow = ({
             </a>
           </span>
         )}
-      </td>
-      <td className="col-md-2 text-md text-right">
-        {feedsTotals && feedsTotals[feedId] && (
-          <span>
-            {"Blocks"} {feedsTotals[feedId].objects.toNumber()}
-            {" | "}
-            {bytesToSize(feedsTotals[feedId].size_.toNumber())}
-          </span>
-        )}{" "}
       </td>
     </tr>
   );
