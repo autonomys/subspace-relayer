@@ -20,7 +20,6 @@ export function ApiPromiseContextProvider(
 ): React.ReactElement {
   const { children = null } = props;
   const provider = useProvider();
-
   const [apiPromise] = useState<ApiPromise>(
     new ApiPromise({ provider, types: customTypes })
   );

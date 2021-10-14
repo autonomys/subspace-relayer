@@ -1,31 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //
 // Variables
 //
@@ -44,19 +16,21 @@ $enable-print-styles:       true !default;
 // Color system
 
 $white:    #fff !default;
-$gray-100: #f6f9fc !default;
-$gray-200: #e9ecef !default;
-$gray-300: #dee2e6 !default;
-$gray-400: #ced4da !default;
-$gray-500: #adb5bd !default;
-$gray-600: #8898aa !default;   // Line footer color
-$gray-700: #525f7f !default;   // Line p color
-$gray-800: #32325d !default;   // Line heading color
-$gray-900: #212529 !default;
+$gray-50:  #FFFFFF !default;
+$gray-100: #F1F1F1 !default;
+$gray-200: #EFEFEF !default;
+$gray-300: #E0E0E0 !default;
+$gray-400: #D1D1D1 !default;
+$gray-500: #999999 !default;
+$gray-600: #797979 !default;   // Line footer color
+$gray-700: #494949 !default;   // Line p color
+$gray-800: #292929 !default;   // Line heading color
+$gray-900: #292929 !default;
 $black:    #000 !default;
 
 $grays: () !default;
 $grays: map-merge((
+  "50" : $gray-50,
   "100": $gray-100,
   "200": $gray-200,
   "300": $gray-300,
@@ -68,14 +42,14 @@ $grays: map-merge((
   "900": $gray-900
 ), $grays);
 
-$blue:    #5e72e4 !default;
-$indigo:  #5603ad !default;
+$blue:    #562B8E !default;
+$indigo:  #562B8E !default;
 $purple:  #8965e0 !default;
 $pink:    #f3a4b5 !default;
-$red:     #f5365c !default;
+$red:     #F16063 !default;
 $orange:  #fb6340 !default;
 $yellow:  #ffd600 !default;
-$green:   #2dce89 !default;
+$green:   #66CB9F !default;
 $teal:    #11cdef !default;
 $cyan:    #2bffc6 !default;
 
@@ -98,12 +72,12 @@ $colors: map-merge((
   "gray-dark":  $gray-800
 ), $colors);
 
-$default:       #172b4d !default;
-$primary:       #5e72e4 !default;
-$secondary:     #f7fafc !default;
+$default:       #562b8e !default;
+$primary:       #562b8e !default;
+$secondary:     #fafafa !default;
 $success:       $green !default;
 $info:          $teal !default;
-$warning:       $orange !default;
+$warning:       $red !default;
 $danger:        $red !default;
 $light:         $gray-500 !default;
 $dark:          $gray-900 !default;
@@ -149,9 +123,9 @@ $brand-colors: map-merge((
 
 $shape-colors: () !default;
 $shape-colors: map-merge((
-  "default":      #32325d,
-  "primary":      #5533ff,
-  "secondary":    #24b47e,
+  "default":      #3754DB,
+  "primary":      #3754DB,
+  "secondary":    #4AAE8C,
   "neutral":      #e9ecef,
   "blue-gray":    #b2cbe1,
 
@@ -232,7 +206,7 @@ $love-color: $red !default;
 // Body
 
 
-$body-bg: #f8f9fe !default;
+$body-bg: $gray-50 !default;
 $body-color: $gray-700 !default;
 
 
@@ -347,12 +321,13 @@ $transition-collapse:         height .35s ease !default;
 
 // Fonts
 
-$font-family-sans-serif: Open Sans, sans-serif !default;
+$font-family-sans-serif:      Open Sans, sans-serif !default;
 $font-family-base: $font-family-sans-serif !default;
 
 $font-size-base:              1rem !default; // Assumes the browser default, typically `16px`
-$font-size-xl:                ($font-size-base * 1.5);
-$font-size-lg:                ($font-size-base * 1.25);
+$font-size-xl:                ($font-size-base * 1.40);
+$font-size-lg:                ($font-size-base * 1.15);
+$font-size-md:                ($font-size-base * .971);
 $font-size-sm:                ($font-size-base * .875);
 $font-size-xs:                ($font-size-base * .75);
 
@@ -375,8 +350,8 @@ $h6-font-size:                $font-size-base * .625 !default;
 
 
 $headings-margin-bottom:      ($spacer / 2);
-$headings-font-family:        inherit !default;
-$headings-font-weight:        $font-weight-bold !default;
+$headings-font-family:        Montserrat, sans-serif !default;
+$headings-font-weight:        $font-weight-normal !default;
 $headings-line-height:        1.5 !default;
 $headings-color:              $gray-800 !default;
 
@@ -449,14 +424,14 @@ $table-cell-padding-sm:       .5rem !default;
 
 $table-bg:                    transparent !default;
 $table-accent-bg:             rgba($black, .05) !default;
-$table-hover-bg:              $gray-100 !default;
+$table-hover-bg:              $gray-200 !default;
 $table-active-bg:             $table-hover-bg !default;
 
 $table-border-width:          $border-width !default;
-$table-border-color:          $gray-200 !default;
+$table-border-color:          $gray-100 !default;
 
-$table-head-bg:               $gray-100 !default;
-$table-head-color:            $gray-600 !default;
+$table-head-bg:               $gray-200 !default;
+$table-head-color:            $gray-700 !default;
 $table-head-spacer-y:         .75rem !default;
 
 $table-head-font-size:        .65rem !default;

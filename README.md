@@ -8,7 +8,7 @@ It display a dashboard with the current status for archived parablocks from the 
 
 You need a Subspace client node producing blocks, for this, you need to follow instructions in the following links.
 
-- Instructions to run the client and farmer: https://github.com/subspace/subspace/tree/main/node-template-spartan
+- Instructions to run the client and farmer: https://github.com/subspace/subspace/tree/main/crates/subspace-node
 
 You also need to start the node.js relayer app, it subscribes to the blocks on the source chain (Kusama for now) and sends block data to the Subspace chain as an extrinsic.
 

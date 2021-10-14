@@ -44,7 +44,7 @@ export const parachains = [
     paraId: 2004,
     feedId: 4,
     chain: "khala",
-    chainName: "khala",
+    chainName: "Khala",
     web: "https://phala.network/en/khala/",
     explorer:
       "https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fkhala.api.onfinality.io/public#/explorer/query",

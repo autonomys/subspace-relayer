@@ -1,7 +1,6 @@
 import { WsProvider } from "@polkadot/rpc-provider";
 import { useState } from "react";
 import {
-  ApiPromiseContextProvider,
   HealthContextProvider,
   ProviderContextProvider,
   SystemContextProvider,
@@ -19,9 +18,7 @@ const App = () => {
     <ProviderContextProvider provider={provider}>
       <SystemContextProvider>
         <HealthContextProvider>
-          <ApiPromiseContextProvider>
-            <MainLayout />
-          </ApiPromiseContextProvider>
+          <MainLayout />
         </HealthContextProvider>
       </SystemContextProvider>
     </ProviderContextProvider>

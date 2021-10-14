@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { HealthContext, SystemContext } from "context";
+import React, { useContext, useEffect, useState } from "react";
+import { HealthContext, RelayerContext, SystemContext } from "context";
 import {
   Card,
   CardBody,
@@ -10,19 +10,33 @@ import {
   Spinner,
 } from "reactstrap";
 import { parachains } from "config/AvailableParachain";
+import { bytesToSize } from "./utils";
 
-// TODO: Move
-const bytesToSize = (bytes: number): string => {
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = parseFloat(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
-  if (i === 0) return `${bytes} ${sizes[i]}`;
-  return `${(bytes / 1024 ** i).toFixed(1)} ${sizes[i]}`;
-};
-
-const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
+const Header = () => {
   const { version } = useContext(SystemContext);
   const { isSyncing } = useContext(HealthContext);
+  const { feedsTotals } = useContext(RelayerContext);
+  const [acumulatedSizes, setAcumulatedSizes] = useState<number>();
+  const [acumulatedObjects, setAcumulatedObjects] = useState<number>();
 
+  useEffect(() => {
+    if (feedsTotals) {
+      const acumulatedSizes = feedsTotals.reduce(
+        (accumulator, currentValue) =>
+          accumulator + currentValue.size_.toNumber(),
+        0
+      );
+      const acumulatedObjects = feedsTotals.reduce(
+        (accumulator, currentValue) =>
+          accumulator + currentValue.objects.toNumber(),
+        0
+      );
+      setAcumulatedSizes(acumulatedSizes);
+      setAcumulatedObjects(acumulatedObjects);
+    }
+  }, [feedsTotals]);
+
+  // TODO: Card to component.
   return (
     <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
       <Container fluid>
@@ -46,7 +60,6 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
                       </span>
                     </CardTitle>
                   </div>
-                  
                 </Row>
               </CardBody>
             </Card>
@@ -59,8 +72,7 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2>Total Storage</h2>
                       <span className="h2 font-weight-bold mb-0 text-primary">
-                        {props.acumulatedBytes &&
-                          bytesToSize(props.acumulatedBytes)}
+                        {acumulatedSizes && bytesToSize(acumulatedSizes)}
                         {isSyncing && (
                           <Spinner
                             className="ml-2"
@@ -88,8 +100,8 @@ const Header = (props: { acumulatedBytes: number; totalBlocks: number }) => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2>Total Blocks Archived</h2>
                       <span className="h2 font-weight-bold mb-0 ml-2 text-primary">
-                        {props.totalBlocks &&
-                          props.totalBlocks.toLocaleString()}
+                        {acumulatedObjects &&
+                          acumulatedObjects.toLocaleString()}
                       </span>
                     </CardTitle>
                   </div>

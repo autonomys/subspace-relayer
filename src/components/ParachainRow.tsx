@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistance } from "date-fns";
 import { ParachainProps } from "config/interfaces/Parachain";
+import { prettyHash } from "components/utils";
 
 const ParachainRow = ({
   chain,
@@ -26,8 +27,8 @@ const ParachainRow = ({
   }, [lastUpdate]);
 
   return (
-    <tr className="text-capitalizem">
-      <th scope="row">
+    <tr>
+      <th scope="row" className="col-md-2">
         <Media className="align-items-center">
           <a
             rel="noreferrer"
@@ -47,7 +48,7 @@ const ParachainRow = ({
           </a>
         </Media>
       </th>
-      <td>
+      <td className="col-md-2 text-md">
         {lastUpdate ? (
           <>
             <Badge className="mr-2 badge-dot badge-lg">
@@ -74,47 +75,44 @@ const ParachainRow = ({
           </>
         )}
       </td>
-      <td>
+      <td className="col-md-3 text-lg text-left">
+        {lastBlockHash && (
+          <>
+            <UncontrolledTooltip delay={0} placement="top" target={chain}>
+              {lastBlockHash}
+            </UncontrolledTooltip>
+            <span data-placement="top" id={chain}>
+              <a
+                rel="noreferrer"
+                target="_blank"
+                href={explorer + "/" + lastBlockHash}
+              >
+                {prettyHash(lastBlockHash)}
+              </a>
+            </span>
+          </>
+        )}
+      </td>
+      <td className="col-md-1 text-lg">
         {lastBlockHeight && (
           <a
             rel="noreferrer"
             target="_blank"
             href={explorer + "/" + lastBlockHeight}
           >
-            <span className="text-lg">
+            <span>
               {"# "}
               {lastBlockHeight.toLocaleString()}
             </span>
           </a>
         )}
       </td>
-      <td>
-        {lastBlockHash && (
-          <>
-            <UncontrolledTooltip delay={0} placement="top" target={chain}>
-              {lastBlockHash}
-            </UncontrolledTooltip>
-            <span className="text-lg"  data-placement="top" id={chain}>
-              <a
-                rel="noreferrer"
-                target="_blank"
-                href={explorer + "/" + lastBlockHash}
-              >
-                {lastBlockHash.slice(0, 21) +
-                  "..." +
-                  lastBlockHash.slice(
-                    lastBlockHash.length - 5,
-                    lastBlockHash.length
-                  )}
-              </a>
-            </span>
-          </>
-        )}
+      <td className="col-md-2 text-lg">
+        {blockSize && <span>{blockSize}</span>}
       </td>
-      <td>{blockSize &&  <span className="text-lg">{blockSize}</span>}</td>
-      <td>
+      <td className="col-md-2 text-lg text-right">
         {subspaceHash && (
-          <span className="text-lg">
+          <span>
             <a
               target="_blank"
               rel="noreferrer"
@@ -122,12 +120,7 @@ const ParachainRow = ({
                 process.env.REACT_APP_POLKADOT_APP_SUBSPACE + "/" + subspaceHash
               }
             >
-              {subspaceHash.slice(0, 12) +
-                "..." +
-                subspaceHash.substring(
-                  subspaceHash.length - 10,
-                  subspaceHash.length
-                )}
+              {prettyHash(subspaceHash)}
             </a>
           </span>
         )}

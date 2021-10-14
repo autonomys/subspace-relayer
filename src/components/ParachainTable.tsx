@@ -1,28 +1,17 @@
 import React, { useContext, useEffect, useState } from "react";
-import { ApiPromiseContext } from "context/SubspaceContext";
+import { ApiPromiseContext, RelayerContextProvider } from "context";
 import { Card, Container, Row, Table } from "reactstrap";
 import { parachains } from "config/AvailableParachain";
 import Header from "./Header";
 import ParachainRow from "./ParachainRow";
 import { ParachainProps } from "config/interfaces/Parachain";
-
-// TODO: Move
-const formatBytes = (a: number, b = 2, k = 1024): string => {
-  let d = Math.floor(Math.log(a) / Math.log(k));
-  return 0 === a
-    ? "0 Bytes"
-    : parseFloat((a / Math.pow(k, d)).toFixed(Math.max(0, b))) +
-        " " +
-        ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"][d];
-};
+import { bytesToSize } from "components/utils";
 
 const ParachainTable = () => {
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const [parachainsFeed, setParachainsFeeds] = useState<ParachainProps[]>([
     ...parachains,
   ]);
-  const [moreStorage, setMoreStorage] = useState<number>(0);
-  const [moreBlocks, setMoreBlocks] = useState<number>(0);
 
   useEffect(() => {
     if (!isApiReady) return;
@@ -34,26 +23,24 @@ const ParachainTable = () => {
         const signedBlock = await api.rpc.chain.getBlock(lastHeader.hash);
         //TODO : Improve this each
         signedBlock.block.extrinsics.forEach(
-          async ({ method: { method, section, args } }, index) => {
+          async ({ method: { method, section, args } }) => {
             if (section === "feeds" && method === "put") {
               const feed_id: number = api.registry
                 .createType("u64", args[0])
                 .toNumber();
-              const data_: any = api.registry
+              const data: any = api.registry
                 .createType("Bytes", args[1])
                 .toHuman();
-              const metadata_: any = api.registry
-                .createType("Bytes", args[2])
-                .toHuman();
-              const metadata = JSON.parse(metadata_);
-
+              const metadata = JSON.parse(
+                api.registry.createType("Bytes", args[2]).toHuman() as string
+              );
               const newParaFeed: ParachainProps = {
                 ...parachains[feed_id],
                 status: "Connected",
                 lastUpdate: Date.now(),
                 lastBlockHash: String(metadata.hash),
                 lastBlockHeight: Number(metadata.number),
-                blockSize: formatBytes(data_.length),
+                blockSize: bytesToSize(data.length),
                 subspaceHash: signedBlock.block.header.hash.toHex(),
               };
               setParachainsFeeds((parachainsFeed) => {
@@ -64,29 +51,15 @@ const ParachainTable = () => {
             }
           }
         );
-
-        let newMoreStorage = 0;
-        let newMoreBlocks = 0;
-        for (let i = 0; i < parachains.length; i++) {
-          const total: any = await api.query.feeds.totals(parachains[i].feedId);
-          const size: number = api.registry
-            .createType("u64", total["size_"])
-            .toNumber();
-          const objects: number = api.registry
-            .createType("u64", total["objects"])
-            .toNumber();
-          newMoreStorage += size;
-          newMoreBlocks += objects;
-        }
-        setMoreStorage(newMoreStorage);
-        setMoreBlocks(newMoreBlocks);
       })
       .catch((e) => console.error(e));
   }, [api, isApiReady]);
 
   return (
     <div>
-      <Header acumulatedBytes={moreStorage} totalBlocks={moreBlocks}></Header>
+      <RelayerContextProvider>
+        <Header />
+      </RelayerContextProvider>
       <Container className="pl-5 pr-5 pt-4" fluid>
         <Row>
           <div className="col">
@@ -96,10 +69,16 @@ const ParachainTable = () => {
                   <tr>
                     <th scope="col">{"Chains"}</th>
                     <th scope="col">{"Last Updated"}</th>
-                    <th scope="col">{"Last Block Height"}</th>
-                    <th scope="col">{"Last Block Hash"}</th>
-                    <th scope="col">{"Block Size"}</th>
-                    <th scope="col">{"Subspace Tx Hash"}</th>
+                    <th scope="col" className="text-left">
+                      {"Last Block Hash"}
+                    </th>
+                    <th scope="col" className="text-left">
+                      {"Last Block Height"}
+                    </th>
+                    <th scope="col">{"Last Block Size"}</th>
+                    <th scope="col" className="text-right">
+                      {"Subspace Tx Hash"}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

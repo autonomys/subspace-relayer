@@ -2,9 +2,9 @@ import { Container, Row, Col } from "reactstrap";
 
 const Footer = () => {
   return (
-    <footer className="py-9">
+    <footer className="pt-5 pb-5">
       <Container>
-        <Row className="align-items-end ">
+        <Row className="align-items-end">
           <Col>
             <div className="copyright text-center text-xl-center text-muted">
               <a

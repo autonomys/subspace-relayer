@@ -1,3 +1,5 @@
+import { u64, Struct } from "@polkadot/types";
+
 export interface ParachainProps {
   status?: string;
   lastUpdate?: number;
@@ -14,3 +16,7 @@ export interface ParachainProps {
   explorer: string;
 }
 
+export interface Totals extends Struct {
+  readonly size_: u64;
+  readonly objects: u64;
+}
