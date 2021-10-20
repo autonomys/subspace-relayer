@@ -92,7 +92,6 @@ class Target {
           this.logTxResult(result);
 
           const feedCreatedEvent = result.events.find(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ({ event }: EventRecord) => this.api.events.feeds.FeedCreated.is(event)
           );
 

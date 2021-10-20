@@ -13,9 +13,22 @@ class State {
         this.feedsPath = `${folder}/feeds.json`;
     }
 
+    async readFileOrFallback(path: string): Promise<Record<string, string>> {
+        let object;
+
+        try {
+            const file = await fsp.readFile(path, 'utf8');
+            object = JSON.parse(file);
+        } catch (error) {
+            // TODO: add logger and log error
+            object = {}
+        }
+
+        return object;
+    }
+
     async saveLastProcessedBlock(chain: ChainName, number: BN): Promise<void> {
-        const file = await fsp.readFile(this.lastBlockPath, 'utf8');
-        const lastProcessedBlockRecord = JSON.parse(file);
+        const lastProcessedBlockRecord = await this.readFileOrFallback(this.lastBlockPath);
 
         lastProcessedBlockRecord[chain] = number;
 
@@ -23,22 +36,19 @@ class State {
     }
 
     async getLastProcessedBlockByName(chain: ChainName): Promise<BN | undefined> {
-        const file = await fsp.readFile(this.lastBlockPath, 'utf8');
-        const lastProcessedBlockRecord = JSON.parse(file);
+        const lastProcessedBlockRecord = await this.readFileOrFallback(this.lastBlockPath);
 
         return lastProcessedBlockRecord[chain];
     }
 
-    async getFeedIdByAddress(address: string): Promise<string> {
-        const file = await fsp.readFile(this.feedsPath, 'utf8');
-        const feeds = JSON.parse(file);
+    async getFeedIdByAddress(address: string): Promise<string | undefined> {
+        const feeds = await this.readFileOrFallback(this.feedsPath);
 
         return feeds[address];
     }
 
     async saveFeedId(address: string, feedId: BN): Promise<void> {
-        const file = await fsp.readFile(this.feedsPath, 'utf8');
-        const feeds = JSON.parse(file);
+        const feeds = await this.readFileOrFallback(this.feedsPath);
 
         feeds[address] = feedId.toBn();
 
