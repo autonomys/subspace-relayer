@@ -13,20 +13,20 @@ const rocksdb = require("rocksdb");
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(process.env.REPORT_PROGRESS_INTERVAL) : 100n;
 
 (async () => {
-  const source_chain_rpc = process.env.SOURCE_CHAIN_RPC;
-  if (!source_chain_rpc) {
+  const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
+  if (!sourceChainRpc) {
     console.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
     process.exit(1);
   }
 
-  const target_dir = process.env.TARGET_DIR;
-  if (!source_chain_rpc) {
+  const targetDir = process.env.TARGET_DIR;
+  if (!sourceChainRpc) {
     console.error("TARGET_DIR environment variable must be set with directory where downloaded blocks must be stored");
     process.exit(1);
   }
 
-  console.info(`Connecting to RPC at ${source_chain_rpc}...`);
-  const provider = new WsProvider(source_chain_rpc);
+  console.info(`Connecting to RPC at ${sourceChainRpc}...`);
+  const provider = new WsProvider(sourceChainRpc);
   const api = await ApiPromise.create({
     provider,
   });
@@ -46,13 +46,13 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(p
 
   console.info(`Last finalized block is ${lastFinalizedBlockNumber}`);
 
-  console.log(`Downloading blocks into ${target_dir}`);
+  console.log(`Downloading blocks into ${targetDir}`);
 
-  const db = levelup(rocksdb(`${target_dir}/db`));
+  const db = levelup(rocksdb(`${targetDir}/db`));
 
   const lastDownloadedBlock = await (async () => {
     try {
-      return BigInt(await fs.readFile(`${target_dir}/last-downloaded-block`, {encoding: 'utf-8'}));
+      return BigInt(await fs.readFile(`${targetDir}/last-downloaded-block`, {encoding: 'utf-8'}));
     } catch {
       return -1n;
     }
@@ -81,7 +81,7 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(p
         `Downloaded block ${blockNumber}/${lastFinalizedBlockNumber}${downloadRate}`
       );
 
-      await fs.writeFile(`${target_dir}/last-downloaded-block`, blockNumber.toString());
+      await fs.writeFile(`${targetDir}/last-downloaded-block`, blockNumber.toString());
     }
   }
 
