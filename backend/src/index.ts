@@ -63,6 +63,7 @@ const createApi = async (url: string) => {
       })
     );
 
+    // TODO: investigate what is the best way to decouple resync and subscription to new blocks
     sources.forEach(source => {
       // subscribe resynced block first
       source.resyncBlocks().subscribe({

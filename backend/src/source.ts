@@ -1,12 +1,12 @@
 import { ApiPromise } from "@polkadot/api";
+import { BN } from '@polkadot/util';
 import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
 import { Header, Hash, SignedBlock, Block } from "@polkadot/types/interfaces";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { concatMap, map, tap, concatAll, first, expand } from "rxjs/operators";
-import { from, merge, EMPTY, defer, catchError } from 'rxjs';
+import { concatMap, map, tap, concatAll, first, expand, takeWhile } from "rxjs/operators";
+import { from, merge, EMPTY, defer } from 'rxjs';
 import { Logger } from "pino";
-import * as BN from 'bn.js';
 
 import { ParaHeadAndId, TxData, ChainName } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData } from './utils';
@@ -60,17 +60,16 @@ class Source {
     return finalizedHeader;
   }
 
-  private async getLastProcessedBlockNumber(): Promise<BN | undefined> {
+  private async getLastProcessedBlockNumber(): Promise<BN> {
     const number = await this.state.getLastProcessedBlockByName(this.chain);
     this.logger.debug(`Last processed block number in state: ${number}`);
-    return number;
+    return number || new BN(0);
   }
 
   resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
     return defer(this.getLastProcessedBlockNumber)
-      .pipe(expand(async (blockNumber) => {
-        if (!blockNumber) return new BN(0);
+      .pipe(expand(async (blockNumber): Promise<BN | undefined> => {
         const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
         this.logger.debug(`Last processed block: ${blockNumberAsBn.toString()}`);
         const nextBlockNumber = blockNumberAsBn.add(new BN(1));
@@ -80,16 +79,11 @@ class Source {
         this.logger.debug(`Finalized block: ${finalizedNumber.toString()}`);
         this.logger.debug(`Diff: ${diff}`);
 
-        // TODO: currently this works, but there might be more elegant way to terminate
-        if (diff.isZero()) throw new Error("Queuing resync blocks is done");
+        if (diff.isZero()) return;
 
         return nextBlockNumber;
       }))
-      .pipe(
-        catchError((error) => {
-          this.logger.error(error);
-          return EMPTY;
-        }))
+      .pipe(takeWhile(BN.isBN))
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)
         .pipe(tap((blockHash) => this.logger.debug(`${blockNumber} : ${blockHash}`)))))

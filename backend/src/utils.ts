@@ -1,4 +1,4 @@
-import * as BN from 'bn.js';
+import { BN } from '@polkadot/util';
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { U64 } from "@polkadot/types/primitive";
