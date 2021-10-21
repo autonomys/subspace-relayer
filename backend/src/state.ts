@@ -7,8 +7,10 @@ import { ChainName } from './types';
 class State {
     lastBlockPath: string;
     feedsPath: string;
+    folder: string;
 
     constructor({ folder }: { folder: string; }) {
+        this.folder = folder;
         this.lastBlockPath = `${folder}/last_processed_block.json`;
         this.feedsPath = `${folder}/feeds.json`;
     }
@@ -21,6 +23,12 @@ class State {
             object = JSON.parse(file);
         } catch (error) {
             // TODO: add logger and log error
+            try {
+                await fsp.access(this.folder);
+            } catch (error) {
+                await fsp.mkdir(this.folder);
+            }
+
             object = {}
         }
 
