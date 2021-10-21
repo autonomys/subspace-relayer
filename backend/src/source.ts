@@ -4,7 +4,7 @@ import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
 import { Header, Hash, SignedBlock, Block } from "@polkadot/types/interfaces";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { concatMap, map, tap, concatAll, first, expand, takeWhile } from "rxjs/operators";
+import { concatMap, map, tap, concatAll, first, expand, skip, catchError } from "rxjs/operators";
 import { from, merge, EMPTY, defer } from 'rxjs';
 import { Logger } from "pino";
 
@@ -69,7 +69,7 @@ class Source {
   resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
     return defer(this.getLastProcessedBlockNumber)
-      .pipe(expand(async (blockNumber): Promise<BN | undefined> => {
+      .pipe(expand(async (blockNumber) => {
         const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
         this.logger.debug(`Last processed block: ${blockNumberAsBn.toString()}`);
         const nextBlockNumber = blockNumberAsBn.add(new BN(1));
@@ -79,11 +79,18 @@ class Source {
         this.logger.debug(`Finalized block: ${finalizedNumber.toString()}`);
         this.logger.debug(`Diff: ${diff}`);
 
-        if (diff.isZero()) return;
+        // TODO: investigate better way to complete observable
+        if (diff.isZero()) throw new Error("Queuing resync blocks is done");
 
         return nextBlockNumber;
       }))
-      .pipe(takeWhile(BN.isBN))
+      // use skip because first value is last processed block, we need next one
+      .pipe(skip(1))
+      .pipe(
+        catchError((error) => {
+          this.logger.error(error);
+          return EMPTY;
+        }))
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)
         .pipe(tap((blockHash) => this.logger.debug(`${blockNumber} : ${blockHash}`)))))
