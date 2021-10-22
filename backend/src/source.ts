@@ -46,6 +46,7 @@ class Source {
     this.getParablocks = this.getParablocks.bind(this);
     this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
     this.getFinalizedHeader = this.getFinalizedHeader.bind(this);
+    this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
   }
 
   private subscribeHeads(): Observable<Header> {
@@ -68,38 +69,39 @@ class Source {
     return number;
   }
 
+  async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
+    // if getLastProcessedBlockNumber returns undefined we have to process from genesis
+    if (!blockNumber) return new BN(0);
+    const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
+    this.logger.debug(`Last processed block: ${blockNumberAsBn}`);
+    const nextBlockNumber = blockNumberAsBn.add(new BN(1));
+    const { number: finalizedNumber } = await this.getFinalizedHeader();
+    const diff = finalizedNumber.toBn().sub(nextBlockNumber);
+    this.logger.info(`Processing blocks from ${nextBlockNumber}`);
+    this.logger.debug(`Finalized block: ${finalizedNumber}`);
+    this.logger.debug(`Diff: ${diff}`);
+
+    if (diff.isZero()) return finalizedNumber;
+    if (diff.isNeg()) throw new ResyncCompleted();
+
+    return nextBlockNumber;
+  }
+
   resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
     return defer(this.getLastProcessedBlockNumber)
       // recursively check last processed block number and calculate difference with current finalized block number
-      .pipe(expand(async (blockNumber) => {
-        // if getLastProcessedBlockNumber returns undefined we have to process from genesis
-        if (!blockNumber) return new BN(0);
-        const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
-        this.logger.debug(`Last processed block: ${blockNumberAsBn.toString()}`);
-        const nextBlockNumber = blockNumberAsBn.add(new BN(1));
-        const { number: finalizedNumber } = await this.getFinalizedHeader();
-        const diff = finalizedNumber.toBn().sub(nextBlockNumber);
-        this.logger.info(`Processing blocks from ${nextBlockNumber.toString()}`);
-        this.logger.debug(`Finalized block: ${finalizedNumber.toString()}`);
-        this.logger.debug(`Diff: ${diff}`);
-
-        if (diff.isZero()) return finalizedNumber;
-        if (diff.isNeg()) throw new ResyncCompleted();
-
-        return nextBlockNumber;
-      }))
+      .pipe(expand(this.getBlockNumberToProcess))
       // use skip because first value is last processed block, we need next one
       .pipe(skip(1))
-      .pipe(
-        // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
-        catchError((error) => {
-          if (error instanceof ResyncCompleted) {
-            return EMPTY;
-          } else {
-            return throwError(() => error);
-          }
-        }))
+      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
+      .pipe(catchError((error) => {
+        if (error instanceof ResyncCompleted) {
+          return EMPTY;
+        } else {
+          return throwError(() => error);
+        }
+      }))
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)
         .pipe(tap((blockHash) => this.logger.debug(`${blockNumber} : ${blockHash}`)))))
