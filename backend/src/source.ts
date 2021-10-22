@@ -62,10 +62,10 @@ class Source {
     return finalizedHeader;
   }
 
-  private async getLastProcessedBlockNumber(): Promise<BN> {
+  private async getLastProcessedBlockNumber(): Promise<string | undefined> {
     const number = await this.state.getLastProcessedBlockByName(this.chain);
     this.logger.debug(`Last processed block number in state: ${number}`);
-    return number || new BN(0);
+    return number;
   }
 
   resyncBlocks(): Observable<TxData> {
@@ -73,6 +73,8 @@ class Source {
     return defer(this.getLastProcessedBlockNumber)
       // recursively check last processed block number and calculate difference with current finalized block number
       .pipe(expand(async (blockNumber) => {
+        // if getLastProcessedBlockNumber returns undefined we have to process from genesis
+        if (!blockNumber) return new BN(0);
         const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
         this.logger.debug(`Last processed block: ${blockNumberAsBn.toString()}`);
         const nextBlockNumber = blockNumberAsBn.add(new BN(1));
