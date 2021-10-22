@@ -92,6 +92,11 @@ export const sourceChains = [
         paraId: 2085,
         chain: "Parallel Heiko" as ChainName,
       },
+      {
+        url: "https://kintsugi.api.onfinality.io/public",
+        paraId: 2092,
+        chain: "Kintsugi BTC" as ChainName,
+      },
     ]
   },
 ];
