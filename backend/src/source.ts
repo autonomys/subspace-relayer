@@ -5,13 +5,15 @@ import { U64 } from "@polkadot/types/primitive";
 import { Header, Hash, SignedBlock, Block } from "@polkadot/types/interfaces";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { concatMap, map, tap, concatAll, first, expand, skip, catchError } from "rxjs/operators";
-import { from, merge, EMPTY, defer } from 'rxjs';
+import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
 import { ParaHeadAndId, TxData, ChainName } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData } from './utils';
 import Parachain from "./parachain";
 import State from './state';
+
+class ResyncCompleted extends Error { }
 
 interface SourceConstructorParams {
   api: ApiPromise;
@@ -69,6 +71,7 @@ class Source {
   resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
     return defer(this.getLastProcessedBlockNumber)
+      // recursively check last processed block number and calculate difference with current finalized block number
       .pipe(expand(async (blockNumber) => {
         const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
         this.logger.debug(`Last processed block: ${blockNumberAsBn.toString()}`);
@@ -79,17 +82,21 @@ class Source {
         this.logger.debug(`Finalized block: ${finalizedNumber.toString()}`);
         this.logger.debug(`Diff: ${diff}`);
 
-        // TODO: investigate better way to complete observable
-        if (diff.isZero()) throw new Error("Queuing resync blocks is done");
+        if (diff.isZero()) return finalizedNumber;
+        if (diff.isNeg()) throw new ResyncCompleted();
 
         return nextBlockNumber;
       }))
       // use skip because first value is last processed block, we need next one
       .pipe(skip(1))
       .pipe(
+        // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
         catchError((error) => {
-          this.logger.error(error);
-          return EMPTY;
+          if (error instanceof ResyncCompleted) {
+            return EMPTY;
+          } else {
+            return throwError(() => error);
+          }
         }))
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)
