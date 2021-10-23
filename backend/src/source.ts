@@ -170,7 +170,7 @@ class Source {
       );
   }
 
-  private getBlocksByHash(hash: Hash): Observable<TxData> {
+  public getBlocksByHash(hash: Hash): Observable<TxData> {
     const relayBlock = this.getBlock(hash);
     const parablocks = relayBlock.pipe(concatMap(this.getParablocks));
 
@@ -198,10 +198,6 @@ class Source {
     // console.log(`Chain ${this.chain}: Finalized block size: ${size / 1024} Kb`);
 
     return merge(relayBlockWithMetadata, parablocks);
-  }
-
-  subscribeNewBlocks(): Observable<TxData> {
-    return this.subscribeHeads().pipe(concatMap(({ hash }) => this.getBlocksByHash(hash)));
   }
 }
 

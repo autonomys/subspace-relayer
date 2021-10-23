@@ -64,48 +64,41 @@ const createApi = async (url: string) => {
       })
     );
 
-    sources.forEach(source => {
+    sources.forEach(async source => {
       let hasResynced = false;
       let lastFinalizedBlock: BN;
 
-      async function execute() {
-        await new Promise<void>((resolve, reject) => {
-          try {
-            if (hasResynced) {
-              source.subscribeNewBlocks().subscribe({
-                next: target.sendBlockTx,
-              });
-            } else {
-              source.subscribeHeads().subscribe({
-                next: header => {
-                  if (!lastFinalizedBlock) {
-                    lastFinalizedBlock = header.number.toBn();
-                    resolve();
-                  } else {
-                    lastFinalizedBlock = header.number.toBn();
-                  }
-                }
-              });
+      await new Promise<void>((resolve, reject) => {
+        try {
+          source.subscribeHeads().subscribe({
+            next: header => {
+              if (hasResynced) {
+                source.getBlocksByHash(header.hash).subscribe({
+                  next: target.sendBlockTx,
+                });
+              } else if (!lastFinalizedBlock) {
+                lastFinalizedBlock = header.number.toBn();
+                resolve();
+              } else {
+                lastFinalizedBlock = header.number.toBn();
+              }
             }
-          } catch (error) {
-            if (!lastFinalizedBlock) {
-              reject(error);
-            } else {
-              logger.error((error as Error).message);
-            }
+          });
+        } catch (error) {
+          if (!lastFinalizedBlock) {
+            reject(error);
+          } else {
+            logger.error((error as Error).message);
           }
-        });
+        }
+      });
 
-        source.resyncBlocks().subscribe({
-          next: target.sendBlockTx,
-          complete: () => {
-            hasResynced = true;
-            execute();
-          }
-        });
-      }
-
-      execute();
+      source.resyncBlocks().subscribe({
+        next: target.sendBlockTx,
+        complete: () => {
+          hasResynced = true;
+        }
+      });
     });
   } catch (error) {
     logger.error((error as Error).message);
