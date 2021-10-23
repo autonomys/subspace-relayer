@@ -57,7 +57,7 @@ class Source {
     return this.api.rx.rpc.chain.getBlock(hash).pipe(first());
   }
 
-  private async getFinalizedHeader(): Promise<Header> {
+  async getFinalizedHeader(): Promise<Header> {
     const finalizedHash = await this.api.rpc.chain.getFinalizedHead();
     const finalizedHeader = await this.api.rpc.chain.getHeader(finalizedHash);
     return finalizedHeader;
@@ -81,8 +81,7 @@ class Source {
     this.logger.debug(`Finalized block: ${finalizedNumber}`);
     this.logger.debug(`Diff: ${diff}`);
 
-    if (diff.isZero()) return finalizedNumber;
-    if (diff.isNeg()) throw new ResyncCompleted();
+    if (diff.isZero()) throw new ResyncCompleted();
 
     return nextBlockNumber;
   }

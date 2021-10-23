@@ -1,4 +1,5 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import type { BN } from '@polkadot/util';
 
 import { getAccount } from "./account";
 import Config, { sourceChains } from "./config";
@@ -63,21 +64,47 @@ const createApi = async (url: string) => {
       })
     );
 
-    // TODO: investigate what is the best way to decouple resync and subscription to new blocks
-    sources.forEach(source => {
-      // subscribe resynced block first
-      source.resyncBlocks().subscribe({
-        next: target.sendBlockTx,
-        // after resync is completed subscribe for new blocks
-        complete: () => {
-          logger.info("Processing resynced blocks is completed");
-          source.subscribeNewBlocks().subscribe({
-            next: target.sendBlockTx
-          });
-        }
-      });
-    });
+    sources.forEach(async source => {
+      let hasResynced = false;
+      let lastFinalizedBlock: BN;
 
+      async function execute() {
+        await new Promise<void>((resolve, reject) => {
+          try {
+            if (hasResynced) {
+              source.subscribeNewBlocks().subscribe({
+                next: target.sendBlockTx,
+              });
+            } else {
+              source.getFinalizedHeader().then(header => {
+                if (!lastFinalizedBlock) {
+                  lastFinalizedBlock = header.number.toBn();
+                  resolve();
+                } else {
+                  lastFinalizedBlock = header.number.toBn();
+                }
+              });
+            }
+          } catch (error) {
+            if (!lastFinalizedBlock) {
+              reject(error);
+            } else {
+              logger.error((error as Error).message);
+            }
+          }
+        });
+
+        source.resyncBlocks().subscribe({
+          next: target.sendBlockTx,
+          complete: () => {
+            hasResynced = true;
+            execute();
+          }
+        });
+      }
+
+      execute();
+    });
   } catch (error) {
     logger.error((error as Error).message);
   }
