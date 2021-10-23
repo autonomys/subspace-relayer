@@ -64,7 +64,7 @@ const createApi = async (url: string) => {
       })
     );
 
-    sources.forEach(async source => {
+    sources.forEach(source => {
       let hasResynced = false;
       let lastFinalizedBlock: BN;
 
@@ -76,12 +76,14 @@ const createApi = async (url: string) => {
                 next: target.sendBlockTx,
               });
             } else {
-              source.getFinalizedHeader().then(header => {
-                if (!lastFinalizedBlock) {
-                  lastFinalizedBlock = header.number.toBn();
-                  resolve();
-                } else {
-                  lastFinalizedBlock = header.number.toBn();
+              source.subscribeHeads().subscribe({
+                next: header => {
+                  if (!lastFinalizedBlock) {
+                    lastFinalizedBlock = header.number.toBn();
+                    resolve();
+                  } else {
+                    lastFinalizedBlock = header.number.toBn();
+                  }
                 }
               });
             }

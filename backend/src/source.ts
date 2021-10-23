@@ -49,7 +49,7 @@ class Source {
     this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
   }
 
-  private subscribeHeads(): Observable<Header> {
+  subscribeHeads(): Observable<Header> {
     return this.api.rx.rpc.chain.subscribeFinalizedHeads();
   }
 
@@ -57,7 +57,7 @@ class Source {
     return this.api.rx.rpc.chain.getBlock(hash).pipe(first());
   }
 
-  async getFinalizedHeader(): Promise<Header> {
+  private async getFinalizedHeader(): Promise<Header> {
     const finalizedHash = await this.api.rpc.chain.getFinalizedHead();
     const finalizedHeader = await this.api.rpc.chain.getHeader(finalizedHash);
     return finalizedHeader;
