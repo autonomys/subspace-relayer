@@ -13,6 +13,7 @@ import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData } from './ut
 import Parachain from "./parachain";
 import State from './state';
 
+// custom error to throw when block resync is done in order to terminate observable and propagate values
 class ResyncCompleted extends Error { }
 
 interface SourceConstructorParams {
