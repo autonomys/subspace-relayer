@@ -5,13 +5,16 @@ import { U64 } from "@polkadot/types/primitive";
 import { Header, Hash, SignedBlock, Block } from "@polkadot/types/interfaces";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { concatMap, map, tap, concatAll, first, expand, skip, catchError } from "rxjs/operators";
-import { from, merge, EMPTY, defer } from 'rxjs';
+import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
 import { ParaHeadAndId, TxData, ChainName } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData } from './utils';
 import Parachain from "./parachain";
 import State from './state';
+
+// custom error to throw when block resync is done in order to terminate observable and propagate values
+class ResyncCompleted extends Error { }
 
 interface SourceConstructorParams {
   api: ApiPromise;
@@ -44,9 +47,10 @@ class Source {
     this.getParablocks = this.getParablocks.bind(this);
     this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
     this.getFinalizedHeader = this.getFinalizedHeader.bind(this);
+    this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
   }
 
-  private subscribeHeads(): Observable<Header> {
+  subscribeHeads(): Observable<Header> {
     return this.api.rx.rpc.chain.subscribeFinalizedHeads();
   }
 
@@ -60,37 +64,44 @@ class Source {
     return finalizedHeader;
   }
 
-  private async getLastProcessedBlockNumber(): Promise<BN> {
+  private async getLastProcessedBlockNumber(): Promise<string | undefined> {
     const number = await this.state.getLastProcessedBlockByName(this.chain);
     this.logger.debug(`Last processed block number in state: ${number}`);
-    return number || new BN(0);
+    return number;
+  }
+
+  async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
+    // if getLastProcessedBlockNumber returns undefined we have to process from genesis
+    if (!blockNumber) return new BN(0);
+    const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
+    this.logger.debug(`Last processed block: ${blockNumberAsBn}`);
+    const nextBlockNumber = blockNumberAsBn.add(new BN(1));
+    const { number: finalizedNumber } = await this.getFinalizedHeader();
+    const diff = finalizedNumber.toBn().sub(nextBlockNumber);
+    this.logger.info(`Processing blocks from ${nextBlockNumber}`);
+    this.logger.debug(`Finalized block: ${finalizedNumber}`);
+    this.logger.debug(`Diff: ${diff}`);
+
+    if (diff.isZero()) throw new ResyncCompleted();
+
+    return nextBlockNumber;
   }
 
   resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
     return defer(this.getLastProcessedBlockNumber)
-      .pipe(expand(async (blockNumber) => {
-        const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
-        this.logger.debug(`Last processed block: ${blockNumberAsBn.toString()}`);
-        const nextBlockNumber = blockNumberAsBn.add(new BN(1));
-        const { number: finalizedNumber } = await this.getFinalizedHeader();
-        const diff = finalizedNumber.toBn().sub(nextBlockNumber);
-        this.logger.info(`Processing blocks from ${nextBlockNumber.toString()}`);
-        this.logger.debug(`Finalized block: ${finalizedNumber.toString()}`);
-        this.logger.debug(`Diff: ${diff}`);
-
-        // TODO: investigate better way to complete observable
-        if (diff.isZero()) throw new Error("Queuing resync blocks is done");
-
-        return nextBlockNumber;
-      }))
+      // recursively check last processed block number and calculate difference with current finalized block number
+      .pipe(expand(this.getBlockNumberToProcess))
       // use skip because first value is last processed block, we need next one
       .pipe(skip(1))
-      .pipe(
-        catchError((error) => {
-          this.logger.error(error);
+      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
+      .pipe(catchError((error) => {
+        if (error instanceof ResyncCompleted) {
           return EMPTY;
-        }))
+        } else {
+          return throwError(() => error);
+        }
+      }))
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)
         .pipe(tap((blockHash) => this.logger.debug(`${blockNumber} : ${blockHash}`)))))
@@ -160,7 +171,7 @@ class Source {
       );
   }
 
-  private getBlocksByHash(hash: Hash): Observable<TxData> {
+  public getBlocksByHash(hash: Hash): Observable<TxData> {
     const relayBlock = this.getBlock(hash);
     const parablocks = relayBlock.pipe(concatMap(this.getParablocks));
 
@@ -188,10 +199,6 @@ class Source {
     // console.log(`Chain ${this.chain}: Finalized block size: ${size / 1024} Kb`);
 
     return merge(relayBlockWithMetadata, parablocks);
-  }
-
-  subscribeNewBlocks(): Observable<TxData> {
-    return this.subscribeHeads().pipe(concatMap(({ hash }) => this.getBlocksByHash(hash)));
   }
 }
 

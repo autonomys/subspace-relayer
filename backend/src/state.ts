@@ -43,7 +43,7 @@ class State {
         await fsp.writeFile(this.lastBlockPath, JSON.stringify(lastProcessedBlockRecord, null, 4));
     }
 
-    async getLastProcessedBlockByName(chain: ChainName): Promise<BN | undefined> {
+    async getLastProcessedBlockByName(chain: ChainName): Promise<string | undefined> {
         const lastProcessedBlockRecord = await this.readFileOrFallback(this.lastBlockPath);
 
         return lastProcessedBlockRecord[chain];

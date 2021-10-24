@@ -1,4 +1,5 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import type { BN } from '@polkadot/util';
 
 import { getAccount } from "./account";
 import Config, { sourceChains } from "./config";
@@ -23,6 +24,46 @@ const createApi = async (url: string) => {
 
   return api;
 };
+
+// performs blocks resync first, after subscribes and processes new blocks
+const processSourceBlocks = (target: Target) => async (source: Source) => {
+  let hasResynced = false;
+  let lastFinalizedBlock: BN;
+
+  await new Promise<void>((resolve, reject) => {
+    try {
+      source.subscribeHeads().subscribe({
+        next: header => {
+          if (hasResynced) {
+            source.getBlocksByHash(header.hash).subscribe({
+              next: target.sendBlockTx,
+              error: logger.error
+            });
+          } else if (!lastFinalizedBlock) {
+            lastFinalizedBlock = header.number;
+            resolve();
+          } else {
+            lastFinalizedBlock = header.number;
+          }
+        }
+      });
+    } catch (error) {
+      if (!lastFinalizedBlock) {
+        reject(error);
+      } else {
+        logger.error((error as Error).message);
+      }
+    }
+  });
+
+  source.resyncBlocks().subscribe({
+    next: target.sendBlockTx,
+    error: logger.error,
+    complete: () => {
+      hasResynced = true;
+    }
+  });
+}
 
 // TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
@@ -63,21 +104,7 @@ const createApi = async (url: string) => {
       })
     );
 
-    // TODO: investigate what is the best way to decouple resync and subscription to new blocks
-    sources.forEach(source => {
-      // subscribe resynced block first
-      source.resyncBlocks().subscribe({
-        next: target.sendBlockTx,
-        // after resync is completed subscribe for new blocks
-        complete: () => {
-          logger.info("Processing resynced blocks is completed");
-          source.subscribeNewBlocks().subscribe({
-            next: target.sendBlockTx
-          });
-        }
-      });
-    });
-
+    sources.forEach(processSourceBlocks(target));
   } catch (error) {
     logger.error((error as Error).message);
   }
