@@ -48,6 +48,7 @@ class Source {
     this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
     this.getFinalizedHeader = this.getFinalizedHeader.bind(this);
     this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
+    this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
   }
 
   subscribeHeads(): Observable<Header> {

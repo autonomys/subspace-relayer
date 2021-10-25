@@ -37,7 +37,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
           if (hasResynced) {
             source.getBlocksByHash(header.hash).subscribe({
               next: target.sendBlockTx,
-              error: logger.error
+              error: (error) => logger.error((error as Error).message)
             });
           } else if (!lastFinalizedBlock) {
             lastFinalizedBlock = header.number;
@@ -58,7 +58,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
 
   source.resyncBlocks().subscribe({
     next: target.sendBlockTx,
-    error: logger.error,
+    error: (error) => logger.error((error as Error).message),
     complete: () => {
       hasResynced = true;
     }
