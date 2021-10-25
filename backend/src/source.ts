@@ -4,7 +4,7 @@ import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
 import { Header, Hash, SignedBlock, Block } from "@polkadot/types/interfaces";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { concatMap, map, tap, concatAll, first, expand, skip, catchError } from "rxjs/operators";
+import { concatMap, map, tap, concatAll, first, expand, skip, catchError, filter } from "rxjs/operators";
 import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
@@ -194,11 +194,22 @@ class Source {
       // TODO: consider saving last processed block after transaction is sent (move to Target)
       .pipe(tap(({ metadata }) => this.state.saveLastProcessedBlock(this.chain, metadata.number)));
 
-    // TODO: check relay block and parablocks size
-    // const size = Buffer.byteLength(block.toString());
-    // console.log(`Chain ${this.chain}: Finalized block size: ${size / 1024} Kb`);
+    return merge(relayBlockWithMetadata, parablocks).pipe(filter(this.isPayloadWithinSizeLimit));
+  }
 
-    return merge(relayBlockWithMetadata, parablocks);
+  // check if block tx payload does not exceed 5 MB size limit
+  // reference https://github.com/paritytech/substrate/issues/3174#issuecomment-514539336, values above and below were tested as well
+  isPayloadWithinSizeLimit(txPayload: TxData): boolean {
+    const txPayloadSize = Buffer.byteLength(JSON.stringify(txPayload));
+    const txSizeLimit = 5000000; // 5 MB
+    this.logger.debug(`${txPayload.chain}:${txPayload.metadata.number} tx payload size: ${txPayloadSize}`);
+
+    if (txPayloadSize >= txSizeLimit) {
+      this.logger.error(`${txPayload.chain}:${txPayload.metadata.number} tx payload size exceeds 5 MB`);
+      return false
+    } else {
+      return true;
+    }
   }
 }
 
