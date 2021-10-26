@@ -2,10 +2,10 @@
 # below ones takes precedence over the upper ones
 
 # global owner
-*           @nazar-pc
+*           @nazar-pc @rg3l3dr
 
 # backend - Serge
-/backend/   @isSerge
+/backend/   @isSerge @nazar-pc @rg3l3dr
 
 # frontend - Leo
-/frontend/  @1devNdogs
+/frontend/  @1devNdogs @nazar-pc @rg3l3dr
