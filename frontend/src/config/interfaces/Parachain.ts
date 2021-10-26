@@ -18,5 +18,5 @@ export interface ParachainProps {
 
 export interface Totals extends Struct {
   readonly size_: u64;
-  readonly objects: u64;
+  readonly count: u64;
 }

@@ -119,4 +119,14 @@ export const parachains = [
     explorer:
       "https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fparallel-heiko.api.onfinality.io%2Fpublic-ws#/explorer/query",
   },
+  {
+    url: "https://kintsugi.api.onfinality.io/public",
+    paraId: 2092,
+    chainName: "Kintsugi BTC",
+    chain: "kintsugi",
+    feedId: 12,
+    web: "https://kintsugi.interlay.io/",
+    explorer:
+      "https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fkintsugi.api.onfinality.io%2Fpublic-ws#/explorer/query",
+  }
 ];

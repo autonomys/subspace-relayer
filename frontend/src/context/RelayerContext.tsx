@@ -11,7 +11,7 @@ import { ApiPromiseContext, SystemContext } from "context";
 import { ApiPromise } from "@polkadot/api";
 import { useProvider } from "./ProviderContext";
 
-async function getFeedTotals(api: ApiPromise, n?: number): Promise<Totals[]> {
+async function getFeedTotals(api: ApiPromise): Promise<Totals[]> {
   const feedsTotals: Array<Totals> = Array<Totals>();
   for (const { feedId } of parachains) {
     const totals = await api.query.feeds.totals(feedId);
@@ -38,9 +38,7 @@ export function RelayerContextProvider(
     if (!provider || !isApiReady || !api) {
       return;
     }
-    const subscription = from(
-      getFeedTotals(api, header?.number.toNumber())
-    ).subscribe((totals) => {
+    const subscription = from(getFeedTotals(api)).subscribe((totals) => {
       setFeedsTotals(totals);
     });
     return () => {
