@@ -1,6 +1,6 @@
 {
   "Totals": {
     "size_": "u64",
-    "objects": "u64"
+    "count": "u64"
   }
 }

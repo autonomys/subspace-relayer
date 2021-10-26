@@ -28,7 +28,7 @@ const Header = () => {
       );
       const acumulatedObjects = feedsTotals.reduce(
         (accumulator, currentValue) =>
-          accumulator + currentValue.objects.toNumber(),
+          accumulator + currentValue.count.toNumber(),
         0
       );
       setAcumulatedSizes(acumulatedSizes);
