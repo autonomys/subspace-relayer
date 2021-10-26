@@ -1,0 +1,11 @@
+# Order matters
+# below ones takes precedence over the upper ones
+
+# global owner
+*           @nazar-pc
+
+# backend - Serge
+/backend/   @isSerge
+
+# frontend - Leo
+/frontend/  @1devNdogs
