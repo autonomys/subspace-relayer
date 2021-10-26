@@ -1,4 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
+import { u8aToHex } from '@polkadot/util';
 import { BN } from '@polkadot/util';
 import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
@@ -7,6 +8,7 @@ import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { concatMap, map, tap, concatAll, first, expand, skip, catchError, filter } from "rxjs/operators";
 import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
+import ChainArchive from './chainArchive';
 
 import { ParaHeadAndId, TxData, ChainName, ParachainsMap } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData, jsonBlockToHex } from './utils';
@@ -23,8 +25,10 @@ interface SourceConstructorParams {
   logger: Logger;
   signer: AddressOrPair;
   state: State;
+  chainArchive?: ChainArchive;
 }
 
+// TODO: rename to Relay
 class Source {
   private readonly api: ApiPromise;
   private readonly chain: ChainName;
@@ -33,6 +37,7 @@ class Source {
   private readonly logger: Logger;
   private readonly state: State;
   public readonly signer: AddressOrPair;
+  private readonly chainArchive?: ChainArchive;
 
   constructor(params: SourceConstructorParams) {
     this.api = params.api;
@@ -42,12 +47,15 @@ class Source {
     this.logger = params.logger;
     this.signer = params.signer;
     this.state = params.state;
+    // TODO: consider using ChainArchive as a Source alternative instead and extracting and reusing common logic
+    this.chainArchive = params.chainArchive;
     this.getBlocksByHash = this.getBlocksByHash.bind(this);
     this.getParablocks = this.getParablocks.bind(this);
     this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
     this.getFinalizedHeader = this.getFinalizedHeader.bind(this);
     this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
     this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
+    this.getNextBlockNumber = this.getNextBlockNumber.bind(this);
   }
 
   subscribeHeads(): Observable<Header> {
@@ -89,19 +97,7 @@ class Source {
 
   resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
-    return defer(this.getLastProcessedBlockNumber)
-      // recursively check last processed block number and calculate difference with current finalized block number
-      .pipe(expand(this.getBlockNumberToProcess))
-      // use skip because first value is last processed block, we need next one
-      .pipe(skip(1))
-      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
-      .pipe(catchError((error) => {
-        if (error instanceof ResyncCompleted) {
-          return EMPTY;
-        } else {
-          return throwError(() => error);
-        }
-      }))
+    return this.getNextBlockNumber()
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)))
       // process blocks by source chain block hash
@@ -110,6 +106,7 @@ class Source {
 
   // TODO: refactor to return Observable<ParaHeadAndId>
   private async getParaHeadsAndIds(block: Block): Promise<ParaHeadAndId[]> {
+    // TODO: update implementation - replace deprecated method
     const blockRecords = await this.api.query.system.events.at(
       block.header.hash
     );
@@ -135,6 +132,10 @@ class Source {
 
   // TODO: add logging for individual parablocks
   getParablocks({ block }: SignedBlock): Observable<TxData> {
+    if (!this.parachainsMap) {
+      throw new Error("Parachains are not provided");
+    }
+
     return from(this.getParaHeadsAndIds(block))
       // print extracted para heads and ids
       .pipe(tap((paraHeadsAndIds) => paraHeadsAndIds
@@ -143,7 +144,9 @@ class Source {
       .pipe(concatAll())
       .pipe(
         concatMap(({ paraId, paraHead }) => {
-          const parachain = this.parachainsMap.get(paraId);
+          // we know parachainsMap is not undefined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const parachain = this.parachainsMap!.get(paraId);
 
           // skip parachains that are not included in config
           if (!parachain) {
@@ -209,6 +212,49 @@ class Source {
     } else {
       return true;
     }
+  }
+
+  getBlocksFromArchive(): Observable<TxData> {
+    if (!this.chainArchive) {
+      throw new Error("ChainArchive instance is not provided");
+    }
+
+    this.logger.info('Start processing blocks from archive');
+    return this.getNextBlockNumber()
+      // we know chainArchive is not undefined
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      .pipe(concatMap((blockNumber) => from(this.chainArchive!.getBlock(blockNumber))
+        .pipe(concatMap(async (blockBytes) => {
+          const hash = await this.api.rpc.chain.getBlockHash(blockNumber)
+          this.logger.info(`${this.chain} - processing archived block: ${hash}, height: ${(blockNumber as BN).toString()}`);
+          return toBlockTxData({
+            block: u8aToHex(blockBytes),
+            number: blockNumber,
+            hash,
+            feedId: this.feedId,
+            chain: this.chain,
+            signer: this.signer
+          });
+        }))
+        // TODO: consider saving last processed block after transaction is sent (move to Target)
+        .pipe(tap(({ metadata }) => this.state.saveLastProcessedBlock(this.chain, metadata.number)))
+      ))
+  }
+
+  getNextBlockNumber(): BN {
+    return defer(this.getLastProcessedBlockNumber)
+      // recursively check last processed block number and calculate difference with current finalized block number
+      .pipe(expand(this.getBlockNumberToProcess))
+      // use skip because first value is last processed block, we need next one
+      .pipe(skip(1))
+      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
+      .pipe(catchError((error) => {
+        if (error instanceof ResyncCompleted) {
+          return EMPTY;
+        } else {
+          return throwError(() => error);
+        }
+      }))
   }
 }
 
