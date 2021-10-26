@@ -9,6 +9,9 @@ import logger from "./logger";
 import { createParachainsMap } from './utils';
 import { ChainName } from './types';
 import State from './state';
+import ChainArchive from './chainArchive';
+
+const args = process.argv.slice(2);
 
 const config = new Config({
   accountSeed: process.env.ACCOUNT_SEED,
@@ -72,39 +75,75 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
     const targetApi = await createApi(config.targetChainUrl);
 
     const target = new Target({ api: targetApi, logger, state });
+    const master = getAccount(config.accountSeed);
 
-    const sources = await Promise.all(
-      config.sourceChains.map(async ({ url, parachains }) => {
-        const api = await createApi(url);
-        const chain = await api.rpc.system.chain();
-        const sourceSigner = getAccount(`${config.accountSeed}/${chain}`);
-        const paraSigners = parachains.map(({ paraId }) => getAccount(`${config.accountSeed}/${paraId}`));
+    // currently we can only process kusama from archive - creating only one Source instance
+    if (args.length && (args[0] === 'archive')) {
+      const path = args[1];
 
-        // TODO: can be optimized by sending batch of txs
-        // TODO: master has to delegate spending to sourceSigner and paraSigners
-        const master = getAccount(config.accountSeed);
-        for (const delegate of [sourceSigner, ...paraSigners]) {
-          // send 1.5 units
-          await target.sendBalanceTx(master, delegate, 1.5);
-        }
+      if (!path) {
+        throw new Error("Archive path is not provided");
+      }
 
-        // check if feed already exists
-        const feedId = await target.getFeedId(sourceSigner);
-        const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
+      const chainArchive = new ChainArchive(path);
 
-        return new Source({
-          api,
-          chain: chain.toString() as ChainName,
-          parachainsMap,
-          logger,
-          feedId,
-          signer: sourceSigner,
-          state,
-        });
-      })
-    );
+      const { url } = config.sourceChains[0];
+      const api = await createApi(url);
+      const chain = await api.rpc.system.chain();
+      const sourceSigner = getAccount(`${config.accountSeed}/${chain}`);
 
-    sources.forEach(processSourceBlocks(target));
+      await target.sendBalanceTx(master, sourceSigner, 1.5);
+
+      // check if feed already exists
+      const feedId = await target.getFeedId(sourceSigner);
+
+      const kusama = new Source({
+        api,
+        chain: chain.toString() as ChainName,
+        logger,
+        feedId,
+        signer: sourceSigner,
+        state,
+        chainArchive,
+      });
+
+      kusama.getBlocksFromArchive().subscribe({
+        next: target.sendBlockTx,
+      });
+    } else {
+      // default - processing blocks from RPC API
+      const sources = await Promise.all(
+        config.sourceChains.map(async ({ url, parachains }) => {
+          const api = await createApi(url);
+          const chain = await api.rpc.system.chain();
+          const sourceSigner = getAccount(`${config.accountSeed}/${chain}`);
+          const paraSigners = parachains.map(({ paraId }) => getAccount(`${config.accountSeed}/${paraId}`));
+
+          // TODO: can be optimized by sending batch of txs
+          // TODO: master has to delegate spending to sourceSigner and paraSigners
+          for (const delegate of [sourceSigner, ...paraSigners]) {
+            // send 1.5 units
+            await target.sendBalanceTx(master, delegate, 1.5);
+          }
+
+          // check if feed already exists
+          const feedId = await target.getFeedId(sourceSigner);
+          const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
+
+          return new Source({
+            api,
+            chain: chain.toString() as ChainName,
+            parachainsMap,
+            logger,
+            feedId,
+            signer: sourceSigner,
+            state,
+          });
+        })
+      );
+
+      sources.forEach(processSourceBlocks(target));
+    }
   } catch (error) {
     logger.error((error as Error).message);
   }
