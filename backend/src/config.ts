@@ -8,16 +8,23 @@ interface SourceChain {
   parachains: ParachainConfigType[];
 }
 
+interface Archive {
+  path: string;
+  url: string;
+}
+
 interface ConfigParams {
   accountSeed: string | undefined;
   targetChainUrl: string | undefined;
   sourceChains: SourceChain[];
+  archives: Archive[];
 }
 
 class Config {
   public readonly accountSeed: string;
   public readonly targetChainUrl: string;
   public readonly sourceChains: SourceChain[];
+  public readonly archives: Archive[];
 
   constructor(params: ConfigParams) {
     if (!params.accountSeed) {
@@ -30,6 +37,7 @@ class Config {
     this.accountSeed = params.accountSeed;
     this.targetChainUrl = params.targetChainUrl;
     this.sourceChains = params.sourceChains;
+    this.archives = params.archives;
   }
 }
 
@@ -100,5 +108,12 @@ export const sourceChains = [
     ]
   },
 ];
+
+export const archives = [
+  {
+    url: "wss://kusama-rpc.polkadot.io",
+    path: "/Users/apple/Downloads/kusama-archive-2021-oct-23",
+  }
+]
 
 export default Config;

@@ -2,7 +2,7 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import type { BN } from '@polkadot/util';
 
 import { getAccount } from "./account";
-import Config, { sourceChains } from "./config";
+import Config, { sourceChains, archives } from "./config";
 import Source from "./source";
 import Target from "./target";
 import logger from "./logger";
@@ -17,6 +17,7 @@ const config = new Config({
   accountSeed: process.env.ACCOUNT_SEED,
   targetChainUrl: process.env.TARGET_CHAIN_URL,
   sourceChains,
+  archives,
 });
 
 const createApi = async (url: string) => {
@@ -77,39 +78,37 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
     const target = new Target({ api: targetApi, logger, state });
     const master = getAccount(config.accountSeed);
 
-    // currently we can only process kusama from archive - creating only one Source instance
     if (args.length && (args[0] === 'archive')) {
-      const path = args[1];
-
-      if (!path) {
-        throw new Error("Archive path is not provided");
+      if (!config.archives) {
+        throw new Error("Archives are not provided");
       }
 
-      const chainArchive = new ChainArchive(path);
+      const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
+        if (!path) {
+          throw new Error("Archive path is not provided");
+        }
 
-      const { url } = config.sourceChains[0];
-      const api = await createApi(url);
-      const chain = await api.rpc.system.chain();
-      const sourceSigner = getAccount(`${config.accountSeed}/${chain}`);
+        const api = await createApi(url);
+        const chain = (await api.rpc.system.chain()).toString() as ChainName;
+        const signer = getAccount(`${config.accountSeed}/${chain}`);
+        await target.sendBalanceTx(master, signer, 1.5);
+        const feedId = await target.getFeedId(signer);
 
-      await target.sendBalanceTx(master, sourceSigner, 1.5);
+        return new ChainArchive({
+          api,
+          path,
+          chain,
+          feedId,
+          logger,
+          signer,
+          state,
+        });
+      }))
 
-      // check if feed already exists
-      const feedId = await target.getFeedId(sourceSigner);
-
-      const kusama = new Source({
-        api,
-        chain: chain.toString() as ChainName,
-        logger,
-        feedId,
-        signer: sourceSigner,
-        state,
-        chainArchive,
-      });
-
-      kusama.getBlocksFromArchive().subscribe({
+      archives.forEach(archive => archive.getBlocks().subscribe({
         next: target.sendBlockTx,
-      });
+        error: (error) => logger.error((error as Error).message)
+      }));
     } else {
       // default - processing blocks from RPC API
       const sources = await Promise.all(
@@ -126,7 +125,6 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
             await target.sendBalanceTx(master, delegate, 1.5);
           }
 
-          // check if feed already exists
           const feedId = await target.getFeedId(sourceSigner);
           const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
 

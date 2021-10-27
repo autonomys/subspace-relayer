@@ -1,5 +1,4 @@
 import { ApiPromise } from "@polkadot/api";
-import { u8aToHex } from '@polkadot/util';
 import { BN } from '@polkadot/util';
 import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
@@ -8,7 +7,6 @@ import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { concatMap, map, tap, concatAll, first, expand, skip, catchError, filter } from "rxjs/operators";
 import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
-import ChainArchive from './chainArchive';
 
 import { ParaHeadAndId, TxData, ChainName, ParachainsMap } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData, jsonBlockToHex } from './utils';
@@ -25,10 +23,8 @@ interface SourceConstructorParams {
   logger: Logger;
   signer: AddressOrPair;
   state: State;
-  chainArchive?: ChainArchive;
 }
 
-// TODO: rename to Relay
 class Source {
   private readonly api: ApiPromise;
   private readonly chain: ChainName;
@@ -36,8 +32,7 @@ class Source {
   private readonly parachainsMap: ParachainsMap;
   private readonly logger: Logger;
   private readonly state: State;
-  public readonly signer: AddressOrPair;
-  private readonly chainArchive?: ChainArchive;
+  private readonly signer: AddressOrPair;
 
   constructor(params: SourceConstructorParams) {
     this.api = params.api;
@@ -47,8 +42,6 @@ class Source {
     this.logger = params.logger;
     this.signer = params.signer;
     this.state = params.state;
-    // TODO: consider using ChainArchive as a Source alternative instead and extracting and reusing common logic
-    this.chainArchive = params.chainArchive;
     this.getBlocksByHash = this.getBlocksByHash.bind(this);
     this.getParablocks = this.getParablocks.bind(this);
     this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
@@ -58,7 +51,7 @@ class Source {
     this.getNextBlockNumber = this.getNextBlockNumber.bind(this);
   }
 
-  subscribeHeads(): Observable<Header> {
+  public subscribeHeads(): Observable<Header> {
     return this.api.rx.rpc.chain.subscribeFinalizedHeads();
   }
 
@@ -78,12 +71,14 @@ class Source {
     return number;
   }
 
-  async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
+  private async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
     // if getLastProcessedBlockNumber returns undefined we have to process from genesis
     if (!blockNumber) return new BN(0);
     const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
     this.logger.debug(`Last processed block: ${blockNumberAsBn}`);
     const nextBlockNumber = blockNumberAsBn.add(new BN(1));
+
+    // TODO: check if calculating diff is still needed
     const { number: finalizedNumber } = await this.getFinalizedHeader();
     const diff = finalizedNumber.toBn().sub(nextBlockNumber);
     this.logger.info(`Processing blocks from ${nextBlockNumber}`);
@@ -95,7 +90,7 @@ class Source {
     return nextBlockNumber;
   }
 
-  resyncBlocks(): Observable<TxData> {
+  public resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
     return this.getNextBlockNumber()
       // get block hash for each block number
@@ -131,11 +126,7 @@ class Source {
   }
 
   // TODO: add logging for individual parablocks
-  getParablocks({ block }: SignedBlock): Observable<TxData> {
-    if (!this.parachainsMap) {
-      throw new Error("Parachains are not provided");
-    }
-
+  private getParablocks({ block }: SignedBlock): Observable<TxData> {
     return from(this.getParaHeadsAndIds(block))
       // print extracted para heads and ids
       .pipe(tap((paraHeadsAndIds) => paraHeadsAndIds
@@ -144,9 +135,7 @@ class Source {
       .pipe(concatAll())
       .pipe(
         concatMap(({ paraId, paraHead }) => {
-          // we know parachainsMap is not undefined
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const parachain = this.parachainsMap!.get(paraId);
+          const parachain = this.parachainsMap.get(paraId);
 
           // skip parachains that are not included in config
           if (!parachain) {
@@ -212,33 +201,6 @@ class Source {
     } else {
       return true;
     }
-  }
-
-  getBlocksFromArchive(): Observable<TxData> {
-    if (!this.chainArchive) {
-      throw new Error("ChainArchive instance is not provided");
-    }
-
-    this.logger.info('Start processing blocks from archive');
-    return this.getNextBlockNumber()
-      // we know chainArchive is not undefined
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      .pipe(concatMap((blockNumber) => from(this.chainArchive!.getBlock(blockNumber))
-        .pipe(concatMap(async (blockBytes) => {
-          const hash = await this.api.rpc.chain.getBlockHash(blockNumber)
-          this.logger.info(`${this.chain} - processing archived block: ${hash}, height: ${(blockNumber as BN).toString()}`);
-          return toBlockTxData({
-            block: u8aToHex(blockBytes),
-            number: blockNumber,
-            hash,
-            feedId: this.feedId,
-            chain: this.chain,
-            signer: this.signer
-          });
-        }))
-        // TODO: consider saving last processed block after transaction is sent (move to Target)
-        .pipe(tap(({ metadata }) => this.state.saveLastProcessedBlock(this.chain, metadata.number)))
-      ))
   }
 
   getNextBlockNumber(): BN {
