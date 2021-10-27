@@ -10,8 +10,8 @@ import { U64 } from "@polkadot/types/primitive";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Header } from "@polkadot/types/interfaces";
 import { Logger } from "pino";
-import { concatMap, tap, expand, skip, catchError } from "rxjs/operators";
-import { from, defer, EMPTY, throwError } from 'rxjs';
+import { concatMap, tap, expand, skip, catchError, filter } from "rxjs/operators";
+import { from, defer, EMPTY, throwError, forkJoin, of } from 'rxjs';
 
 import { toBlockTxData } from './utils';
 import { TxData, ChainName } from "./types";
@@ -53,10 +53,10 @@ class ChainArchive {
     this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
     this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
     this.getNextBlockNumber = this.getNextBlockNumber.bind(this);
+    this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
   }
 
   private getBlockByNumber(blockNumber: BN): Promise<Uint8Array> {
-    this.logger.debug(`getBlockByNumber blockNumber: ${blockNumber}`);
     const blockNumberBytes = Buffer.from(BigUint64Array.of(BigInt(blockNumber.toNumber())).buffer);
     return this.db.get(blockNumberBytes);
   }
@@ -64,23 +64,26 @@ class ChainArchive {
   public getBlocks(): Observable<TxData> {
     this.logger.info('Start processing blocks from archive');
     return this.getNextBlockNumber()
-      .pipe(concatMap((blockNumber) => from(this.getBlockByNumber(blockNumber))
-        .pipe(concatMap(async (blockBytes) => {
-          const hash = await this.api.rpc.chain.getBlockHash(blockNumber)
-          this.logger.info(`${this.chain} - processing archived block: ${hash}, height: ${(blockNumber as BN).toString()}`);
+      .pipe(concatMap((blockNumber) => forkJoin([
+        of(blockNumber),
+        from(this.getBlockByNumber(blockNumber))
+      ])))
+      .pipe(concatMap(async ([blockNumber, blockBytes]) => {
+        const hash = await this.api.rpc.chain.getBlockHash(blockNumber)
+        this.logger.info(`${this.chain} - processing archived block: ${hash}, height: ${(blockNumber as BN).toString()}`);
 
-          return toBlockTxData({
-            block: u8aToHex(blockBytes),
-            number: blockNumber,
-            hash,
-            feedId: this.feedId,
-            chain: this.chain,
-            signer: this.signer
-          });
-        }))
-        // TODO: consider saving last processed block after transaction is sent (move to Target)
-        .pipe(tap(({ metadata }) => this.state.saveLastProcessedBlock(this.chain, metadata.number)))
-      ))
+        return toBlockTxData({
+          block: u8aToHex(blockBytes),
+          number: blockNumber,
+          hash,
+          feedId: this.feedId,
+          chain: this.chain,
+          signer: this.signer
+        });
+      }))
+      .pipe(filter(this.isPayloadWithinSizeLimit))
+      // TODO: consider saving last processed block after transaction is sent (move to Target)
+      .pipe(tap(({ metadata }) => this.state.saveLastProcessedBlock(this.chain, metadata.number)))
   }
 
   getNextBlockNumber(): BN {
@@ -108,7 +111,7 @@ class ChainArchive {
   private async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
     // if getLastProcessedBlockNumber returns undefined we have to process from genesis
     if (!blockNumber) return new BN(0);
-    const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
+    const blockNumberAsBn = new BN(blockNumber);
     this.logger.debug(`Last processed block: ${blockNumberAsBn}`);
     const nextBlockNumber = blockNumberAsBn.add(new BN(1));
 
@@ -128,6 +131,21 @@ class ChainArchive {
     const finalizedHash = await this.api.rpc.chain.getFinalizedHead();
     const finalizedHeader = await this.api.rpc.chain.getHeader(finalizedHash);
     return finalizedHeader;
+  }
+
+  // check if block tx payload does not exceed 5 MB size limit
+  // reference https://github.com/paritytech/substrate/issues/3174#issuecomment-514539336, values above and below were tested as well
+  isPayloadWithinSizeLimit(txPayload: TxData): boolean {
+    const txPayloadSize = Buffer.byteLength(JSON.stringify(txPayload));
+    const txSizeLimit = 5000000; // 5 MB
+    this.logger.debug(`${txPayload.chain}:${txPayload.metadata.number} tx payload size: ${txPayloadSize}`);
+
+    if (txPayloadSize >= txSizeLimit) {
+      this.logger.error(`${txPayload.chain}:${txPayload.metadata.number} tx payload size exceeds 5 MB`);
+      return false
+    } else {
+      return true;
+    }
   }
 }
 

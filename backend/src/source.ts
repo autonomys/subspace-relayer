@@ -203,7 +203,7 @@ class Source {
     }
   }
 
-  getNextBlockNumber(): BN {
+  private getNextBlockNumber(): BN {
     return defer(this.getLastProcessedBlockNumber)
       // recursively check last processed block number and calculate difference with current finalized block number
       .pipe(expand(this.getBlockNumberToProcess))

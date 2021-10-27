@@ -52,7 +52,7 @@ class Target {
     }
   }
 
-  async sendBlockTx({ feedId, block, metadata, chain, signer }: TxData): Promise<Subscription> {
+  sendBlockTx({ feedId, block, metadata, chain, signer }: TxData): Subscription {
     this.logger.info(`Sending ${chain} block to feed: ${feedId}`);
     this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
     // metadata is stored as Vec<u8>
