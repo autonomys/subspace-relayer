@@ -9,7 +9,7 @@ import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
 import { ParaHeadAndId, TxData, ChainName, ParachainsMap } from "./types";
-import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData } from './utils';
+import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData, jsonBlockToHex } from './utils';
 import State from './state';
 
 // custom error to throw when block resync is done in order to terminate observable and propagate values
@@ -155,11 +155,13 @@ class Source {
           const { feedId, chain, signer } = parachain;
 
           return parachain.fetchParaBlock(paraHead)
-            .pipe(map(({ block }) => {
-              const blockStr = JSON.stringify(block);
-              const number = this.api.createType("BlockNumber", block.header.number).toBn();
+            .pipe(map((signedBlock) => {
+              // TODO: implement tests to ensure this can be decoded correctly
+              const block = jsonBlockToHex(signedBlock);
+              const number = this.api.createType("BlockNumber", signedBlock.block.header.number).toBn();
+
               return toBlockTxData({
-                block: blockStr,
+                block,
                 number,
                 hash: paraHead,
                 feedId,
@@ -176,14 +178,13 @@ class Source {
     const parablocks = relayBlock.pipe(concatMap(this.getParablocks));
 
     const relayBlockWithMetadata = relayBlock
-      .pipe(map(({ block }) => {
-        const blockStr = block.toString();
-        const number = block.header.number.toBn();
+      .pipe(map((signedBlock) => {
+        const number = signedBlock.block.header.number.toBn();
 
         this.logger.info(`${this.chain} - processing block: ${hash}, height: ${number.toString()}`);
 
         return toBlockTxData({
-          block: blockStr,
+          block: signedBlock.toHex(),
           number,
           hash,
           feedId: this.feedId,
