@@ -156,12 +156,11 @@ class Source {
 
           return parachain.fetchParaBlock(paraHead)
             .pipe(map((signedBlock) => {
-              // TODO: implement tests to ensure this can be decoded correctly
-              const block = jsonBlockToHex(signedBlock);
               const number = this.api.createType("BlockNumber", signedBlock.block.header.number).toBn();
 
               return toBlockTxData({
-                block,
+                // TODO: implement tests to ensure this can be decoded correctly
+                block: jsonBlockToHex(signedBlock),
                 number,
                 hash: paraHead,
                 feedId,

@@ -2,14 +2,13 @@
 import fetch, { RequestInit } from "node-fetch";
 import { EMPTY, defer, from, Observable, catchError } from 'rxjs';
 import { retry, shareReplay } from "rxjs/operators";
-import { Hash, SignedBlock } from "@polkadot/types/interfaces";
+import { Hash } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
 
-import { ChainName } from './types';
-import { isValidBlock } from './utils';
-
+import { ChainName, SignedBlockJsonRpc } from './types';
+import { isInstanceOfSignedBlockJsonRpc } from './utils';
 
 async function fetchWithTimeout(url: string, options: RequestInit) {
     const controller = new AbortController();
@@ -47,7 +46,7 @@ class Parachain {
 
     fetchParaBlock(
         hash: Hash
-    ): Observable<SignedBlock> {
+    ): Observable<SignedBlockJsonRpc> {
         const options = {
             method: "post",
             body: JSON.stringify({
@@ -74,7 +73,7 @@ class Parachain {
                     throw new Error(`Could not fetch ${this.chain} parablock ${hash}. Response: ${JSON.stringify(data)}`);
                 }
 
-                if (!isValidBlock(data.result)) {
+                if (!isInstanceOfSignedBlockJsonRpc(data.result)) {
                     throw new Error(`Response result ${JSON.stringify(data.result)} is not a valid block`);
                 }
 
