@@ -30,6 +30,7 @@ class ChainArchive {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly db: any;
   private readonly path: string;
+  // TODO: API is used to create types like Hash and Header - investigate if this can be done without API
   private readonly api: ApiPromise;
   private readonly chain: ChainName;
   private readonly feedId: U64;
