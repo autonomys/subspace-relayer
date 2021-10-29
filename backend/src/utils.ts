@@ -1,16 +1,12 @@
-import { BN } from '@polkadot/util';
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { U64 } from "@polkadot/types/primitive";
-import { Hash, SignedBlock } from "@polkadot/types/interfaces";
+import { SignedBlock } from "@polkadot/types/interfaces";
 
-
-import { ParaHeadAndId, ParachainConfigType, ChainName, TxData } from "./types";
+import { ParaHeadAndId, ParachainConfigType, ChainName, TxData, ParachainsMap, TxDataInput } from "./types";
 import Parachain from "./parachain";
 import Target from "./target";
 import logger from "./logger";
 
-// TODO: consider moving to a separate utils module
 // TODO: implement tests
 export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
     // use 'any' because this is not typed array - element can be number, string or Record<string, unknown>
@@ -34,9 +30,6 @@ export const isRelevantRecord =
                 event.method == "CandidateIncluded"
             );
         };
-
-
-type ParachainsMap = Map<ChainName, Parachain>;
 
 export const createParachainsMap = async (
     target: Target,
@@ -66,15 +59,6 @@ export const createParachainsMap = async (
 export const isValidBlock = (block: SignedBlock): boolean => {
     return block && block.block && block.block.header && Boolean(block.block.extrinsics);
 };
-
-interface TxDataInput {
-    block: string;
-    number: BN;
-    hash: Hash;
-    feedId: U64;
-    chain: ChainName;
-    signer: AddressOrPair;
-  }
 
 export const toBlockTxData = ({ block, number, hash, feedId, chain, signer }: TxDataInput): TxData => ({
     feedId,

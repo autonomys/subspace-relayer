@@ -25,8 +25,6 @@ export interface ParaHeadAndId {
   paraHead: Hash;
 }
 
-export type ParachainsMap = Map<string, Parachain>;
-
 export type Brand<K, T> = K & { __brand: T; };
 
 export interface ParachainConfigType {
@@ -34,4 +32,15 @@ export interface ParachainConfigType {
   paraId: number;
   // TODO: get chain name from api
   chain: ChainName;
+}
+
+export type ParachainsMap = Map<string, Parachain>;
+
+export interface TxDataInput {
+  block: string;
+  number: BN;
+  hash: Hash;
+  feedId: U64;
+  chain: ChainName;
+  signer: AddressOrPair;
 }

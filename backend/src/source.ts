@@ -8,9 +8,8 @@ import { concatMap, map, tap, concatAll, first, expand, skip, catchError, filter
 import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
-import { ParaHeadAndId, TxData, ChainName } from "./types";
+import { ParaHeadAndId, TxData, ChainName, ParachainsMap } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData } from './utils';
-import Parachain from "./parachain";
 import State from './state';
 
 // custom error to throw when block resync is done in order to terminate observable and propagate values
@@ -20,7 +19,7 @@ interface SourceConstructorParams {
   api: ApiPromise;
   chain: ChainName;
   feedId: U64;
-  parachainsMap: Map<string, Parachain>;
+  parachainsMap: ParachainsMap;
   logger: Logger;
   signer: AddressOrPair;
   state: State;
@@ -30,7 +29,7 @@ class Source {
   private readonly api: ApiPromise;
   private readonly chain: ChainName;
   private readonly feedId: U64;
-  private readonly parachainsMap: Map<string, Parachain>;
+  private readonly parachainsMap: ParachainsMap;
   private readonly logger: Logger;
   private readonly state: State;
   public readonly signer: AddressOrPair;
