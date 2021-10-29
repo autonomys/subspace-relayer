@@ -1,16 +1,12 @@
-import { BN } from '@polkadot/util';
+import { compactToU8a, u8aToHex } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { U64 } from "@polkadot/types/primitive";
-import { Hash, SignedBlock } from "@polkadot/types/interfaces";
 
-
-import { ParaHeadAndId, ParachainConfigType, ChainName, TxData } from "./types";
+import { ParaHeadAndId, ParachainConfigType, ChainName, TxData, ParachainsMap, TxDataInput, SignedBlockJsonRpc } from "./types";
 import Parachain from "./parachain";
 import Target from "./target";
 import logger from "./logger";
 
-// TODO: consider moving to a separate utils module
 // TODO: implement tests
 export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
     // use 'any' because this is not typed array - element can be number, string or Record<string, unknown>
@@ -34,9 +30,6 @@ export const isRelevantRecord =
                 event.method == "CandidateIncluded"
             );
         };
-
-
-type ParachainsMap = Map<ChainName, Parachain>;
 
 export const createParachainsMap = async (
     target: Target,
@@ -63,19 +56,6 @@ export const createParachainsMap = async (
     return map;
 };
 
-export const isValidBlock = (block: SignedBlock): boolean => {
-    return block && block.block && block.block.header && Boolean(block.block.extrinsics);
-};
-
-interface TxDataInput {
-    block: string;
-    number: BN;
-    hash: Hash;
-    feedId: U64;
-    chain: ChainName;
-    signer: AddressOrPair;
-  }
-
 export const toBlockTxData = ({ block, number, hash, feedId, chain, signer }: TxDataInput): TxData => ({
     feedId,
     block,
@@ -86,3 +66,53 @@ export const toBlockTxData = ({ block, number, hash, feedId, chain, signer }: Tx
         number,
     },
 });
+
+function hexToUint8Array(hex: string): Uint8Array {
+    return Buffer.from(hex.slice(2), 'hex');
+}
+
+export function blockToBinary(block: SignedBlockJsonRpc): Uint8Array {
+    const parentHash = hexToUint8Array(block.block.header.parentHash);
+    const number = parseInt(block.block.header.number.slice(2), 16);
+    const stateRoot = hexToUint8Array(block.block.header.stateRoot);
+    const extrinsicsRoot = hexToUint8Array(block.block.header.extrinsicsRoot);
+    const digest = block.block.header.digest.logs.map(hexToUint8Array);
+    const extrinsics = block.block.extrinsics.map(hexToUint8Array);
+    const justifications = block.justifications
+        ? block.justifications.map(hexToUint8Array)
+        : null;
+
+    return Buffer.concat([
+        parentHash,
+        compactToU8a(number),
+        stateRoot,
+        extrinsicsRoot,
+        compactToU8a(digest.length),
+        ...digest,
+        compactToU8a(extrinsics.length),
+        ...extrinsics,
+        ...(
+            justifications
+                ? [Uint8Array.of(1), compactToU8a(justifications.length), ...justifications]
+                : [Uint8Array.of(0)]
+        )
+    ]);
+}
+
+export function jsonBlockToHex(block: SignedBlockJsonRpc): `0x${string}` {
+    return u8aToHex(blockToBinary(block));
+}
+
+// disable eslint rules and allow 'any' because we're checking API response
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
+export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlockJsonRpc {
+    return 'block' in object &&
+        'justifications' in object &&
+        Array.isArray(object.block.extrinsics) &&
+        Array.isArray(object.block.header.digest.logs) &&
+        typeof object.block.header.parentHash === 'string' &&
+        typeof object.block.header.number === 'string' &&
+        typeof object.block.header.stateRoot === 'string' &&
+        typeof object.block.header.extrinsicsRoot === 'string' &&
+        typeof object.block.header.parentHash === 'string';
+}
