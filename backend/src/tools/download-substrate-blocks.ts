@@ -1,10 +1,9 @@
 // Small utility that can download blocks from Substrate-based chain starting from genesis and store them by block
 // number in a directory
 
-import {ApiPromise, WsProvider} from "@polkadot/api";
-import {RegistryTypes} from "@polkadot/types/types/registry";
-import {compactToU8a} from "@polkadot/util";
-import {firstValueFrom} from "rxjs";
+import { ApiPromise, WsProvider } from "@polkadot/api";
+import { RegistryTypes } from "@polkadot/types/types/registry";
+import { firstValueFrom } from "rxjs";
 import * as fs from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -16,57 +15,10 @@ import { types as parallelTypes } from '@parallel-finance/type-definitions';
 import { typeBundleForPolkadot as kilt } from '@kiltprotocol/type-definitions';
 import kintsugiTypes from '@interlay/interbtc-types';
 
+import { SignedBlockJsonRpc } from '../types';
+import { blockToBinary } from '../utils';
+
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(process.env.REPORT_PROGRESS_INTERVAL) : 100n;
-
-interface Block {
-  header: {
-    parentHash: string,
-    number: string,
-    stateRoot: string,
-    extrinsicsRoot: string,
-    digest: {
-      logs: string[]
-    },
-  },
-  extrinsics: string[],
-}
-
-interface SignedBlock {
-  block: Block,
-  justifications: null | string[],
-}
-
-function hexToUint8Array(hex: string): Uint8Array {
-  return Buffer.from(hex.slice(2), 'hex');
-}
-
-function blockToBinary(block: SignedBlock): Uint8Array {
-  const parentHash = hexToUint8Array(block.block.header.parentHash);
-  const number = parseInt(block.block.header.number.slice(2), 16);
-  const stateRoot = hexToUint8Array(block.block.header.stateRoot);
-  const extrinsicsRoot = hexToUint8Array(block.block.header.extrinsicsRoot);
-  const digest = block.block.header.digest.logs.map(hexToUint8Array);
-  const extrinsics = block.block.extrinsics.map(hexToUint8Array);
-  const justifications = block.justifications
-    ? block.justifications.map(hexToUint8Array)
-    : null;
-
-  return Buffer.concat([
-    parentHash,
-    compactToU8a(number),
-    stateRoot,
-    extrinsicsRoot,
-    compactToU8a(digest.length),
-    ...digest,
-    compactToU8a(extrinsics.length),
-    ...extrinsics,
-    ...(
-      justifications
-        ? [Uint8Array.of(1), compactToU8a(justifications.length), ...justifications]
-        : [Uint8Array.of(0)]
-    )
-  ]);
-}
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
@@ -209,7 +161,7 @@ function blockToBinary(block: SignedBlock): Uint8Array {
 
   const lastDownloadedBlock = await (async () => {
     try {
-      return BigInt(await fs.readFile(`${targetDir}/last-downloaded-block`, {encoding: 'utf-8'}));
+      return BigInt(await fs.readFile(`${targetDir}/last-downloaded-block`, { encoding: 'utf-8' }));
     } catch {
       return -1n;
     }
@@ -224,7 +176,7 @@ function blockToBinary(block: SignedBlock): Uint8Array {
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
     const blockHash = await firstValueFrom(api.rx.rpc.chain.getBlockHash(blockNumber));
-    const blockRaw = await firstValueFrom(api.rx.rpc.chain.getBlock.raw(blockHash)) as SignedBlock;
+    const blockRaw = await firstValueFrom(api.rx.rpc.chain.getBlock.raw(blockHash)) as SignedBlockJsonRpc;
     const blockBytes = blockToBinary(blockRaw);
 
     await db.put(Buffer.from(BigUint64Array.of(blockNumber).buffer), Buffer.from(blockBytes));

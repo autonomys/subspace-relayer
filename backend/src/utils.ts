@@ -1,8 +1,9 @@
+import { compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { SignedBlock } from "@polkadot/types/interfaces";
 
-import { ParaHeadAndId, ParachainConfigType, ChainName, TxData, ParachainsMap, TxDataInput } from "./types";
+import { ParaHeadAndId, ParachainConfigType, ChainName, TxData, ParachainsMap, TxDataInput, SignedBlockJsonRpc } from "./types";
 import Parachain from "./parachain";
 import Target from "./target";
 import logger from "./logger";
@@ -70,3 +71,36 @@ export const toBlockTxData = ({ block, number, hash, feedId, chain, signer }: Tx
         number,
     },
 });
+
+
+function hexToUint8Array(hex: string): Uint8Array {
+    return Buffer.from(hex.slice(2), 'hex');
+}
+
+export function blockToBinary(block: SignedBlockJsonRpc): Uint8Array {
+    const parentHash = hexToUint8Array(block.block.header.parentHash);
+    const number = parseInt(block.block.header.number.slice(2), 16);
+    const stateRoot = hexToUint8Array(block.block.header.stateRoot);
+    const extrinsicsRoot = hexToUint8Array(block.block.header.extrinsicsRoot);
+    const digest = block.block.header.digest.logs.map(hexToUint8Array);
+    const extrinsics = block.block.extrinsics.map(hexToUint8Array);
+    const justifications = block.justifications
+        ? block.justifications.map(hexToUint8Array)
+        : null;
+
+    return Buffer.concat([
+        parentHash,
+        compactToU8a(number),
+        stateRoot,
+        extrinsicsRoot,
+        compactToU8a(digest.length),
+        ...digest,
+        compactToU8a(extrinsics.length),
+        ...extrinsics,
+        ...(
+            justifications
+                ? [Uint8Array.of(1), compactToU8a(justifications.length), ...justifications]
+                : [Uint8Array.of(0)]
+        )
+    ]);
+}

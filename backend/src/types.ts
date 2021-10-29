@@ -44,3 +44,21 @@ export interface TxDataInput {
   chain: ChainName;
   signer: AddressOrPair;
 }
+
+interface BlockJsonRpc {
+  header: {
+    parentHash: string,
+    number: string,
+    stateRoot: string,
+    extrinsicsRoot: string,
+    digest: {
+      logs: string[]
+    },
+  },
+  extrinsics: string[],
+}
+
+export interface SignedBlockJsonRpc {
+  block: BlockJsonRpc,
+  justifications: null | string[],
+}
