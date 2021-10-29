@@ -104,8 +104,7 @@ class Source {
         }
       }))
       // get block hash for each block number
-      .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)
-        .pipe(tap((blockHash) => this.logger.debug(`${blockNumber} : ${blockHash}`)))))
+      .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)))
       // process blocks by source chain block hash
       .pipe(concatMap(this.getBlocksByHash));
   }
@@ -181,7 +180,7 @@ class Source {
         const blockStr = block.toString();
         const number = block.header.number.toBn();
 
-        this.logger.info(`${this.chain} - processing block: ${hash}, height: ${number.toString()}`);
+        this.logger.info(`${this.chain} - processing block: ${hash}, height: ${number}`);
 
         return toBlockTxData({
           block: blockStr,
@@ -207,7 +206,7 @@ class Source {
 
     if (txPayloadSize >= txSizeLimit) {
       this.logger.error(`${txPayload.chain}:${txPayload.metadata.number} tx payload size exceeds 5 MB`);
-      return false
+      process.exit(1);
     } else {
       return true;
     }
