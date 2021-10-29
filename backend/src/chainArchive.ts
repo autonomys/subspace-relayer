@@ -1,4 +1,6 @@
 import { BN, u8aToHex } from '@polkadot/util';
+import { blake2AsU8a } from '@polkadot/util-crypto';
+import * as fsp from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const levelup = require("levelup");
@@ -8,8 +10,7 @@ import { ApiPromise } from "@polkadot/api";
 import { U64 } from "@polkadot/types/primitive";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
-import * as fsp from "fs/promises";
-// import { blake2AsHex, blake2AsU8a } from '@polkadot/util-crypto';
+
 import { toBlockTxData } from './utils';
 import { TxData, ChainName } from "./types";
 import State from './state';
@@ -67,29 +68,32 @@ class ChainArchive {
     let lastProcessedAsBN = lastProcessed ? new BN(lastProcessed) : new BN(0);
 
     while (lastProcessedAsBN.lt(lastFromDb)) {
-      const blockNumber = lastProcessedAsBN.add(new BN(1));
-      // TODO: hash block header instead of requesting one
-      const hash = await this.api.rpc.chain.getBlockHash(blockNumber);
-      const blockBytes = await this.getBlockByNumber(blockNumber);
+      const number = lastProcessedAsBN.add(new BN(1));
+      const blockBytes = await this.getBlockByNumber(number);
+      const block = u8aToHex(blockBytes);
+      // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
+      const header = this.api.createType("Header", blockBytes);
+      const hash = this.api.createType("Hash", blake2AsU8a(header.toU8a()));
 
       const data = toBlockTxData({
-        block: u8aToHex(blockBytes),
-        number: blockNumber,
+        block,
+        number,
         hash,
         feedId: this.feedId,
         chain: this.chain,
         signer: this.signer
       })
 
-      lastProcessedAsBN = blockNumber;
+      lastProcessedAsBN = number;
 
       // TODO: consider saving last processed block after transaction is sent (move to Target)
-      this.state.saveLastProcessedBlock(this.chain, blockNumber);
+      this.state.saveLastProcessedBlock(this.chain, number);
 
       if (this.isPayloadWithinSizeLimit(data)) {
         yield data;
       } else {
-        this.logger.error(`${data.chain}:${blockNumber} tx payload size exceeds 5 MB`);
+        this.logger.error(`${data.chain}:${number} tx payload size exceeds 5 MB`);
+        process.exit(1);
       }
     }
   }
