@@ -112,7 +112,7 @@ export const sourceChains = [
 export const archives = [
   {
     url: "wss://kusama-rpc.polkadot.io",
-    path: "/Users/apple/Downloads/kusama-archive-2021-oct-23",
+    path: "/Users/apple/Documents/kusama-archive-2021-oct-23",
   }
 ]
 

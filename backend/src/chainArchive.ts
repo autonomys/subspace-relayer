@@ -5,14 +5,11 @@ const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
 import { ApiPromise } from "@polkadot/api";
-import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { Header } from "@polkadot/types/interfaces";
 import { Logger } from "pino";
-import { concatMap, tap, expand, skip, catchError, filter } from "rxjs/operators";
-import { from, defer, EMPTY, throwError, forkJoin, of } from 'rxjs';
-
+import * as fsp from "fs/promises";
+// import { blake2AsHex, blake2AsU8a } from '@polkadot/util-crypto';
 import { toBlockTxData } from './utils';
 import { TxData, ChainName } from "./types";
 import State from './state';
@@ -27,22 +24,21 @@ interface ChainArchiveConstructorParams {
   state: State;
 }
 
-// custom error to throw when block resync is done in order to terminate observable and propagate values
-class ResyncCompleted extends Error { }
-
 class ChainArchive {
   // There are no TS types for `db` :(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly db: any;
+  private readonly path: string;
   private readonly api: ApiPromise;
   private readonly chain: ChainName;
   private readonly feedId: U64;
   private readonly logger: Logger;
   private readonly state: State;
-  private readonly signer: AddressOrPair;
+  public readonly signer: AddressOrPair;
 
   public constructor(params: ChainArchiveConstructorParams) {
     this.db = levelup(rocksdb(`${params.path}/db`));
+    this.path = params.path;
     this.api = params.api;
     this.chain = params.chain;
     this.feedId = params.feedId;
@@ -50,9 +46,6 @@ class ChainArchive {
     this.signer = params.signer;
     this.state = params.state;
     this.getBlockByNumber = this.getBlockByNumber.bind(this);
-    this.getLastProcessedBlockNumber = this.getLastProcessedBlockNumber.bind(this);
-    this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
-    this.getNextBlockNumber = this.getNextBlockNumber.bind(this);
     this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
   }
 
@@ -61,76 +54,44 @@ class ChainArchive {
     return this.db.get(blockNumberBytes);
   }
 
-  public getBlocks(): Observable<TxData> {
+  private async getLastBlockNumberFromDb(): Promise<BN> {
+    const file = await fsp.readFile(`${this.path}/last-downloaded-block`, 'utf8');
+    return new BN(file);
+  }
+
+  async *getBlocks(): AsyncGenerator<TxData, void, unknown> {
     this.logger.info('Start processing blocks from archive');
-    return this.getNextBlockNumber()
-      .pipe(concatMap((blockNumber) => forkJoin([
-        of(blockNumber),
-        from(this.getBlockByNumber(blockNumber))
-      ])))
-      .pipe(concatMap(async ([blockNumber, blockBytes]) => {
-        const hash = await this.api.rpc.chain.getBlockHash(blockNumber)
-        this.logger.info(`${this.chain} - processing archived block: ${hash}, height: ${(blockNumber as BN).toString()}`);
 
-        return toBlockTxData({
-          block: u8aToHex(blockBytes),
-          number: blockNumber,
-          hash,
-          feedId: this.feedId,
-          chain: this.chain,
-          signer: this.signer
-        });
-      }))
-      .pipe(filter(this.isPayloadWithinSizeLimit))
+    const lastFromDb = await this.getLastBlockNumberFromDb();
+    const lastProcessed = await this.state.getLastProcessedBlockByName(this.chain);
+    let lastProcessedAsBN = lastProcessed ? new BN(lastProcessed) : new BN(0);
+
+    while (lastProcessedAsBN.lt(lastFromDb)) {
+      const blockNumber = lastProcessedAsBN.add(new BN(1));
+      // TODO: hash block header instead of requesting one
+      const hash = await this.api.rpc.chain.getBlockHash(blockNumber);
+      const blockBytes = await this.getBlockByNumber(blockNumber);
+
+      const data = toBlockTxData({
+        block: u8aToHex(blockBytes),
+        number: blockNumber,
+        hash,
+        feedId: this.feedId,
+        chain: this.chain,
+        signer: this.signer
+      })
+
+      lastProcessedAsBN = blockNumber;
+
       // TODO: consider saving last processed block after transaction is sent (move to Target)
-      .pipe(tap(({ metadata }) => this.state.saveLastProcessedBlock(this.chain, metadata.number)))
-  }
+      this.state.saveLastProcessedBlock(this.chain, blockNumber);
 
-  getNextBlockNumber(): BN {
-    return defer(this.getLastProcessedBlockNumber)
-      // recursively check last processed block number and calculate difference with current finalized block number
-      .pipe(expand(this.getBlockNumberToProcess))
-      // use skip because first value is last processed block, we need next one
-      .pipe(skip(1))
-      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
-      .pipe(catchError((error) => {
-        if (error instanceof ResyncCompleted) {
-          return EMPTY;
-        } else {
-          return throwError(() => error);
-        }
-      }))
-  }
-
-  private async getLastProcessedBlockNumber(): Promise<string | undefined> {
-    const number = await this.state.getLastProcessedBlockByName(this.chain);
-    this.logger.debug(`Last processed block number in state: ${number}`);
-    return number;
-  }
-
-  private async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
-    // if getLastProcessedBlockNumber returns undefined we have to process from genesis
-    if (!blockNumber) return new BN(0);
-    const blockNumberAsBn = new BN(blockNumber);
-    this.logger.debug(`Last processed block: ${blockNumberAsBn}`);
-    const nextBlockNumber = blockNumberAsBn.add(new BN(1));
-
-    // TODO: check if calculating diff is still needed
-    const { number: finalizedNumber } = await this.getFinalizedHeader();
-    const diff = finalizedNumber.toBn().sub(nextBlockNumber);
-    this.logger.info(`Processing blocks from ${nextBlockNumber}`);
-    this.logger.debug(`Finalized block: ${finalizedNumber}`);
-    this.logger.debug(`Diff: ${diff}`);
-
-    if (diff.isZero()) throw new ResyncCompleted();
-
-    return nextBlockNumber;
-  }
-
-  private async getFinalizedHeader(): Promise<Header> {
-    const finalizedHash = await this.api.rpc.chain.getFinalizedHead();
-    const finalizedHeader = await this.api.rpc.chain.getHeader(finalizedHash);
-    return finalizedHeader;
+      if (this.isPayloadWithinSizeLimit(data)) {
+        yield data;
+      } else {
+        this.logger.error(`${data.chain}:${blockNumber} tx payload size exceeds 5 MB`);
+      }
+    }
   }
 
   // check if block tx payload does not exceed 5 MB size limit
@@ -140,12 +101,7 @@ class ChainArchive {
     const txSizeLimit = 5000000; // 5 MB
     this.logger.debug(`${txPayload.chain}:${txPayload.metadata.number} tx payload size: ${txPayloadSize}`);
 
-    if (txPayloadSize >= txSizeLimit) {
-      this.logger.error(`${txPayload.chain}:${txPayload.metadata.number} tx payload size exceeds 5 MB`);
-      return false
-    } else {
-      return true;
-    }
+    return txPayloadSize <= txSizeLimit;
   }
 }
 

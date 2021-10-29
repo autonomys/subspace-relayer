@@ -22,7 +22,7 @@ interface TargetConstructorParams {
 }
 
 class Target {
-  private readonly api: ApiPromise;
+  public readonly api: ApiPromise;
   private readonly logger: Logger;
   private readonly state: State;
 
@@ -52,7 +52,7 @@ class Target {
     }
   }
 
-  sendBlockTx({ feedId, block, metadata, chain, signer }: TxData): Subscription {
+  sendBlockTx({ feedId, block, metadata, chain, signer }: TxData, nonce?: number): Subscription {
     this.logger.info(`Sending ${chain} block to feed: ${feedId}`);
     this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
     // metadata is stored as Vec<u8>
@@ -64,7 +64,7 @@ class Target {
         // it is required to specify nonce, otherwise transaction within same block will be rejected
         // if nonce is -1 API will do the lookup for the right value
         // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer, { nonce: -1 }, Promise.resolve)
+        .signAndSend(signer, { nonce: nonce || -1 }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {

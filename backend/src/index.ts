@@ -1,5 +1,4 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import type { BN } from '@polkadot/util';
 
 import { getAccount } from "./account";
 import Config, { sourceChains, archives } from "./config";
@@ -10,6 +9,8 @@ import { createParachainsMap } from './utils';
 import { ChainName } from './types';
 import State from './state';
 import ChainArchive from './chainArchive';
+import { KeyringPair } from "@polkadot/keyring/types";
+import { BN } from '@polkadot/util';
 
 const args = process.argv.slice(2);
 
@@ -105,10 +106,13 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
         });
       }))
 
-      archives.forEach(archive => archive.getBlocks().subscribe({
-        next: target.sendBlockTx,
-        error: (error) => logger.error((error as Error).message)
-      }));
+      archives.forEach(async archive => {
+        let nonce = (await target.api.rpc.system.accountNextIndex((archive.signer as KeyringPair).address)).toBn();
+        for await (const blockData of archive.getBlocks()) {
+          target.sendBlockTx(blockData, nonce);
+          nonce = nonce.add(new BN(1));
+        }
+      });
     } else {
       // default - processing blocks from RPC API
       const sources = await Promise.all(
