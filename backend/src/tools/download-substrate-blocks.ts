@@ -1,29 +1,104 @@
 // Small utility that can download blocks from Substrate-based chain starting from genesis and store them by block
 // number in a directory
 
-import { ApiPromise, WsProvider } from "@polkadot/api";
-import { RegistryTypes } from "@polkadot/types/types/registry";
-import { firstValueFrom } from "rxjs";
 import * as fs from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import { khala as khalaTypes } from '@phala/typedefs';
-import { types as parallelTypes } from '@parallel-finance/type-definitions';
-import { typeBundleForPolkadot as kilt } from '@kiltprotocol/type-definitions';
-import kintsugiTypes from '@interlay/interbtc-types';
+import fetch from "node-fetch";
 
-import { SignedBlockJsonRpc } from '../types';
-import { blockToBinary } from '../utils';
+import {blockToBinary, isInstanceOfSignedBlockJsonRpc} from '../utils';
 
-const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(process.env.REPORT_PROGRESS_INTERVAL) : 100n;
+const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
+  ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
+  : 100;
+
+async function getLastFinalizedBlock(url: string): Promise<number> {
+  const blockHash: string = await fetch(url, {
+    method: "post",
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: "2.0",
+      method: "chain_getFinalizedHead",
+      params: [],
+    }),
+    headers: { "Content-Type": "application/json" },
+  })
+    .then(response => response.json())
+    .then(body => {
+      if (typeof body?.result !== 'string') {
+        throw new Error(`Bad finalized head response: ${JSON.stringify(body)}`);
+      }
+
+      return body.result;
+    });
+
+  return fetch(url, {
+    method: "post",
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: "2.0",
+      method: "chain_getHeader",
+      params: [blockHash],
+    }),
+    headers: { "Content-Type": "application/json" },
+  })
+    .then(response => response.json())
+    .then(body => {
+      if (typeof body?.result?.number !== 'string') {
+        throw new Error(`Bad header response: ${JSON.stringify(body)}`);
+      }
+
+      return parseInt(body.result.number.slice(2), 16);
+    });
+}
+
+async function getBlock(url: string, blockNumber: number): Promise<Uint8Array> {
+  const blockHash: string = await fetch(url, {
+    method: "post",
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: "2.0",
+      method: "chain_getBlockHash",
+      params: [blockNumber],
+    }),
+    headers: { "Content-Type": "application/json" },
+  })
+    .then(response => response.json())
+    .then(body => {
+      if (typeof body?.result !== 'string') {
+        throw new Error(`Bad block hash response: ${JSON.stringify(body)}`);
+      }
+
+      return body.result;
+    });
+
+  return fetch(url, {
+    method: "post",
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: "2.0",
+      method: "chain_getBlock",
+      params: [blockHash],
+    }),
+    headers: { "Content-Type": "application/json" },
+  })
+    .then(response => response.json())
+    .then(body => {
+      if (!isInstanceOfSignedBlockJsonRpc(body?.result)) {
+        throw new Error(`Bad block response: ${JSON.stringify(body)}`);
+      }
+
+      return blockToBinary(body.result);
+    });
+}
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
-  if (!sourceChainRpc) {
-    console.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
+  if (!(sourceChainRpc && sourceChainRpc.startsWith('http'))) {
+    console.error("SOURCE_CHAIN_RPC environment variable must be set with HTTP RPC URL");
     process.exit(1);
   }
 
@@ -33,125 +108,9 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(p
     process.exit(1);
   }
 
-  console.info(`Connecting to RPC at ${sourceChainRpc}...`);
-  const provider = new WsProvider(sourceChainRpc);
-  let types;
-  if (sourceChainRpc.includes('khala')) {
-    // Khala
-    types = khalaTypes;
-  } else if (sourceChainRpc.includes('heiko')) {
-    // Parallel Heiko
-    types = parallelTypes;
-  } else if (sourceChainRpc.includes('kilt')) {
-    // Kilt Spiritnet
-    types = kilt.types as unknown as RegistryTypes;
-  } else if (sourceChainRpc.includes('basilisk')) {
-    // Basilisk
-    types = {
-      AssetPair: { asset_in: 'AssetId', asset_out: 'AssetId' },
-      Amount: 'i128',
-      AmountOf: 'Amount',
-      Address: 'AccountId',
-      OrmlAccountData: { free: 'Balance', frozen: 'Balance', reserved: 'Balance' },
-      Fee: { numerator: 'u32', denominator: 'u32' },
-      BalanceInfo: { amount: 'Balance', assetId: 'AssetId' },
-      Chain: { genesisHash: 'Vec<u8>', lastBlockHash: 'Vec<u8>' },
-      Currency: 'AssetId',
-      CurrencyId: 'AssetId',
-      CurrencyIdOf: 'AssetId',
-      Intention: {
-        who: 'AccountId',
-        asset_sell: 'AssetId',
-        asset_buy: 'AssetId',
-        amount: 'Balance',
-        discount: 'bool',
-        sell_or_buy: 'IntentionType'
-      },
-      IntentionId: 'Hash',
-      IntentionType: { _enum: ['SELL', 'BUY'] },
-      LookupSource: 'AccountId',
-      Price: 'Balance',
-      ClassId: 'u64',
-      TokenId: 'u64',
-      ClassData: { is_pool: 'bool' },
-      TokenData: { locked: 'bool' },
-      ClassInfo: { metadata: 'Vec<u8>', total_issuance: 'TokenId', owner: 'AccountId', data: 'ClassData' },
-      TokenInfo: { metadata: 'Vec<u8>', owner: 'AccountId', data: 'TokenData' },
-      ClassInfoOf: 'ClassInfo',
-      TokenInfoOf: 'TokenInfo',
-      ClassIdOf: 'ClassId',
-      TokenIdOf: 'TokenId',
-      OrderedSet: 'Vec<AssetId>',
-      VestingSchedule: {
-        start: 'BlockNumber',
-        period: 'BlockNumber',
-        period_count: 'u32',
-        per_period: 'Compact<Balance>'
-      },
-      VestingScheduleOf: 'VestingSchedule',
-      LBPAssetInfo: { id: 'AssetId', amount: 'Balance', initial_weight: 'LBPWeight', final_weight: 'LBPWeight' },
-      LBPWeight: 'u128',
-      WeightPair: { weight_a: 'LBPWeight', weight_b: 'LBPWeight' },
-      WeightCurveType: { _enum: ['Linear'] },
-      PoolId: 'AccountId',
-      BalanceOf: 'Balance',
-      AssetType: {
-        _enum: {
-          Token: 'Null',
-          PoolShare: '(AssetId,AssetId)'
-        }
-      },
-      Pool: {
-        owner: 'AccountId',
-        start: 'BlockNumber',
-        end: 'BlockNumber',
-        assets: 'AssetPair',
-        initial_weights: 'WeightPair',
-        final_weights: 'WeightPair',
-        last_weight_update: 'BlockNumber',
-        last_weights: 'WeightPair',
-        weight_curve: 'WeightCurveType',
-        pausable: 'bool',
-        paused: 'bool',
-        fee: 'Fee',
-        fee_receiver: 'AccountId'
-      },
-      AssetNativeLocation: 'MultiLocation',
-      AssetDetails: {
-        name: 'Vec<u8>',
-        asset_type: 'AssetType',
-        existential_deposit: 'Balance',
-        locked: 'bool'
-      },
-      AssetDetailsT: 'AssetDetails',
-      AssetMetadata: { symbol: 'Vec<u8>', decimals: 'u8' },
-      AssetInstance: 'AssetInstanceV1',
-      MultiLocation: 'MultiLocationV1',
-      MultiAsset: 'MultiAssetV1',
-      Xcm: 'XcmV1',
-      XcmOrder: 'XcmOrderV1'
-    };
-  } else if (sourceChainRpc === 'wss://api-kusama.interlay.io/parachain') {
-    // Kintsugi BTC
-    types = kintsugiTypes.types[0].types;
-  }
-  const api = await ApiPromise.create({
-    provider,
-    types,
-  });
-
   console.log("Retrieving last finalized block...");
 
-  let lastFinalizedBlockNumber = await (async () => {
-    const finalizedBlockHash = await firstValueFrom(api.rx.rpc.chain.getFinalizedHead());
-    const finalizedHeader = await firstValueFrom(api.rx.rpc.chain.getHeader(finalizedBlockHash));
-    return finalizedHeader.number.toNumber();
-  })();
-
-  // Keep last finalized block up to date in the background
-  api.rx.rpc.chain.subscribeFinalizedHeads().forEach((finalizedHead) => {
-    lastFinalizedBlockNumber = finalizedHead.number.toNumber();
-  });
+  const lastFinalizedBlockNumber = await getLastFinalizedBlock(sourceChainRpc);
 
   console.info(`Last finalized block is ${lastFinalizedBlockNumber}`);
 
@@ -161,27 +120,25 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL ? BigInt(p
 
   const lastDownloadedBlock = await (async () => {
     try {
-      return BigInt(await fs.readFile(`${targetDir}/last-downloaded-block`, { encoding: 'utf-8' }));
+      return parseInt(await fs.readFile(`${targetDir}/last-downloaded-block`, { encoding: 'utf-8' }), 10);
     } catch {
-      return -1n;
+      return -1;
     }
   })();
 
   if (lastDownloadedBlock > -1) {
-    console.info(`Continuing downloading from block ${lastDownloadedBlock + 1n}`);
+    console.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
   }
 
   let lastDownloadingReportAt;
-  let blockNumber = lastDownloadedBlock + 1n
+  let blockNumber = lastDownloadedBlock + 1;
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
-    const blockHash = await firstValueFrom(api.rx.rpc.chain.getBlockHash(blockNumber));
-    const blockRaw = await firstValueFrom(api.rx.rpc.chain.getBlock.raw(blockHash)) as SignedBlockJsonRpc;
-    const blockBytes = blockToBinary(blockRaw);
+    const blockBytes = await getBlock(sourceChainRpc, blockNumber);
 
-    await db.put(Buffer.from(BigUint64Array.of(blockNumber).buffer), Buffer.from(blockBytes));
+    await db.put(Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer), Buffer.from(blockBytes));
 
-    if (blockNumber % REPORT_PROGRESS_INTERVAL === 0n) {
+    if (blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
       const now = Date.now();
       const downloadRate = lastDownloadingReportAt
         ? ` (${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastDownloadingReportAt) / 1000)).toFixed(2)} blocks/s)`
