@@ -1,7 +1,9 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { KeyringPair } from "@polkadot/keyring/types";
+import { BN } from '@polkadot/util';
 
 import { getAccount } from "./account";
-import Config, { sourceChains, archives } from "./config";
+import Config from "./config";
 import Source from "./source";
 import Target from "./target";
 import logger from "./logger";
@@ -9,8 +11,8 @@ import { createParachainsMap } from './utils';
 import { ChainName } from './types';
 import State from './state';
 import ChainArchive from './chainArchive';
-import { KeyringPair } from "@polkadot/keyring/types";
-import { BN } from '@polkadot/util';
+import * as archives from './config/archives.json';
+import * as sourceChains from './config/sourceChains.json';
 
 const args = process.argv.slice(2);
 
@@ -80,15 +82,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
     const master = getAccount(config.accountSeed);
 
     if (args.length && (args[0] === 'archive')) {
-      if (!config.archives) {
-        throw new Error("Archives are not provided");
-      }
-
       const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
-        if (!path) {
-          throw new Error("Archive path is not provided");
-        }
-
         const api = await createApi(url);
         const chain = (await api.rpc.system.chain()).toString() as ChainName;
         const signer = getAccount(`${config.accountSeed}/${chain}`);
@@ -118,7 +112,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
       const sources = await Promise.all(
         config.sourceChains.map(async ({ url, parachains }) => {
           const api = await createApi(url);
-          const chain = await api.rpc.system.chain();
+          const chain = (await api.rpc.system.chain()).toString() as ChainName;
           const sourceSigner = getAccount(`${config.accountSeed}/${chain}`);
           const paraSigners = parachains.map(({ paraId }) => getAccount(`${config.accountSeed}/${paraId}`));
 
@@ -134,7 +128,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
 
           return new Source({
             api,
-            chain: chain.toString() as ChainName,
+            chain,
             parachainsMap,
             logger,
             feedId,

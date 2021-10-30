@@ -68,7 +68,7 @@ class ChainArchive {
     const lastProcessed = await this.state.getLastProcessedBlockByName(this.chain);
     let lastProcessedAsBN = lastProcessed ? new BN(lastProcessed) : new BN(0);
 
-    while (lastProcessedAsBN.lt(lastFromDb)) {
+    while (lastProcessedAsBN.lte(lastFromDb)) {
       const number = lastProcessedAsBN.add(new BN(1));
       const blockBytes = await this.getBlockByNumber(number);
       const block = u8aToHex(blockBytes);
@@ -99,9 +99,10 @@ class ChainArchive {
     }
   }
 
+  // TODO: use same check as in node runtime
   // check if block tx payload does not exceed 5 MB size limit
   // reference https://github.com/paritytech/substrate/issues/3174#issuecomment-514539336, values above and below were tested as well
-  isPayloadWithinSizeLimit(txPayload: TxData): boolean {
+  private isPayloadWithinSizeLimit(txPayload: TxData): boolean {
     const txPayloadSize = Buffer.byteLength(JSON.stringify(txPayload));
     const txSizeLimit = 5000000; // 5 MB
     this.logger.debug(`${txPayload.chain}:${txPayload.metadata.number} tx payload size: ${txPayloadSize}`);
