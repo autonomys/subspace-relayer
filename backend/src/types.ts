@@ -31,7 +31,7 @@ export interface ParachainConfigType {
   url: string;
   paraId: number;
   // TODO: get chain name from api
-  chain: ChainName;
+  chain: string;
 }
 
 export type ParachainsMap = Map<string, Parachain>;

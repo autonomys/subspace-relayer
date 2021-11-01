@@ -32,7 +32,7 @@ class Source {
   private readonly parachainsMap: ParachainsMap;
   private readonly logger: Logger;
   private readonly state: State;
-  public readonly signer: AddressOrPair;
+  private readonly signer: AddressOrPair;
 
   constructor(params: SourceConstructorParams) {
     this.api = params.api;
@@ -48,9 +48,10 @@ class Source {
     this.getFinalizedHeader = this.getFinalizedHeader.bind(this);
     this.getBlockNumberToProcess = this.getBlockNumberToProcess.bind(this);
     this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
+    this.getNextBlockNumber = this.getNextBlockNumber.bind(this);
   }
 
-  subscribeHeads(): Observable<Header> {
+  public subscribeHeads(): Observable<Header> {
     return this.api.rx.rpc.chain.subscribeFinalizedHeads();
   }
 
@@ -70,12 +71,14 @@ class Source {
     return number;
   }
 
-  async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
+  private async getBlockNumberToProcess(blockNumber: string | undefined): Promise<BN> {
     // if getLastProcessedBlockNumber returns undefined we have to process from genesis
     if (!blockNumber) return new BN(0);
     const blockNumberAsBn = this.api.createType("BlockNumber", blockNumber).toBn();
     this.logger.debug(`Last processed block: ${blockNumberAsBn}`);
     const nextBlockNumber = blockNumberAsBn.add(new BN(1));
+
+    // TODO: check if calculating diff is still needed
     const { number: finalizedNumber } = await this.getFinalizedHeader();
     const diff = finalizedNumber.toBn().sub(nextBlockNumber);
     this.logger.info(`Processing blocks from ${nextBlockNumber}`);
@@ -87,21 +90,9 @@ class Source {
     return nextBlockNumber;
   }
 
-  resyncBlocks(): Observable<TxData> {
+  public resyncBlocks(): Observable<TxData> {
     this.logger.info('Start queuing resync blocks');
-    return defer(this.getLastProcessedBlockNumber)
-      // recursively check last processed block number and calculate difference with current finalized block number
-      .pipe(expand(this.getBlockNumberToProcess))
-      // use skip because first value is last processed block, we need next one
-      .pipe(skip(1))
-      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
-      .pipe(catchError((error) => {
-        if (error instanceof ResyncCompleted) {
-          return EMPTY;
-        } else {
-          return throwError(() => error);
-        }
-      }))
+    return this.getNextBlockNumber()
       // get block hash for each block number
       .pipe(concatMap((blockNumber) => this.api.rx.rpc.chain.getBlockHash(blockNumber)))
       // process blocks by source chain block hash
@@ -110,6 +101,7 @@ class Source {
 
   // TODO: refactor to return Observable<ParaHeadAndId>
   private async getParaHeadsAndIds(block: Block): Promise<ParaHeadAndId[]> {
+    // TODO: update implementation - replace deprecated method
     const blockRecords = await this.api.query.system.events.at(
       block.header.hash
     );
@@ -134,7 +126,7 @@ class Source {
   }
 
   // TODO: add logging for individual parablocks
-  getParablocks({ block }: SignedBlock): Observable<TxData> {
+  private getParablocks({ block }: SignedBlock): Observable<TxData> {
     return from(this.getParaHeadsAndIds(block))
       // print extracted para heads and ids
       .pipe(tap((paraHeadsAndIds) => paraHeadsAndIds
@@ -209,6 +201,22 @@ class Source {
     } else {
       return true;
     }
+  }
+
+  private getNextBlockNumber() {
+    return defer(this.getLastProcessedBlockNumber)
+      // recursively check last processed block number and calculate difference with current finalized block number
+      .pipe(expand(this.getBlockNumberToProcess))
+      // use skip because first value is last processed block, we need next one
+      .pipe(skip(1))
+      // use catchError to complete stream instead of takeWhile because latter completes stream immediately without propagating values
+      .pipe(catchError((error) => {
+        if (error instanceof ResyncCompleted) {
+          return EMPTY;
+        } else {
+          return throwError(() => error);
+        }
+      }))
   }
 }
 
