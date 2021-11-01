@@ -83,6 +83,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
 
     if (args.length && (args[0] === 'archive')) {
       const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
+        // TODO: get chain name from HTTP API
         const api = await createApi(url);
         const chain = (await api.rpc.system.chain()).toString() as ChainName;
         const signer = getAccount(`${config.accountSeed}/${chain}`);
@@ -90,7 +91,6 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
         const feedId = await target.getFeedId(signer);
 
         return new ChainArchive({
-          api,
           path,
           chain,
           feedId,
