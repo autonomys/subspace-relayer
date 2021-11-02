@@ -1,7 +1,6 @@
 import { U64 } from "@polkadot/types/primitive";
 import { Hash } from "@polkadot/types/interfaces";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { BN } from '@polkadot/util';
 
 import Parachain from "./parachain";
 
@@ -17,7 +16,7 @@ export interface TxData {
 
 interface Metadata {
   hash: Hash;
-  number: BN;
+  number: number;
 }
 
 export interface ParaHeadAndId {
@@ -38,7 +37,7 @@ export type ParachainsMap = Map<string, Parachain>;
 
 export interface TxDataInput {
   block: string;
-  number: BN;
+  number: number;
   hash: Hash;
   feedId: U64;
   chain: ChainName;
