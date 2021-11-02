@@ -70,7 +70,8 @@ class Target {
           catchError((error) => {
             this.logger.error(error);
             return EMPTY;
-          }))
+          })
+        )
         .subscribe(this.logTxResult)
     );
   }

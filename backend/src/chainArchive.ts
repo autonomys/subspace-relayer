@@ -11,7 +11,7 @@ import { U64 } from "@polkadot/types/primitive";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
 
-import { toBlockTxData } from './utils';
+import { getHeaderLength, toBlockTxData } from './utils';
 import { TxData, ChainName } from "./types";
 import State from './state';
 
@@ -73,8 +73,8 @@ class ChainArchive {
       const blockBytes = await this.getBlockByNumber(number);
       const block = u8aToHex(blockBytes);
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
-      const header = this.api.createType("Header", blockBytes);
-      const hash = this.api.createType("Hash", blake2AsU8a(header.toU8a()));
+      const headerLength = getHeaderLength(blockBytes);
+      const hash = this.api.createType("Hash", blake2AsU8a(blockBytes.subarray(0, headerLength)));
 
       const data = toBlockTxData({
         block,
