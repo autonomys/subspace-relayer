@@ -1,4 +1,4 @@
-import { BN, u8aToHex } from '@polkadot/util';
+import { u8aToHex } from '@polkadot/util';
 import { blake2AsU8a } from '@polkadot/util-crypto';
 import * as fsp from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
@@ -51,25 +51,25 @@ class ChainArchive {
     this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
   }
 
-  private getBlockByNumber(blockNumber: BN): Promise<Uint8Array> {
-    const blockNumberBytes = Buffer.from(BigUint64Array.of(BigInt(blockNumber.toNumber())).buffer);
+  private getBlockByNumber(blockNumber: number): Promise<Uint8Array> {
+    const blockNumberBytes = Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
     return this.db.get(blockNumberBytes);
   }
 
-  private async getLastBlockNumberFromDb(): Promise<BN> {
+  private async getLastBlockNumberFromDb(): Promise<number> {
     const file = await fsp.readFile(`${this.path}/last-downloaded-block`, 'utf8');
-    return new BN(file);
+    return parseInt(file, 10);
   }
 
-  async *getBlocks(): AsyncGenerator<TxData, void, unknown> {
+  async *getBlocks(): AsyncGenerator<TxData, void> {
     this.logger.info('Start processing blocks from archive');
 
     const lastFromDb = await this.getLastBlockNumberFromDb();
-    const lastProcessed = await this.state.getLastProcessedBlockByName(this.chain);
-    let lastProcessedAsBN = lastProcessed ? new BN(lastProcessed) : new BN(0);
+    const lastProcessedString = await this.state.getLastProcessedBlockByName(this.chain);
+    let lastProcessed = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
 
-    while (lastProcessedAsBN.lte(lastFromDb)) {
-      const number = lastProcessedAsBN.add(new BN(1));
+    while (lastProcessed <= lastFromDb) {
+      const number = lastProcessed + 1;
       const blockBytes = await this.getBlockByNumber(number);
       const block = u8aToHex(blockBytes);
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
@@ -85,7 +85,7 @@ class ChainArchive {
         signer: this.signer
       })
 
-      lastProcessedAsBN = number;
+      lastProcessed = number;
 
       // TODO: consider saving last processed block after transaction is sent (move to Target)
       this.state.saveLastProcessedBlock(this.chain, number);
