@@ -13,6 +13,7 @@ import State from './state';
 import ChainArchive from './chainArchive';
 import * as archives from './config/archives.json';
 import * as sourceChains from './config/sourceChains.json';
+import { getChainName } from './httpApi';
 
 const args = process.argv.slice(2);
 
@@ -83,9 +84,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
 
     if (args.length && (args[0] === 'archive')) {
       const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
-        // TODO: get chain name from HTTP API
-        const api = await createApi(url);
-        const chain = (await api.rpc.system.chain()).toString() as ChainName;
+        const chain = (await getChainName(url)) as ChainName;
         const signer = getAccount(`${config.accountSeed}/${chain}`);
         await target.sendBalanceTx(master, signer, 1.5);
         const feedId = await target.getFeedId(signer);

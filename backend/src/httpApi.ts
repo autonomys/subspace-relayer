@@ -2,7 +2,6 @@ import fetch from "node-fetch";
 
 import { blockToBinary, isInstanceOfSignedBlockJsonRpc } from './utils';
 
-// TODO: reduce code duplication between this function and in the one below
 export async function getLastFinalizedBlock(url: string): Promise<number> {
     const blockHash: string = await fetch(url, {
         method: "post",
@@ -80,5 +79,26 @@ export async function getBlockByNumber(url: string, blockNumber: number): Promis
             }
 
             return blockToBinary(body.result);
+        });
+}
+
+export async function getChainName(url: string): Promise<string> {
+    return fetch(url, {
+        method: "post",
+        body: JSON.stringify({
+            id: 1,
+            jsonrpc: "2.0",
+            method: "system_chain",
+            params: [],
+        }),
+        headers: { "Content-Type": "application/json" },
+    })
+        .then(response => response.json())
+        .then(body => {
+            if (typeof body?.result !== 'string') {
+                throw new Error(`Bad chain name response: ${JSON.stringify(body)}`);
+            }
+
+            return body.result;
         });
 }
