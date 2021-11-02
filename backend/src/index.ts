@@ -16,6 +16,10 @@ import * as sourceChains from './config/sourceChains.json';
 
 const args = process.argv.slice(2);
 
+const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
+    ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
+    : 1000;
+
 const config = new Config({
   accountSeed: process.env.ACCOUNT_SEED,
   targetChainUrl: process.env.TARGET_CHAIN_URL,
@@ -101,10 +105,23 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
       }))
 
       archives.forEach(async archive => {
+        let lastBlockProcessingReportAt = Date.now();
+        let processedBlocks = 0;
+
         let nonce = (await target.api.rpc.system.accountNextIndex((archive.signer as KeyringPair).address)).toBn();
         for await (const blockData of archive.getBlocks()) {
           target.sendBlockTx(blockData, nonce);
           nonce = nonce.add(new BN(1));
+
+          processedBlocks++;
+
+          if (processedBlocks % REPORT_PROGRESS_INTERVAL === 0) {
+            const now = Date.now();
+            const rate = (Number(REPORT_PROGRESS_INTERVAL) / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
+            lastBlockProcessingReportAt = now;
+
+            logger.info(`Processed downloaded ${blockData.chain} block ${blockData.metadata.number} at ${rate} blocks/s`);
+          }
         }
       });
     } else {
