@@ -84,7 +84,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
 
     if (args.length && (args[0] === 'archive')) {
       const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
-        const chain = (await getChainName(url)) as ChainName;
+        const chain = await getChainName(url);
         const signer = getAccount(`${config.accountSeed}/${chain}`);
         await target.sendBalanceTx(master, signer, 1.5);
         const feedId = await target.getFeedId(signer);

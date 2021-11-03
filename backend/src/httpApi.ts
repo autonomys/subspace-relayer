@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 
 import { blockToBinary, isInstanceOfSignedBlockJsonRpc } from './utils';
+import { ChainName } from './types';
 
 export async function getLastFinalizedBlock(url: string): Promise<number> {
     const blockHash: string = await fetch(url, {
@@ -82,7 +83,7 @@ export async function getBlockByNumber(url: string, blockNumber: number): Promis
         });
 }
 
-export async function getChainName(url: string): Promise<string> {
+export async function getChainName(url: string): Promise<ChainName> {
     return fetch(url, {
         method: "post",
         body: JSON.stringify({
@@ -99,6 +100,6 @@ export async function getChainName(url: string): Promise<string> {
                 throw new Error(`Bad chain name response: ${JSON.stringify(body)}`);
             }
 
-            return body.result;
+            return body.result as ChainName;
         });
 }
