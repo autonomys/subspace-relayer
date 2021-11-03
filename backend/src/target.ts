@@ -46,14 +46,14 @@ class Target {
         this.logger.error("Extrinsic failed");
       }
 
-      this.logger.info(
+      this.logger.debug(
         `Transaction included: ${polkadotAppsUrl}${status.asInBlock}`
       );
     }
   }
 
   sendBlockTx({ feedId, block, metadata, chain, signer }: TxData, nonce?: number): Subscription {
-    this.logger.info(`Sending ${chain} block to feed: ${feedId}`);
+    this.logger.debug(`Sending ${chain} block to feed: ${feedId}`);
     this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
     // metadata is stored as Vec<u8>
     // to decode: new TextDecoder().decode(new Uint8Array([...]))
