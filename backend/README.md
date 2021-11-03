@@ -22,8 +22,9 @@ By default application will process blocks from the chains specified in `config/
 ```
 
 ## Scripts
-`npm start` - run application in default mode
-`npm start archive` - run application in archive mode (will process blocks from archive first)
-`npm test` - run tests
+- `npm start` - run application in default mode
+- `npm start archive` - run application in archive mode (will process blocks from archive first)
+- `npm run lint` - check codebase with Eslint
+- `npm run build` - build project
 
 License: Apache-2.0
