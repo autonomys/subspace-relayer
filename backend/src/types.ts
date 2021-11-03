@@ -29,8 +29,6 @@ export type Brand<K, T> = K & { __brand: T; };
 export interface ParachainConfigType {
   url: string;
   paraId: number;
-  // TODO: get chain name from api
-  chain: string;
 }
 
 export type ParachainsMap = Map<string, Parachain>;

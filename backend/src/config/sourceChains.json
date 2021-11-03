@@ -4,63 +4,51 @@
         "parachains": [
             {
                 "url": "https://kusama-statemine-rpc.paritytech.net",
-                "paraId": 1000,
-                "chain": "Statemine"
+                "paraId": 1000
             },
             {
                 "url": "https://karura.api.onfinality.io/public",
-                "paraId": 2000,
-                "chain": "Karura"
+                "paraId": 2000
             },
             {
                 "url": "https://bifrost-parachain.api.onfinality.io/public",
-                "paraId": 2001,
-                "chain": "Bifrost"
+                "paraId": 2001
             },
             {
                 "url": "https://khala.api.onfinality.io/public",
-                "paraId": 2004,
-                "chain": "Khala Network"
+                "paraId": 2004
             },
             {
                 "url": "https://shiden.api.onfinality.io/public",
-                "paraId": 2007,
-                "chain": "Shiden"
+                "paraId": 2007
             },
             {
                 "url": "https://moonriver.api.onfinality.io/public",
-                "paraId": 2023,
-                "chain": "Moonriver"
+                "paraId": 2023
             },
             {
                 "url": "https://calamari.api.onfinality.io/public",
-                "paraId": 2084,
-                "chain": "Calamari"
+                "paraId": 2084
             },
             {
                 "url": "https://spiritnet.api.onfinality.io/public",
-                "paraId": 2086,
-                "chain": "Kilt Spiritnet"
+                "paraId": 2086
             },
             {
                 "url": "https://basilisk.api.onfinality.io/public",
-                "paraId": 2090,
-                "chain": "Basilisk"
+                "paraId": 2090
             },
             {
                 "url": "https://altair.api.onfinality.io/public",
-                "paraId": 2088,
-                "chain": "Altair"
+                "paraId": 2088
             },
             {
                 "url": "https://parallel-heiko.api.onfinality.io/public",
-                "paraId": 2085,
-                "chain": "Parallel Heiko"
+                "paraId": 2085
             },
             {
                 "url": "https://kintsugi.api.onfinality.io/public",
-                "paraId": 2092,
-                "chain": "Kintsugi BTC"
+                "paraId": 2092
             }
         ]
     }
