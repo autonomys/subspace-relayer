@@ -2,10 +2,11 @@ import { compactFromU8a, compactToU8a, u8aToHex } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 
-import { ParaHeadAndId, ParachainConfigType, ChainName, TxData, ParachainsMap, TxDataInput, SignedBlockJsonRpc } from "./types";
+import { ParaHeadAndId, ParachainConfigType, TxData, ParachainsMap, TxDataInput, SignedBlockJsonRpc } from "./types";
 import Parachain from "./parachain";
 import Target from "./target";
 import logger from "./logger";
+import { getChainName } from './httpApi';
 
 // TODO: implement tests
 export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
@@ -38,10 +39,11 @@ export const createParachainsMap = async (
 ): Promise<ParachainsMap> => {
     const map = new Map();
 
-    for (const [index, { url, chain, paraId }] of configParachains.entries()) {
+    for (const [index, { url, paraId }] of configParachains.entries()) {
         const signer = signers[index];
         const feedId = await target.getFeedId(signer);
-        const parachain = new Parachain({ feedId, url, chain: chain as ChainName, logger, signer });
+        const chain = await getChainName(url);
+        const parachain = new Parachain({ feedId, url, chain, logger, signer });
         map.set(paraId, parachain);
     }
 
