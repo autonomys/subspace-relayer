@@ -7,93 +7,12 @@ import * as fs from "fs/promises";
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import fetch from "node-fetch";
 
-import {blockToBinary, isInstanceOfSignedBlockJsonRpc} from '../utils';
+import { getLastFinalizedBlock, getBlockByNumber } from '../httpApi';
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
   : 100;
-
-async function getLastFinalizedBlock(url: string): Promise<number> {
-  const blockHash: string = await fetch(url, {
-    method: "post",
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: "2.0",
-      method: "chain_getFinalizedHead",
-      params: [],
-    }),
-    headers: { "Content-Type": "application/json" },
-  })
-    .then(response => response.json())
-    .then(body => {
-      if (typeof body?.result !== 'string') {
-        throw new Error(`Bad finalized head response: ${JSON.stringify(body)}`);
-      }
-
-      return body.result;
-    });
-
-  return fetch(url, {
-    method: "post",
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: "2.0",
-      method: "chain_getHeader",
-      params: [blockHash],
-    }),
-    headers: { "Content-Type": "application/json" },
-  })
-    .then(response => response.json())
-    .then(body => {
-      if (typeof body?.result?.number !== 'string') {
-        throw new Error(`Bad header response: ${JSON.stringify(body)}`);
-      }
-
-      return parseInt(body.result.number.slice(2), 16);
-    });
-}
-
-async function getBlock(url: string, blockNumber: number): Promise<Uint8Array> {
-  const blockHash: string = await fetch(url, {
-    method: "post",
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: "2.0",
-      method: "chain_getBlockHash",
-      params: [blockNumber],
-    }),
-    headers: { "Content-Type": "application/json" },
-  })
-    .then(response => response.json())
-    .then(body => {
-      if (typeof body?.result !== 'string') {
-        throw new Error(`Bad block hash response: ${JSON.stringify(body)}`);
-      }
-
-      return body.result;
-    });
-
-  return fetch(url, {
-    method: "post",
-    body: JSON.stringify({
-      id: 1,
-      jsonrpc: "2.0",
-      method: "chain_getBlock",
-      params: [blockHash],
-    }),
-    headers: { "Content-Type": "application/json" },
-  })
-    .then(response => response.json())
-    .then(body => {
-      if (!isInstanceOfSignedBlockJsonRpc(body?.result)) {
-        throw new Error(`Bad block response: ${JSON.stringify(body)}`);
-      }
-
-      return blockToBinary(body.result);
-    });
-}
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
@@ -134,7 +53,7 @@ async function getBlock(url: string, blockNumber: number): Promise<Uint8Array> {
   let blockNumber = lastDownloadedBlock + 1;
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
-    const blockBytes = await getBlock(sourceChainRpc, blockNumber);
+    const blockBytes = await getBlockByNumber(sourceChainRpc, blockNumber);
 
     await db.put(Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer), Buffer.from(blockBytes));
 

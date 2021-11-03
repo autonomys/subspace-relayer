@@ -6,17 +6,16 @@ import * as fsp from "fs/promises";
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import { ApiPromise } from "@polkadot/api";
 import { U64 } from "@polkadot/types/primitive";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
+import { TypeRegistry } from '@polkadot/types';
 
 import { getHeaderLength, toBlockTxData } from './utils';
 import { TxData, ChainName } from "./types";
 import State from './state';
 
 interface ChainArchiveConstructorParams {
-  api: ApiPromise;
   path: string;
   chain: ChainName;
   feedId: U64;
@@ -30,18 +29,17 @@ class ChainArchive {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly db: any;
   private readonly path: string;
-  // TODO: API is used to create types like Hash and Header - investigate if this can be done without API
-  private readonly api: ApiPromise;
   private readonly chain: ChainName;
   private readonly feedId: U64;
   private readonly logger: Logger;
   private readonly state: State;
+  // use TypeRegistry to create types Header and Hash instead of using polkadot.js WS API
+  private readonly registry: TypeRegistry;
   public readonly signer: AddressOrPair;
 
   public constructor(params: ChainArchiveConstructorParams) {
     this.db = levelup(rocksdb(`${params.path}/db`));
     this.path = params.path;
-    this.api = params.api;
     this.chain = params.chain;
     this.feedId = params.feedId;
     this.logger = params.logger;
@@ -49,6 +47,7 @@ class ChainArchive {
     this.state = params.state;
     this.getBlockByNumber = this.getBlockByNumber.bind(this);
     this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
+    this.registry = new TypeRegistry();
   }
 
   private getBlockByNumber(blockNumber: number): Promise<Uint8Array> {
@@ -74,7 +73,7 @@ class ChainArchive {
       const block = u8aToHex(blockBytes);
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
       const headerLength = getHeaderLength(blockBytes);
-      const hash = this.api.createType("Hash", blake2AsU8a(blockBytes.subarray(0, headerLength)));
+      const hash = this.registry.createType("Hash", blake2AsU8a(blockBytes.subarray(0, headerLength)));
 
       const data = toBlockTxData({
         block,
