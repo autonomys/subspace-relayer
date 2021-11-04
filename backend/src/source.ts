@@ -3,12 +3,11 @@ import { BN } from '@polkadot/util';
 import { Observable } from "@polkadot/types/types";
 import { U64 } from "@polkadot/types/primitive";
 import { Header, Hash, SignedBlock, Block } from "@polkadot/types/interfaces";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { concatMap, map, tap, concatAll, first, expand, skip, catchError, filter } from "rxjs/operators";
 import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
-import { ParaHeadAndId, TxData, ChainName, ParachainsMap } from "./types";
+import { ChainName, ParachainsMap, ParaHeadAndId, TxData, SignerWithAddress } from "./types";
 import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData, jsonBlockToHex } from './utils';
 import State from './state';
 
@@ -21,7 +20,7 @@ interface SourceConstructorParams {
   feedId: U64;
   parachainsMap: ParachainsMap;
   logger: Logger;
-  signer: AddressOrPair;
+  signer: SignerWithAddress;
   state: State;
 }
 
@@ -32,7 +31,7 @@ class Source {
   private readonly parachainsMap: ParachainsMap;
   private readonly logger: Logger;
   private readonly state: State;
-  private readonly signer: AddressOrPair;
+  private readonly signer: SignerWithAddress;
 
   constructor(params: SourceConstructorParams) {
     this.api = params.api;

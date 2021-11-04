@@ -1,8 +1,15 @@
 import { compactFromU8a, compactToU8a, u8aToHex } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 
-import { ParaHeadAndId, ParachainConfigType, TxData, ParachainsMap, TxDataInput, SignedBlockJsonRpc } from "./types";
+import {
+    ParaHeadAndId,
+    ParachainConfigType,
+    TxData,
+    ParachainsMap,
+    TxDataInput,
+    SignedBlockJsonRpc,
+    SignerWithAddress,
+} from "./types";
 import Parachain from "./parachain";
 import Target from "./target";
 import logger from "./logger";
@@ -35,7 +42,7 @@ export const isRelevantRecord =
 export const createParachainsMap = async (
     target: Target,
     configParachains: ParachainConfigType[],
-    signers: AddressOrPair[],
+    signers: SignerWithAddress[],
 ): Promise<ParachainsMap> => {
     const map = new Map();
 

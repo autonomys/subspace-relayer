@@ -7,12 +7,11 @@ const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
 import { U64 } from "@polkadot/types/primitive";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
 import { TypeRegistry } from '@polkadot/types';
 
 import { getHeaderLength, toBlockTxData } from './utils';
-import { TxData, ChainName } from "./types";
+import { ChainName, SignerWithAddress, TxData } from "./types";
 import State from './state';
 
 interface ChainArchiveConstructorParams {
@@ -20,7 +19,7 @@ interface ChainArchiveConstructorParams {
   chain: ChainName;
   feedId: U64;
   logger: Logger;
-  signer: AddressOrPair;
+  signer: SignerWithAddress;
   state: State;
 }
 
@@ -35,7 +34,7 @@ class ChainArchive {
   private readonly state: State;
   // use TypeRegistry to create types Header and Hash instead of using polkadot.js WS API
   private readonly registry: TypeRegistry;
-  public readonly signer: AddressOrPair;
+  public readonly signer: SignerWithAddress;
 
   public constructor(params: ChainArchiveConstructorParams) {
     this.db = levelup(rocksdb(`${params.path}/db`));

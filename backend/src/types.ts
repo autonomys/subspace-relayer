@@ -1,6 +1,5 @@
 import { U64 } from "@polkadot/types/primitive";
 import { Hash } from "@polkadot/types/interfaces";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Signer, SignerPayloadJSON, SignerResult } from "@polkadot/types/types/extrinsic";
 
 import Parachain from "./parachain";
@@ -21,7 +20,7 @@ export interface TxData {
   block: string;
   metadata: Metadata;
   chain: ChainName;
-  signer: AddressOrPair;
+  signer: SignerWithAddress;
 }
 
 interface Metadata {
@@ -49,7 +48,7 @@ export interface TxDataInput {
   hash: Hash;
   feedId: U64;
   chain: ChainName;
-  signer: AddressOrPair;
+  signer: SignerWithAddress;
 }
 
 interface BlockJsonRpc {

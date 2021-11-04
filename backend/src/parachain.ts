@@ -1,13 +1,11 @@
-
 import fetch, { RequestInit } from "node-fetch";
 import { EMPTY, defer, from, Observable, catchError } from 'rxjs';
 import { retry, shareReplay } from "rxjs/operators";
 import { Hash } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
 
-import { ChainName, SignedBlockJsonRpc } from './types';
+import { ChainName, SignedBlockJsonRpc, SignerWithAddress } from './types';
 import { isInstanceOfSignedBlockJsonRpc } from './utils';
 
 async function fetchWithTimeout(url: string, options: RequestInit) {
@@ -26,7 +24,7 @@ interface ParachainConstructorParams {
     url: string;
     chain: ChainName;
     logger: Logger;
-    signer: AddressOrPair;
+    signer: SignerWithAddress;
 }
 
 class Parachain {
@@ -34,7 +32,7 @@ class Parachain {
     private readonly logger: Logger;
     public readonly chain: ChainName;
     public readonly feedId: U64;
-    public readonly signer: AddressOrPair;
+    public readonly signer: SignerWithAddress;
 
     constructor({ feedId, url, chain, logger, signer }: ParachainConstructorParams) {
         this.feedId = feedId;

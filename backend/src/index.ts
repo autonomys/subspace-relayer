@@ -1,8 +1,6 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { KeyringPair } from "@polkadot/keyring/types";
 import { BN } from '@polkadot/util';
 
-import { getAccount } from "./account";
 import Config from "./config";
 import Source from "./source";
 import Target from "./target";
@@ -14,12 +12,16 @@ import ChainArchive from './chainArchive';
 import * as archives from './config/archives.json';
 import * as sourceChains from './config/sourceChains.json';
 import { getChainName } from './httpApi';
+import { PoolSigner } from "./poolSigner";
 
 const args = process.argv.slice(2);
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
-    ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
-    : 1000;
+  ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
+  : 1000;
+const SIGNER_POOL_SIZE = process.env.SIGNER_POOL_SIZE
+    ? parseInt(process.env.SIGNER_POOL_SIZE, 10)
+    : 4;
 
 const config = new Config({
   accountSeed: process.env.ACCOUNT_SEED,
@@ -84,13 +86,17 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
     const targetApi = await createApi(config.targetChainUrl);
 
     const target = new Target({ api: targetApi, logger, state });
-    const master = getAccount(config.accountSeed);
+    const master = new PoolSigner(targetApi.registry, config.accountSeed, 1);
 
     if (args.length && (args[0] === 'archive')) {
       const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
         const chain = await getChainName(url);
-        const signer = getAccount(`${config.accountSeed}/${chain}`);
-        await target.sendBalanceTx(master, signer, 1.5);
+        const signer = new PoolSigner(
+            target.api.registry,
+            `${config.accountSeed}/${chain}`,
+            SIGNER_POOL_SIZE,
+        );
+        await target.sendBalanceTx(master, signer.address, 1.5);
         const feedId = await target.getFeedId(signer);
 
         return new ChainArchive({
@@ -107,7 +113,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
         let lastBlockProcessingReportAt = Date.now();
         let processedBlocks = 0;
 
-        let nonce = (await target.api.rpc.system.accountNextIndex((archive.signer as KeyringPair).address)).toBn();
+        let nonce = (await target.api.rpc.system.accountNextIndex(archive.signer.address)).toBn();
         for await (const blockData of archive.getBlocks()) {
           target.sendBlockTx(blockData, nonce);
           nonce = nonce.add(new BN(1));
@@ -129,17 +135,27 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
         config.sourceChains.map(async ({ url, parachains }) => {
           const api = await createApi(url);
           const chain = (await api.rpc.system.chain()).toString() as ChainName;
-          const sourceSigner = getAccount(`${config.accountSeed}/${chain}`);
-          const paraSigners = parachains.map(({ paraId }) => getAccount(`${config.accountSeed}/${paraId}`));
+          const signer = new PoolSigner(
+              target.api.registry,
+              `${config.accountSeed}/${chain}`,
+              SIGNER_POOL_SIZE,
+          );
+          const paraSigners = parachains.map(({ paraId }) => {
+            return new PoolSigner(
+              target.api.registry,
+              `${config.accountSeed}/${paraId}`,
+              SIGNER_POOL_SIZE,
+            );
+          });
 
           // TODO: can be optimized by sending batch of txs
           // TODO: master has to delegate spending to sourceSigner and paraSigners
-          for (const delegate of [sourceSigner, ...paraSigners]) {
+          for (const delegate of [signer, ...paraSigners]) {
             // send 1.5 units
-            await target.sendBalanceTx(master, delegate, 1.5);
+            await target.sendBalanceTx(master, delegate.address, 1.5);
           }
 
-          const feedId = await target.getFeedId(sourceSigner);
+          const feedId = await target.getFeedId(signer);
           const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
 
           return new Source({
@@ -148,7 +164,7 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
             parachainsMap,
             logger,
             feedId,
-            signer: sourceSigner,
+            signer,
             state,
           });
         })

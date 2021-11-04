@@ -2,13 +2,11 @@ import { ApiPromise } from "@polkadot/api";
 import { Subscription, EMPTY, catchError } from "rxjs";
 import { takeWhile } from "rxjs/operators";
 import { Logger } from "pino";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { EventRecord } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 
-import { TxData } from "./types";
+import { SignerWithAddress, TxData } from "./types";
 import State from './state';
 
 // TODO: remove hardcoded url
@@ -54,7 +52,7 @@ class Target {
 
   sendBlockTx({ feedId, block, metadata, chain, signer }: TxData, nonce?: number): Subscription {
     this.logger.debug(`Sending ${chain} block to feed: ${feedId}`);
-    this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
+    this.logger.debug(`Signer: ${signer.address}`);
     // metadata is stored as Vec<u8>
     // to decode: new TextDecoder().decode(new Uint8Array([...]))
     const metadataPayload = JSON.stringify(metadata);
@@ -64,7 +62,7 @@ class Target {
         // it is required to specify nonce, otherwise transaction within same block will be rejected
         // if nonce is -1 API will do the lookup for the right value
         // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer, { nonce: nonce || -1 }, Promise.resolve)
+        .signAndSend(signer.address, { nonce: nonce || -1, signer }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {
@@ -76,13 +74,13 @@ class Target {
     );
   }
 
-  private async sendCreateFeedTx(signer: AddressOrPair): Promise<U64> {
-    this.logger.info(`Creating feed for signer ${(signer as KeyringPair).address}`);
-    this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
+  private async sendCreateFeedTx(signer: SignerWithAddress): Promise<U64> {
+    this.logger.info(`Creating feed for signer ${signer.address}`);
+    this.logger.debug(`Signer: ${signer.address}`);
     return new Promise((resolve) => {
       this.api.rx.tx.feeds
         .create()
-        .signAndSend(signer, { nonce: -1 }, Promise.resolve)
+        .signAndSend(signer.address, { nonce: -1, signer }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {
@@ -109,14 +107,13 @@ class Target {
     });
   }
 
-  sendBalanceTx(from: AddressOrPair, to: AddressOrPair, amount: number): Promise<void> {
-    const fromAddress = (from as KeyringPair).address;
-    const toAddress = (to as KeyringPair).address;
+  sendBalanceTx(from: SignerWithAddress, toAddress: string, amount: number): Promise<void> {
+    const fromAddress = from.address;
     this.logger.info(`Sending balance ${amount} from ${fromAddress} to ${toAddress}`);
     return new Promise((resolve) => {
       this.api.rx.tx.balances
         .transfer(toAddress, amount * Math.pow(10, 12))
-        .signAndSend(from, { nonce: -1 }, Promise.resolve)
+        .signAndSend(fromAddress, { nonce: -1, signer: from }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {
@@ -133,8 +130,8 @@ class Target {
     });
   }
 
-  async getFeedId(signer: AddressOrPair): Promise<U64> {
-    const { address } = (signer as KeyringPair);
+  async getFeedId(signer: SignerWithAddress): Promise<U64> {
+    const address = signer.address;
     this.logger.info(`Checking feed for ${address}`);
 
     const feedId = await this.state.getFeedIdByAddress(address);
