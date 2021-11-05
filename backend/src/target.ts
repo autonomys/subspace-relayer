@@ -32,7 +32,7 @@ class Target {
     this.logTxResult = this.logTxResult.bind(this);
   }
 
-  private logTxResult({ status, events }: ISubmittableResult) {
+  private logTxResult({ status, events }: ISubmittableResult, subscription: Subscription) {
     if (status.isInBlock) {
       const isExtrinsicFailed = events
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,11 +42,12 @@ class Target {
 
       if (isExtrinsicFailed) {
         this.logger.error("Extrinsic failed");
+      } else {
+        this.logger.debug(
+          `Transaction included: ${polkadotAppsUrl}${status.asInBlock}`
+        );
       }
-
-      this.logger.debug(
-        `Transaction included: ${polkadotAppsUrl}${status.asInBlock}`
-      );
+      subscription.unsubscribe();
     }
   }
 
@@ -56,29 +57,30 @@ class Target {
     // metadata is stored as Vec<u8>
     // to decode: new TextDecoder().decode(new Uint8Array([...]))
     const metadataPayload = JSON.stringify(metadata);
-    return (
-      this.api.rx.tx.feeds
-        .put(feedId, block, metadataPayload)
-        // it is required to specify nonce, otherwise transaction within same block will be rejected
-        // if nonce is -1 API will do the lookup for the right value
-        // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer.address, { nonce: nonce || -1, signer }, Promise.resolve)
-        .pipe(
-          takeWhile(({ status }) => !status.isInBlock, true),
-          catchError((error) => {
-            this.logger.error(error);
-            return EMPTY;
-          })
-        )
-        .subscribe(this.logTxResult)
-    );
+    const subscription = this.api.rx.tx.feeds
+      .put(feedId, block, metadataPayload)
+      // it is required to specify nonce, otherwise transaction within same block will be rejected
+      // if nonce is -1 API will do the lookup for the right value
+      // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
+      .signAndSend(signer.address, { nonce: nonce || -1, signer }, Promise.resolve)
+      .pipe(
+        takeWhile(({ status }) => !status.isInBlock, true),
+        catchError((error) => {
+          this.logger.error(error);
+          return EMPTY;
+        })
+      )
+      .subscribe((result) => {
+        this.logTxResult(result, subscription);
+      });
+    return subscription;
   }
 
   private async sendCreateFeedTx(signer: SignerWithAddress): Promise<U64> {
     this.logger.info(`Creating feed for signer ${signer.address}`);
     this.logger.debug(`Signer: ${signer.address}`);
     return new Promise((resolve) => {
-      this.api.rx.tx.feeds
+      const subscription = this.api.rx.tx.feeds
         .create()
         .signAndSend(signer.address, { nonce: -1, signer }, Promise.resolve)
         .pipe(
@@ -88,7 +90,7 @@ class Target {
             return EMPTY;
           }))
         .subscribe((result) => {
-          this.logTxResult(result);
+          this.logTxResult(result, subscription);
 
           const feedCreatedEvent = result.events.find(
             ({ event }: EventRecord) => this.api.events.feeds.FeedCreated.is(event)
@@ -111,7 +113,7 @@ class Target {
     const fromAddress = from.address;
     this.logger.info(`Sending balance ${amount} from ${fromAddress} to ${toAddress}`);
     return new Promise((resolve) => {
-      this.api.rx.tx.balances
+      const subscription = this.api.rx.tx.balances
         .transfer(toAddress, amount * Math.pow(10, 12))
         .signAndSend(fromAddress, { nonce: -1, signer: from }, Promise.resolve)
         .pipe(
@@ -121,7 +123,7 @@ class Target {
             return EMPTY;
           }))
         .subscribe((result) => {
-          this.logTxResult(result);
+          this.logTxResult(result, subscription);
 
           if (result.status.isInBlock) {
             resolve();
