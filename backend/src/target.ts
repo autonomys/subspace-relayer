@@ -1,5 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
-import { Subscription, EMPTY, catchError } from "rxjs";
+import { EMPTY, catchError } from "rxjs";
 import { takeWhile } from "rxjs/operators";
 import { Logger } from "pino";
 import { AddressOrPair } from "@polkadot/api/submittable/types";
@@ -52,19 +52,20 @@ class Target {
     }
   }
 
-  sendBlockTx({ feedId, block, metadata, chain, signer }: TxData, nonce?: number): Subscription {
-    this.logger.debug(`Sending ${chain} block to feed: ${feedId}`);
-    this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
+  public sendBlockTx(txData: TxData): Promise<void> {
+    this.logger.debug(`Sending ${txData.chain} block to feed: ${txData.feedId}`);
+    this.logger.debug(`Signer: ${(txData.signer as KeyringPair).address}`);
     // metadata is stored as Vec<u8>
     // to decode: new TextDecoder().decode(new Uint8Array([...]))
-    const metadataPayload = JSON.stringify(metadata);
-    return (
+    const metadataPayload = JSON.stringify(txData.metadata);
+
+    return new Promise(resolve => {
       this.api.rx.tx.feeds
-        .put(feedId, block, metadataPayload)
+        .put(txData.feedId, txData.block, metadataPayload)
         // it is required to specify nonce, otherwise transaction within same block will be rejected
         // if nonce is -1 API will do the lookup for the right value
         // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer, { nonce: nonce || -1 }, Promise.resolve)
+        .signAndSend(txData.signer, { nonce: txData.nonce || -1 }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {
@@ -72,8 +73,14 @@ class Target {
             return EMPTY;
           })
         )
-        .subscribe(this.logTxResult)
-    );
+        .subscribe(result => {
+          this.logTxResult(result);
+
+          if (result.status.isInBlock) {
+            resolve();
+          }
+        });
+    })
   }
 
   private async sendCreateFeedTx(signer: AddressOrPair): Promise<U64> {
@@ -109,7 +116,7 @@ class Target {
     });
   }
 
-  sendBalanceTx(from: AddressOrPair, to: AddressOrPair, amount: number): Promise<void> {
+  public sendBalanceTx(from: AddressOrPair, to: AddressOrPair, amount: number): Promise<void> {
     const fromAddress = (from as KeyringPair).address;
     const toAddress = (to as KeyringPair).address;
     this.logger.info(`Sending balance ${amount} from ${fromAddress} to ${toAddress}`);
@@ -133,7 +140,7 @@ class Target {
     });
   }
 
-  async getFeedId(signer: AddressOrPair): Promise<U64> {
+  public async getFeedId(signer: AddressOrPair): Promise<U64> {
     const { address } = (signer as KeyringPair);
     this.logger.info(`Checking feed for ${address}`);
 

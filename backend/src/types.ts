@@ -12,6 +12,7 @@ export interface TxData {
   metadata: Metadata;
   chain: ChainName;
   signer: AddressOrPair;
+  nonce?: number;
 }
 
 interface Metadata {
