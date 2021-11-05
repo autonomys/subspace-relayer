@@ -18,8 +18,8 @@ import { getChainName } from './httpApi';
 const args = process.argv.slice(2);
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
-    ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
-    : 1000;
+  ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
+  : 1000;
 
 const config = new Config({
   accountSeed: process.env.ACCOUNT_SEED,
@@ -106,11 +106,20 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
       archives.forEach(async archive => {
         let lastBlockProcessingReportAt = Date.now();
         let processedBlocks = 0;
-
+        let pendingTxs = [];
         let nonce = (await target.api.rpc.system.accountNextIndex((archive.signer as KeyringPair).address)).toBn();
+
         for await (const blockData of archive.getBlocks()) {
-          target.sendBlockTx(blockData, nonce);
+          const tx = target.sendBlockTx({ ...blockData, nonce });
+
+          pendingTxs.push(tx);
+
           nonce = nonce.add(new BN(1));
+
+          if (pendingTxs.length > 500) {
+            await Promise.all(pendingTxs);
+            pendingTxs = [];
+          }
 
           processedBlocks++;
 
