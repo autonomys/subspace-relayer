@@ -55,7 +55,7 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
     const blockBytes = await getBlockByNumber(sourceChainRpc, blockNumber);
 
-    await db.put(Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer), Buffer.from(blockBytes));
+    await db.put(Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer), blockBytes);
 
     if (blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
       const now = Date.now();

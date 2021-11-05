@@ -43,7 +43,7 @@ export async function getLastFinalizedBlock(url: string): Promise<number> {
         });
 }
 
-export async function getBlockByNumber(url: string, blockNumber: number): Promise<Uint8Array> {
+export async function getBlockByNumber(url: string, blockNumber: number): Promise<Buffer> {
     const blockHash: string = await fetch(url, {
         method: "post",
         body: JSON.stringify({

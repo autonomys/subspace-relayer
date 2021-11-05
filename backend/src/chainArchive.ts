@@ -1,4 +1,3 @@
-import { u8aToHex } from '@polkadot/util';
 import { blake2AsU8a } from '@polkadot/util-crypto';
 import * as fsp from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
@@ -69,7 +68,7 @@ class ChainArchive {
     while (lastProcessed <= lastFromDb) {
       const number = lastProcessed + 1;
       const blockBytes = await this.getBlockByNumber(number);
-      const block = u8aToHex(blockBytes);
+      const block = `0x${Buffer.from(blockBytes).toString('hex')}`;
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
       const headerLength = getHeaderLength(blockBytes);
       const hash = this.registry.createType("Hash", blake2AsU8a(blockBytes.subarray(0, headerLength)));

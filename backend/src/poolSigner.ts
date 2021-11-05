@@ -4,7 +4,6 @@ import { SignerPayloadJSON, SignerResult } from "@polkadot/types/types/extrinsic
 
 import { SignerWithAddress } from "./types";
 import { getAccount } from "./account";
-import { u8aToHex } from "@polkadot/util";
 
 export class MessageToSign {
     public constructor(
@@ -37,7 +36,7 @@ class SigningWorker {
             const callback = this.map.get(id);
             if (callback) {
                 this.map.delete(id);
-                callback(u8aToHex(signature));
+                callback(`0x${Buffer.from(signature).toString('hex')}`);
             }
         });
     }
