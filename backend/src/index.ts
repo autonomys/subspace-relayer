@@ -15,6 +15,41 @@ import * as archives from './config/archives.json';
 import * as sourceChains from './config/sourceChains.json';
 import { getChainName } from './httpApi';
 
+type Task = () => Promise<void>;
+
+class AsyncQueue {
+  private readonly concurrency: number;
+  private pendingCount: number;
+  private readonly waiting: Task[];
+
+  constructor(concurrency: number) {
+    this.concurrency = concurrency;
+    this.pendingCount = 0;
+    this.waiting = [];
+  }
+
+  add(task: Task) {
+    const isWithinLimit = this.pendingCount < this.concurrency;
+    if (isWithinLimit) {
+      this.next(task);
+      return;
+    }
+    this.waiting.push(task);
+  }
+
+  async next(task: Task) {
+    this.pendingCount++;
+    await task();
+    this.pendingCount--;
+
+    if (this.waiting.length > 0) {
+      const task = this.waiting.shift();
+      this.next(task as Task);
+      return;
+    }
+  }
+}
+
 const args = process.argv.slice(2);
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
@@ -106,20 +141,13 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
       archives.forEach(async archive => {
         let lastBlockProcessingReportAt = Date.now();
         let processedBlocks = 0;
-        let pendingTxs = [];
+        const q = new AsyncQueue(500);
         let nonce = (await target.api.rpc.system.accountNextIndex((archive.signer as KeyringPair).address)).toBn();
 
         for await (const blockData of archive.getBlocks()) {
-          const tx = target.sendBlockTx({ ...blockData, nonce });
-
-          pendingTxs.push(tx);
+          q.add(() => target.sendBlockTx({ ...blockData, nonce }));
 
           nonce = nonce.add(new BN(1));
-
-          if (pendingTxs.length > 500) {
-            await Promise.all(pendingTxs);
-            pendingTxs = [];
-          }
 
           processedBlocks++;
 
