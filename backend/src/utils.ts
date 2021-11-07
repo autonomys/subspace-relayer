@@ -108,10 +108,6 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
     ]);
 }
 
-export function jsonBlockToHex(block: SignedBlockJsonRpc): `0x${string}` {
-    return `0x${blockToBinary(block).toString('hex')}`;
-}
-
 // disable eslint rules and allow 'any' because we're checking API response
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
 export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlockJsonRpc {

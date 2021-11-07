@@ -3,10 +3,10 @@ import { Subscription, EMPTY, catchError } from "rxjs";
 import { takeWhile } from "rxjs/operators";
 import { Logger } from "pino";
 import { ISubmittableResult } from "@polkadot/types/types";
-import { EventRecord } from "@polkadot/types/interfaces";
+import { EventRecord, Hash } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 
-import { SignerWithAddress, TxData } from "./types";
+import { SignerWithAddress, TxData, BatchTxBlock } from "./types";
 import State from './state';
 
 // TODO: remove hardcoded url
@@ -58,7 +58,7 @@ class Target {
     // to decode: new TextDecoder().decode(new Uint8Array([...]))
     const metadataPayload = JSON.stringify(metadata);
     const subscription = this.api.rx.tx.feeds
-      .put(feedId, block, metadataPayload)
+      .put(feedId, `0x${block.toString('hex')}`, metadataPayload)
       // it is required to specify nonce, otherwise transaction within same block will be rejected
       // if nonce is -1 API will do the lookup for the right value
       // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
@@ -74,6 +74,47 @@ class Target {
         this.logTxResult(result, subscription);
       });
     return subscription;
+  }
+
+  sendBlocksBatchTx(
+    feedId: U64,
+    signer: SignerWithAddress,
+    txData: BatchTxBlock[],
+    nonce?: bigint,
+  ): Promise<Hash> {
+    this.logger.debug(`Sending ${txData.length} blocks to feed: ${feedId}`);
+    this.logger.debug(`Signer: ${signer.address}`);
+
+    const putCalls = txData.map(({ block, metadata }: BatchTxBlock) => {
+      return this.api.tx.feeds.put(
+        feedId,
+        `0x${block.toString('hex')}`,
+        `0x${metadata.toString('hex')}`,
+      );
+    });
+    return new Promise((resolve, reject) => {
+      let unsub: () => void;
+      this.api.tx.utility
+        .batchAll(putCalls)
+        // it is required to specify nonce, otherwise transaction within same block will be rejected
+        // if nonce is -1 API will do the lookup for the right value
+        // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
+        .signAndSend(signer.address, { nonce: nonce || -1, signer }, (result) => {
+          if (result.isError) {
+            reject(result.status.toString());
+            unsub();
+          } else if (result.status.isInBlock) {
+            resolve(result.status.asInBlock);
+            unsub();
+          }
+        })
+        .then((unsubLocal) => {
+          unsub = unsubLocal;
+        })
+        .catch((e) => {
+          reject(e);
+        });
+    });
   }
 
   private async sendCreateFeedTx(signer: SignerWithAddress): Promise<U64> {

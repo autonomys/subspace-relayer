@@ -6,7 +6,7 @@ import Source from "./source";
 import Target from "./target";
 import logger from "./logger";
 import { createParachainsMap } from './utils';
-import { ChainName } from './types';
+import { ChainName, BatchTxBlock } from './types';
 import State from './state';
 import ChainArchive from './chainArchive';
 import * as archives from './config/archives.json';
@@ -16,9 +16,18 @@ import { PoolSigner } from "./poolSigner";
 
 const args = process.argv.slice(2);
 
-const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
-  ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
-  : 1000;
+// TODO: remove hardcoded url
+const polkadotAppsUrl =
+  "https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer/query/";
+/**
+ * How many bytes of data and metadata will we collect for one batch extrinsic (remember, there will be some overhead
+ * for calls too)
+ */
+const BATCH_BYTES_LIMIT = 3_500_000;
+/**
+ * How many calls can fit into one batch (it should be possible to read this many blocks from disk within one second)
+ */
+const BATCH_COUNT_LIMIT = 5_000;
 const SIGNER_POOL_SIZE = process.env.SIGNER_POOL_SIZE
     ? parseInt(process.env.SIGNER_POOL_SIZE, 10)
     : 4;
@@ -79,6 +88,45 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
   });
 }
 
+async function *readBlocksInBatches(
+  archive: ChainArchive,
+  lastProcessedBlock: number,
+): AsyncGenerator<[BatchTxBlock[], number], void> {
+  let blocksToArchive: BatchTxBlock[] = [];
+  let accumulatedBytes = 0;
+  let lastBlockNumber = 0;
+  for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
+    const block = blockData.block;
+    const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
+    const extraBytes = block.byteLength + metadata.byteLength;
+
+    if (accumulatedBytes + extraBytes >= BATCH_BYTES_LIMIT) {
+      // With new block limit will be exceeded, yield now
+      yield [blocksToArchive, lastBlockNumber];
+      blocksToArchive = [];
+      accumulatedBytes = 0;
+    }
+
+    blocksToArchive.push({
+      block: blockData.block,
+      metadata,
+    });
+    accumulatedBytes += extraBytes;
+    lastBlockNumber = blockData.metadata.number;
+
+    if (blocksToArchive.length === BATCH_COUNT_LIMIT) {
+      // Reached block count limit, yield now
+      yield [blocksToArchive, lastBlockNumber];
+      blocksToArchive = [];
+      accumulatedBytes = 0;
+    }
+  }
+
+  if (blocksToArchive.length > 0) {
+    yield [blocksToArchive, lastBlockNumber];
+  }
+}
+
 // TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
   try {
@@ -89,45 +137,59 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
     const master = new PoolSigner(targetApi.registry, config.accountSeed, 1);
 
     if (args.length && (args[0] === 'archive')) {
-      const archives = await Promise.all(config.archives.map(async ({ path, url }) => {
+      config.archives.map(async ({ path, url }) => {
         const chain = await getChainName(url);
         const signer = new PoolSigner(
             target.api.registry,
             `${config.accountSeed}/${chain}`,
             SIGNER_POOL_SIZE,
         );
+        // TODO: Do not send balance
         await target.sendBalanceTx(master, signer.address, 1.5);
         const feedId = await target.getFeedId(signer);
 
-        return new ChainArchive({
+        const archive = new ChainArchive({
           path,
-          chain,
-          feedId,
           logger,
-          signer,
-          state,
         });
-      }))
 
-      archives.forEach(async archive => {
         let lastBlockProcessingReportAt = Date.now();
-        let processedBlocks = 0;
 
-        let nonce = (await target.api.rpc.system.accountNextIndex(archive.signer.address)).toBn();
-        for await (const blockData of archive.getBlocks()) {
-          target.sendBlockTx(blockData, nonce);
-          nonce = nonce.add(new BN(1));
+        let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
+        const lastProcessedString = await state.getLastProcessedBlockByName(chain);
+        const lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
 
-          processedBlocks++;
-
-          if (processedBlocks % REPORT_PROGRESS_INTERVAL === 0) {
-            const now = Date.now();
-            const rate = (Number(REPORT_PROGRESS_INTERVAL) / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
-            lastBlockProcessingReportAt = now;
-
-            logger.info(`Processed downloaded ${blockData.chain} block ${blockData.metadata.number} at ${rate} blocks/s`);
+        let lastTxPromise: Promise<void> | undefined;
+        for await (const [blocksBatch, lastBlockNumber] of readBlocksInBatches(archive, lastProcessedBlock)) {
+          if (lastTxPromise) {
+            await lastTxPromise;
           }
+          lastTxPromise = (async () => {
+            try {
+              const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
+              nonce++;
+
+              logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
+
+              {
+                const now = Date.now();
+                const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
+                lastBlockProcessingReportAt = now;
+
+                logger.info(`Processed downloaded ${chain} block ${lastBlockNumber} at ${rate} blocks/s`);
+              }
+
+              await state.saveLastProcessedBlock(chain, lastBlockNumber);
+            } catch (e) {
+              logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
+              process.exit(1);
+            }
+          })();
         }
+
+        // TODO: Check what timer prevents this from exiting naturally and remove this piece of code, this will also
+        //  cause problems when we have more than one archive
+        process.exit(0);
       });
     } else {
       // default - processing blocks from RPC API

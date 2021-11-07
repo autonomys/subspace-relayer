@@ -8,7 +8,7 @@ import { from, merge, EMPTY, defer, throwError } from 'rxjs';
 import { Logger } from "pino";
 
 import { ChainName, ParachainsMap, ParaHeadAndId, TxData, SignerWithAddress } from "./types";
-import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData, jsonBlockToHex } from './utils';
+import { getParaHeadAndIdFromEvent, isRelevantRecord, toBlockTxData, blockToBinary } from './utils';
 import State from './state';
 
 // custom error to throw when block resync is done in order to terminate observable and propagate values
@@ -150,7 +150,7 @@ class Source {
 
               return toBlockTxData({
                 // TODO: implement tests to ensure this can be decoded correctly
-                block: jsonBlockToHex(signedBlock),
+                block: blockToBinary(signedBlock),
                 number,
                 hash: paraHead,
                 feedId,
@@ -173,7 +173,7 @@ class Source {
         this.logger.info(`${this.chain} - processing block: ${hash}, height: ${number}`);
 
         return toBlockTxData({
-          block: signedBlock.toHex(),
+          block: Buffer.from(signedBlock.toU8a()),
           number,
           hash,
           feedId: this.feedId,
