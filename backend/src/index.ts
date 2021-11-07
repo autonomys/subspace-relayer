@@ -8,27 +8,27 @@ import Source from "./source";
 import Target from "./target";
 import logger from "./logger";
 import { createParachainsMap } from './utils';
-import { ChainName } from './types';
+import { ChainName, TxData } from './types';
 import State from './state';
 import ChainArchive from './chainArchive';
 import * as archives from './config/archives.json';
 import * as sourceChains from './config/sourceChains.json';
 import { getChainName } from './httpApi';
 
-type Task = () => Promise<void>;
-
 class AsyncQueue {
   private readonly concurrency: number;
   private pendingCount: number;
-  private readonly waiting: Task[];
+  private readonly waiting: TxData[];
+  private readonly onProcess: (data: TxData) => Promise<void>;
 
-  constructor(concurrency: number) {
+  constructor({ concurrency, onProcess }: { concurrency: number, onProcess: (data: TxData) => Promise<void> }) {
     this.concurrency = concurrency;
     this.pendingCount = 0;
     this.waiting = [];
+    this.onProcess = onProcess;
   }
 
-  add(task: Task) {
+  add(task: TxData) {
     const isWithinLimit = this.pendingCount < this.concurrency;
     if (isWithinLimit) {
       this.next(task);
@@ -37,14 +37,14 @@ class AsyncQueue {
     this.waiting.push(task);
   }
 
-  async next(task: Task) {
+  async next(task: TxData) {
     this.pendingCount++;
-    await task();
+    await this.onProcess(task);
     this.pendingCount--;
 
-    if (this.waiting.length > 0) {
-      const task = this.waiting.shift();
-      this.next(task as Task);
+    const lastTask = this.waiting.shift();
+    if (lastTask) {
+      this.next(lastTask);
       return;
     }
   }
@@ -141,11 +141,11 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
       archives.forEach(async archive => {
         let lastBlockProcessingReportAt = Date.now();
         let processedBlocks = 0;
-        const q = new AsyncQueue(500);
+        const q = new AsyncQueue({ concurrency: 500, onProcess: target.sendBlockTx });
         let nonce = (await target.api.rpc.system.accountNextIndex((archive.signer as KeyringPair).address)).toBn();
 
         for await (const blockData of archive.getBlocks()) {
-          q.add(() => target.sendBlockTx({ ...blockData, nonce }));
+          q.add({ ...blockData, nonce });
 
           nonce = nonce.add(new BN(1));
 
