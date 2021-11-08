@@ -17,15 +17,20 @@ export abstract class SignerWithAddress implements Signer {
 
 export interface TxData {
   feedId: U64;
-  block: string;
-  metadata: Metadata;
+  block: Buffer;
+  metadata: BlockMetadata;
   chain: ChainName;
   signer: SignerWithAddress;
 }
 
-interface Metadata {
+export interface BlockMetadata {
   hash: Hash;
   number: number;
+}
+
+export interface BatchTxBlock {
+  block: Buffer;
+  metadata: Buffer;
 }
 
 export interface ParaHeadAndId {
@@ -43,7 +48,7 @@ export interface ParachainConfigType {
 export type ParachainsMap = Map<string, Parachain>;
 
 export interface TxDataInput {
-  block: string;
+  block: Buffer;
   number: number;
   hash: Hash;
   feedId: U64;

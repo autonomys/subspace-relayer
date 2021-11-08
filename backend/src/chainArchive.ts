@@ -5,21 +5,23 @@ import * as fsp from "fs/promises";
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import { U64 } from "@polkadot/types/primitive";
 import { Logger } from "pino";
 import { TypeRegistry } from '@polkadot/types';
 
-import { getHeaderLength, toBlockTxData } from './utils';
-import { ChainName, SignerWithAddress, TxData } from "./types";
-import State from './state';
+import { getHeaderLength } from './utils';
+import { BlockMetadata } from "./types";
 
 interface ChainArchiveConstructorParams {
   path: string;
-  chain: ChainName;
-  feedId: U64;
   logger: Logger;
-  signer: SignerWithAddress;
-  state: State;
+}
+
+export class ArchivedBlock {
+  public constructor(
+    public readonly block: Buffer,
+    public readonly metadata: BlockMetadata
+  ) {
+  }
 }
 
 class ChainArchive {
@@ -27,28 +29,19 @@ class ChainArchive {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly db: any;
   private readonly path: string;
-  private readonly chain: ChainName;
-  private readonly feedId: U64;
   private readonly logger: Logger;
-  private readonly state: State;
   // use TypeRegistry to create types Header and Hash instead of using polkadot.js WS API
   private readonly registry: TypeRegistry;
-  public readonly signer: SignerWithAddress;
 
   public constructor(params: ChainArchiveConstructorParams) {
     this.db = levelup(rocksdb(`${params.path}/db`));
     this.path = params.path;
-    this.chain = params.chain;
-    this.feedId = params.feedId;
     this.logger = params.logger;
-    this.signer = params.signer;
-    this.state = params.state;
     this.getBlockByNumber = this.getBlockByNumber.bind(this);
-    this.isPayloadWithinSizeLimit = this.isPayloadWithinSizeLimit.bind(this);
     this.registry = new TypeRegistry();
   }
 
-  private getBlockByNumber(blockNumber: number): Promise<Uint8Array> {
+  private getBlockByNumber(blockNumber: number): Promise<Buffer> {
     const blockNumberBytes = Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
     return this.db.get(blockNumberBytes);
   }
@@ -58,53 +51,25 @@ class ChainArchive {
     return parseInt(file, 10);
   }
 
-  async *getBlocks(): AsyncGenerator<TxData, void> {
+  async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
     this.logger.info('Start processing blocks from archive');
 
     const lastFromDb = await this.getLastBlockNumberFromDb();
-    const lastProcessedString = await this.state.getLastProcessedBlockByName(this.chain);
-    let lastProcessed = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
 
-    while (lastProcessed <= lastFromDb) {
-      const number = lastProcessed + 1;
-      const blockBytes = await this.getBlockByNumber(number);
-      const block = `0x${Buffer.from(blockBytes).toString('hex')}`;
+    while (lastProcessedBlock <= lastFromDb) {
+      const number = lastProcessedBlock + 1;
+      const block = await this.getBlockByNumber(number);
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
-      const headerLength = getHeaderLength(blockBytes);
-      const hash = this.registry.createType("Hash", blake2AsU8a(blockBytes.subarray(0, headerLength)));
+      const headerLength = getHeaderLength(block);
+      const hash = this.registry.createType("Hash", blake2AsU8a(block.subarray(0, headerLength)));
 
-      const data = toBlockTxData({
-        block,
+      lastProcessedBlock = number;
+
+      yield new ArchivedBlock(block, {
         number,
         hash,
-        feedId: this.feedId,
-        chain: this.chain,
-        signer: this.signer
-      })
-
-      lastProcessed = number;
-
-      // TODO: consider saving last processed block after transaction is sent (move to Target)
-      this.state.saveLastProcessedBlock(this.chain, number);
-
-      if (this.isPayloadWithinSizeLimit(data)) {
-        yield data;
-      } else {
-        this.logger.error(`${data.chain}:${number} tx payload size exceeds 5 MB`);
-        process.exit(1);
-      }
+      });
     }
-  }
-
-  // TODO: use same check as in node runtime
-  // check if block tx payload does not exceed 5 MB size limit
-  // reference https://github.com/paritytech/substrate/issues/3174#issuecomment-514539336, values above and below were tested as well
-  private isPayloadWithinSizeLimit(txPayload: TxData): boolean {
-    const txPayloadSize = Buffer.byteLength(JSON.stringify(txPayload));
-    const txSizeLimit = 5000000; // 5 MB
-    this.logger.debug(`${txPayload.chain}:${txPayload.metadata.number} tx payload size: ${txPayloadSize}`);
-
-    return txPayloadSize <= txSizeLimit;
   }
 }
 
