@@ -1,4 +1,3 @@
-import { u8aToHex } from '@polkadot/util';
 import { blake2AsU8a } from '@polkadot/util-crypto';
 import * as fsp from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
@@ -7,12 +6,11 @@ const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
 import { U64 } from "@polkadot/types/primitive";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 import { Logger } from "pino";
 import { TypeRegistry } from '@polkadot/types';
 
 import { getHeaderLength, toBlockTxData } from './utils';
-import { TxData, ChainName } from "./types";
+import { ChainName, SignerWithAddress, TxData } from "./types";
 import State from './state';
 
 interface ChainArchiveConstructorParams {
@@ -20,7 +18,7 @@ interface ChainArchiveConstructorParams {
   chain: ChainName;
   feedId: U64;
   logger: Logger;
-  signer: AddressOrPair;
+  signer: SignerWithAddress;
   state: State;
 }
 
@@ -35,7 +33,7 @@ class ChainArchive {
   private readonly state: State;
   // use TypeRegistry to create types Header and Hash instead of using polkadot.js WS API
   private readonly registry: TypeRegistry;
-  public readonly signer: AddressOrPair;
+  public readonly signer: SignerWithAddress;
 
   public constructor(params: ChainArchiveConstructorParams) {
     this.db = levelup(rocksdb(`${params.path}/db`));
@@ -70,7 +68,7 @@ class ChainArchive {
     while (lastProcessed <= lastFromDb) {
       const number = lastProcessed + 1;
       const blockBytes = await this.getBlockByNumber(number);
-      const block = u8aToHex(blockBytes);
+      const block = `0x${Buffer.from(blockBytes).toString('hex')}`;
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
       const headerLength = getHeaderLength(blockBytes);
       const hash = this.registry.createType("Hash", blake2AsU8a(blockBytes.subarray(0, headerLength)));

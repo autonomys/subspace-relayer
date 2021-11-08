@@ -2,13 +2,11 @@ import { ApiPromise } from "@polkadot/api";
 import { Subscription, EMPTY, catchError } from "rxjs";
 import { takeWhile } from "rxjs/operators";
 import { Logger } from "pino";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
-import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
 import { EventRecord } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 
-import { TxData } from "./types";
+import { SignerWithAddress, TxData } from "./types";
 import State from './state';
 
 // TODO: remove hardcoded url
@@ -34,7 +32,7 @@ class Target {
     this.logTxResult = this.logTxResult.bind(this);
   }
 
-  private logTxResult({ status, events }: ISubmittableResult) {
+  private logTxResult({ status, events }: ISubmittableResult, subscription: Subscription) {
     if (status.isInBlock) {
       const isExtrinsicFailed = events
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,45 +42,47 @@ class Target {
 
       if (isExtrinsicFailed) {
         this.logger.error("Extrinsic failed");
+      } else {
+        this.logger.debug(
+          `Transaction included: ${polkadotAppsUrl}${status.asInBlock}`
+        );
       }
-
-      this.logger.debug(
-        `Transaction included: ${polkadotAppsUrl}${status.asInBlock}`
-      );
+      subscription.unsubscribe();
     }
   }
 
   sendBlockTx({ feedId, block, metadata, chain, signer }: TxData, nonce?: number): Subscription {
     this.logger.debug(`Sending ${chain} block to feed: ${feedId}`);
-    this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
+    this.logger.debug(`Signer: ${signer.address}`);
     // metadata is stored as Vec<u8>
     // to decode: new TextDecoder().decode(new Uint8Array([...]))
     const metadataPayload = JSON.stringify(metadata);
-    return (
-      this.api.rx.tx.feeds
-        .put(feedId, block, metadataPayload)
-        // it is required to specify nonce, otherwise transaction within same block will be rejected
-        // if nonce is -1 API will do the lookup for the right value
-        // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer, { nonce: nonce || -1 }, Promise.resolve)
-        .pipe(
-          takeWhile(({ status }) => !status.isInBlock, true),
-          catchError((error) => {
-            this.logger.error(error);
-            return EMPTY;
-          })
-        )
-        .subscribe(this.logTxResult)
-    );
+    const subscription = this.api.rx.tx.feeds
+      .put(feedId, block, metadataPayload)
+      // it is required to specify nonce, otherwise transaction within same block will be rejected
+      // if nonce is -1 API will do the lookup for the right value
+      // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
+      .signAndSend(signer.address, { nonce: nonce || -1, signer }, Promise.resolve)
+      .pipe(
+        takeWhile(({ status }) => !status.isInBlock, true),
+        catchError((error) => {
+          this.logger.error(error);
+          return EMPTY;
+        })
+      )
+      .subscribe((result) => {
+        this.logTxResult(result, subscription);
+      });
+    return subscription;
   }
 
-  private async sendCreateFeedTx(signer: AddressOrPair): Promise<U64> {
-    this.logger.info(`Creating feed for signer ${(signer as KeyringPair).address}`);
-    this.logger.debug(`Signer: ${(signer as KeyringPair).address}`);
+  private async sendCreateFeedTx(signer: SignerWithAddress): Promise<U64> {
+    this.logger.info(`Creating feed for signer ${signer.address}`);
+    this.logger.debug(`Signer: ${signer.address}`);
     return new Promise((resolve) => {
-      this.api.rx.tx.feeds
+      const subscription = this.api.rx.tx.feeds
         .create()
-        .signAndSend(signer, { nonce: -1 }, Promise.resolve)
+        .signAndSend(signer.address, { nonce: -1, signer }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {
@@ -90,7 +90,7 @@ class Target {
             return EMPTY;
           }))
         .subscribe((result) => {
-          this.logTxResult(result);
+          this.logTxResult(result, subscription);
 
           const feedCreatedEvent = result.events.find(
             ({ event }: EventRecord) => this.api.events.feeds.FeedCreated.is(event)
@@ -109,14 +109,13 @@ class Target {
     });
   }
 
-  sendBalanceTx(from: AddressOrPair, to: AddressOrPair, amount: number): Promise<void> {
-    const fromAddress = (from as KeyringPair).address;
-    const toAddress = (to as KeyringPair).address;
+  sendBalanceTx(from: SignerWithAddress, toAddress: string, amount: number): Promise<void> {
+    const fromAddress = from.address;
     this.logger.info(`Sending balance ${amount} from ${fromAddress} to ${toAddress}`);
     return new Promise((resolve) => {
-      this.api.rx.tx.balances
+      const subscription = this.api.rx.tx.balances
         .transfer(toAddress, amount * Math.pow(10, 12))
-        .signAndSend(from, { nonce: -1 }, Promise.resolve)
+        .signAndSend(fromAddress, { nonce: -1, signer: from }, Promise.resolve)
         .pipe(
           takeWhile(({ status }) => !status.isInBlock, true),
           catchError((error) => {
@@ -124,7 +123,7 @@ class Target {
             return EMPTY;
           }))
         .subscribe((result) => {
-          this.logTxResult(result);
+          this.logTxResult(result, subscription);
 
           if (result.status.isInBlock) {
             resolve();
@@ -133,8 +132,8 @@ class Target {
     });
   }
 
-  async getFeedId(signer: AddressOrPair): Promise<U64> {
-    const { address } = (signer as KeyringPair);
+  async getFeedId(signer: SignerWithAddress): Promise<U64> {
+    const address = signer.address;
     this.logger.info(`Checking feed for ${address}`);
 
     const feedId = await this.state.getFeedIdByAddress(address);

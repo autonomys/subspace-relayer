@@ -1,8 +1,15 @@
-import { compactFromU8a, compactToU8a, u8aToHex } from "@polkadot/util";
+import { compactFromU8a, compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
-import { AddressOrPair } from "@polkadot/api/submittable/types";
 
-import { ParaHeadAndId, ParachainConfigType, TxData, ParachainsMap, TxDataInput, SignedBlockJsonRpc } from "./types";
+import {
+    ParaHeadAndId,
+    ParachainConfigType,
+    TxData,
+    ParachainsMap,
+    TxDataInput,
+    SignedBlockJsonRpc,
+    SignerWithAddress,
+} from "./types";
 import Parachain from "./parachain";
 import Target from "./target";
 import logger from "./logger";
@@ -35,7 +42,7 @@ export const isRelevantRecord =
 export const createParachainsMap = async (
     target: Target,
     configParachains: ParachainConfigType[],
-    signers: AddressOrPair[],
+    signers: SignerWithAddress[],
 ): Promise<ParachainsMap> => {
     const map = new Map();
 
@@ -73,7 +80,7 @@ function hexToUint8Array(hex: string): Uint8Array {
     return Buffer.from(hex.slice(2), 'hex');
 }
 
-export function blockToBinary(block: SignedBlockJsonRpc): Uint8Array {
+export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
     const parentHash = hexToUint8Array(block.block.header.parentHash);
     const number = parseInt(block.block.header.number.slice(2), 16);
     const stateRoot = hexToUint8Array(block.block.header.stateRoot);
@@ -102,7 +109,7 @@ export function blockToBinary(block: SignedBlockJsonRpc): Uint8Array {
 }
 
 export function jsonBlockToHex(block: SignedBlockJsonRpc): `0x${string}` {
-    return u8aToHex(blockToBinary(block));
+    return `0x${blockToBinary(block).toString('hex')}`;
 }
 
 // disable eslint rules and allow 'any' because we're checking API response
