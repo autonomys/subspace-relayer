@@ -1,3 +1,4 @@
+import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { BN } from '@polkadot/util';
 
@@ -6,13 +7,12 @@ import Source from "./source";
 import Target from "./target";
 import logger from "./logger";
 import { createParachainsMap } from './utils';
-import { ChainName } from './types';
 import State from './state';
-import * as archives from './config/archives.json';
-import * as sourceChains from './config/sourceChains.json';
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
 import { relayFromDownloadedArchive } from "./relay";
+
+dotenv.config();
 
 const args = process.argv.slice(2);
 
@@ -29,12 +29,7 @@ const SIGNER_POOL_SIZE = process.env.SIGNER_POOL_SIZE
     ? parseInt(process.env.SIGNER_POOL_SIZE, 10)
     : 4;
 
-const config = new Config({
-  accountSeed: process.env.ACCOUNT_SEED,
-  targetChainUrl: process.env.TARGET_CHAIN_URL,
-  sourceChains,
-  archives,
-});
+const config = new Config();
 
 const createApi = async (url: string) => {
   const provider = new WsProvider(url);
@@ -95,72 +90,84 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
     const master = new PoolSigner(targetApi.registry, config.accountSeed, 1);
 
     if (args.length && (args[0] === 'archive')) {
-      config.archives.map(async ({ path, url }) => {
-        const chainName = await getChainName(url);
-        const signer = new PoolSigner(
-            target.api.registry,
-            `${config.accountSeed}/${chainName}`,
-            SIGNER_POOL_SIZE,
-        );
-        // TODO: Do not send balance
-        await target.sendBalanceTx(master, signer.address, 1.5);
-        const feedId = await target.getFeedId(signer);
-
-        await relayFromDownloadedArchive(
-          feedId,
-          chainName,
-          path,
-          target,
-          state,
-          signer,
-          BATCH_BYTES_LIMIT,
-          BATCH_COUNT_LIMIT,
-        );
-
-        targetApi.disconnect();
-      });
-    } else {
-      // default - processing blocks from RPC API
-      const sources = await Promise.all(
-        config.sourceChains.map(async ({ url, parachains }) => {
-          const api = await createApi(url);
-          const chain = (await api.rpc.system.chain()).toString() as ChainName;
+      const processingArchives = [config.chainConfig.primaryChain, ...config.chainConfig.parachains]
+        .map(async ({ downloadedArchivePath, httpUrl }) => {
+          if (!downloadedArchivePath) {
+            return;
+          }
+          const chainName = await getChainName(httpUrl);
           const signer = new PoolSigner(
               target.api.registry,
-              `${config.accountSeed}/${chain}`,
+              `${config.accountSeed}/${chainName}`,
               SIGNER_POOL_SIZE,
           );
-          const paraSigners = parachains.map(({ paraId }) => {
-            return new PoolSigner(
-              target.api.registry,
-              `${config.accountSeed}/${paraId}`,
-              SIGNER_POOL_SIZE,
-            );
-          });
-
-          // TODO: can be optimized by sending batch of txs
-          // TODO: master has to delegate spending to sourceSigner and paraSigners
-          for (const delegate of [signer, ...paraSigners]) {
-            // send 1.5 units
-            await target.sendBalanceTx(master, delegate.address, 1.5);
-          }
-
+          // TODO: Do not send balance
+          await target.sendBalanceTx(master, signer.address, 1.5);
           const feedId = await target.getFeedId(signer);
-          const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
 
-          return new Source({
-            api,
-            chain,
-            parachainsMap,
-            logger,
-            feedId,
-            signer,
-            state,
-          });
-        })
-      );
+          try {
+            await relayFromDownloadedArchive(
+              feedId,
+              chainName,
+              downloadedArchivePath,
+              target,
+              state,
+              signer,
+              BATCH_BYTES_LIMIT,
+              BATCH_COUNT_LIMIT,
+            );
+          } catch (e) {
+            logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
+            process.exit(1);
+          }
+        });
 
-      sources.forEach(processSourceBlocks(target));
+      await Promise.all(processingArchives);
+
+      await targetApi.disconnect();
+    } else {
+      // default - processing blocks from RPC API
+      // const sources = await Promise.all(
+      //   config.sourceChains.map(async ({ httpUrl, parachains }) => {
+      //     const api = await createApi(httpUrl);
+      //     const chain = await getChainName(httpUrl);
+      //     const signer = new PoolSigner(
+      //         target.api.registry,
+      //         `${config.accountSeed}/${chain}`,
+      //         SIGNER_POOL_SIZE,
+      //     );
+      //     const paraSigners = parachains.map(({ paraId }) => {
+      //       return new PoolSigner(
+      //         target.api.registry,
+      //         `${config.accountSeed}/${paraId}`,
+      //         SIGNER_POOL_SIZE,
+      //       );
+      //     });
+      //
+      //     // TODO: can be optimized by sending batch of txs
+      //     // TODO: master has to delegate spending to sourceSigner and paraSigners
+      //     for (const delegate of [signer, ...paraSigners]) {
+      //       // send 1.5 units
+      //       await target.sendBalanceTx(master, delegate.address, 1.5);
+      //     }
+      //
+      //     const feedId = await target.getFeedId(signer);
+      //     const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
+      //
+      //     return new Source({
+      //       api,
+      //       chain,
+      //       parachainsMap,
+      //       logger,
+      //       feedId,
+      //       signer,
+      //       state,
+      //     });
+      //   })
+      // );
+      //
+      // sources.forEach(processSourceBlocks(target));
+      logger.error('Temporarily unsupported');
     }
   } catch (error) {
     logger.error((error as Error).message);

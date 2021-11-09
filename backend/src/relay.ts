@@ -60,7 +60,7 @@ export async function relayFromDownloadedArchive(
   signer: SignerWithAddress,
   batchBytesLimit: number,
   batchCountLimit: number,
-): Promise<void> {
+): Promise<number> {
   const archive = new ChainArchive({
     path,
     logger,
@@ -70,7 +70,7 @@ export async function relayFromDownloadedArchive(
 
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
   const lastProcessedString = await state.getLastProcessedBlockByName(chainName);
-  const lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
+  let lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
 
   let lastTxPromise: Promise<void> | undefined;
   const blockBatches = readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
@@ -79,25 +79,23 @@ export async function relayFromDownloadedArchive(
       await lastTxPromise;
     }
     lastTxPromise = (async () => {
-      try {
-        const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
-        nonce++;
+      const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
+      nonce++;
 
-        logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
+      logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
 
-        {
-          const now = Date.now();
-          const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
-          lastBlockProcessingReportAt = now;
+      {
+        const now = Date.now();
+        const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
+        lastBlockProcessingReportAt = now;
 
-          logger.info(`Processed downloaded ${chainName} block ${lastBlockNumber} at ${rate} blocks/s`);
-        }
-
-        await state.saveLastProcessedBlock(chainName, lastBlockNumber);
-      } catch (e) {
-        logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
-        process.exit(1);
+        logger.info(`Processed downloaded ${chainName} block ${lastBlockNumber} at ${rate} blocks/s`);
       }
+
+      lastProcessedBlock = lastBlockNumber;
+      await state.saveLastProcessedBlock(chainName, lastProcessedBlock);
     })();
   }
+
+  return lastProcessedBlock;
 }

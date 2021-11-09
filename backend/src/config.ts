@@ -1,44 +1,50 @@
-import * as dotenv from "dotenv";
-import { ParachainConfigType } from './types';
+import * as fs from "fs";
+import { z } from "zod";
 
-dotenv.config();
+const AnyChainConfig = z.object({
+  downloadedArchivePath: z.string().optional(),
+  httpUrl: z.string(),
+});
 
-interface SourceChain {
-  url: string;
-  parachains: ParachainConfigType[];
-}
+export type AnyChainConfig = z.infer<typeof AnyChainConfig>;
 
-interface Archive {
-  path: string;
-  url: string;
-}
+const PrimaryChainConfig = AnyChainConfig.extend({
+  wsUrl: z.string(),
+});
 
-interface ConfigParams {
-  accountSeed: string | undefined;
-  targetChainUrl: string | undefined;
-  sourceChains: SourceChain[];
-  archives: Archive[];
-}
+export type PrimaryChainConfig = z.infer<typeof PrimaryChainConfig>;
+
+const ChainConfig = z.object({
+  primaryChain: PrimaryChainConfig,
+  parachains: z.array(AnyChainConfig),
+});
+
+export type ChainConfig = z.infer<typeof ChainConfig>;
 
 class Config {
   public readonly accountSeed: string;
   public readonly targetChainUrl: string;
-  public readonly sourceChains: SourceChain[];
-  public readonly archives: Archive[];
+  public readonly chainConfig: ChainConfig;
 
-  constructor(params: ConfigParams) {
-    if (!params.accountSeed) {
-      throw new Error("Seed is not provided");
+  constructor() {
+    if (!process.env.ACCOUNT_SEED) {
+      throw new Error(`"ACCOUNT_SEED" environment variable is required`);
     }
 
-    if (!params.targetChainUrl) {
-      throw new Error("Target chain endpoint url is not provided");
+    // TODO: Move this to config object with seeds for every chain specified
+    this.accountSeed = process.env.ACCOUNT_SEED;
+
+    if (!process.env.TARGET_CHAIN_URL) {
+      throw new Error(`"TARGET_CHAIN_URL" environment variable is required, set it to WS/WSS URL`);
     }
 
-    this.accountSeed = params.accountSeed;
-    this.targetChainUrl = params.targetChainUrl;
-    this.sourceChains = params.sourceChains;
-    this.archives = params.archives;
+    this.targetChainUrl = process.env.TARGET_CHAIN_URL;
+
+    if (!process.env.CHAIN_CONFIG_PATH) {
+      throw new Error(`"CHAIN_CONFIG_PATH" environment variable is required, set it to path to JSON file with configuration of chain(s)`);
+    }
+
+    this.chainConfig = ChainConfig.parse(JSON.parse(fs.readFileSync(process.env.CHAIN_CONFIG_PATH, 'utf-8')));
   }
 }
 

@@ -4,6 +4,8 @@ import { Signer, SignerPayloadJSON, SignerResult } from "@polkadot/types/types/e
 
 import Parachain from "./parachain";
 
+type Brand<K, T> = K & { __brand: T; };
+
 export type ChainName = Brand<string, 'chain'>;
 
 export abstract class SignerWithAddress implements Signer {
@@ -37,8 +39,6 @@ export interface ParaHeadAndId {
   paraId: string;
   paraHead: Hash;
 }
-
-export type Brand<K, T> = K & { __brand: T; };
 
 export interface ParachainConfigType {
   url: string;
