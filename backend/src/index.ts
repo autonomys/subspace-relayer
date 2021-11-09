@@ -12,7 +12,6 @@ import { ChainId, ParaHeadAndId } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { getParaHeadAndIdFromEvent, isRelevantRecord } from "./utils";
 
-
 dotenv.config();
 
 /**
@@ -58,8 +57,7 @@ async function main() {
         1,
       );
 
-      // TODO: Don't create feed ID, read from config instead
-      const feedId = await target.getFeedId(signer);
+      const feedId = await targetApi.createType('U64', chainConfig.feedId);
 
       let lastProcessedBlock = -1;
       if (chainConfig.downloadedArchivePath) {
@@ -84,11 +82,11 @@ async function main() {
         const chainHeadState = new PrimaryChainHeadState(0);
         chainHeadStateMap.set(PRIMARY_CHAIN_ID, chainHeadState);
 
-        const api = await createApi(chainConfig.wsUrl);
-        await api.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
+        const sourceApi = await createApi(chainConfig.wsUrl);
+        await sourceApi.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
           try {
             // TODO: Cache this, will be useful for relaying to not download twice
-            const {block} = await api.rpc.chain.getBlock(blockHeader.hash);
+            const {block} = await sourceApi.rpc.chain.getBlock(blockHeader.hash);
 
             chainHeadState.lastFinalizedBlockNumber = blockHeader.number.toNumber();
             if (chainHeadState.newHeadCallback) {
@@ -96,7 +94,7 @@ async function main() {
               chainHeadState.newHeadCallback = undefined;
             }
 
-            const blockRecords = await api.query.system.events.at(blockHeader.hash);
+            const blockRecords = await sourceApi.query.system.events.at(blockHeader.hash);
 
             const result: ParaHeadAndId[] = [];
 
