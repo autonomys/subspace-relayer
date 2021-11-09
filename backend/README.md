@@ -104,7 +104,7 @@ Where:
 * `httpUrl` - HTTP JSON-RPC endpoint URL of a Substrate-based chain
 * `wsUrl` - WebSocket JSON-RPC endpoint URL of the main Substrate-based chain (in most cases relay chain like Kusama or Polkadot, but can be used with any other chain too)
 * `paraId` - ID of a parachain or parathread under above relay chain
-* `accountSeed` - seed for the account that will be used on target chain for submitting transactions with blocks for particular chain
+* `accountSeed` - seed for the account that will be used on target chain for submitting transactions with blocks for particular chain (all such accounts can be funded with `tools/fund-accounts` script)
 * `feedId` - ID of the feed already created on Subspace chain into which archived blocks will go
 
 </details>

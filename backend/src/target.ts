@@ -142,7 +142,7 @@ class Target {
             ({ event }: EventRecord) => this.api.events.feeds.FeedCreated.is(event)
           );
 
-          // TODO: handle case if transaction is included but no event found (may happe if API changes)
+          // TODO: handle case if transaction is included but no event found (may happen if API changes)
           if (feedCreatedEvent) {
             const { event } = feedCreatedEvent;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -150,29 +150,6 @@ class Target {
             this.logger.info(`New feed created: ${feedId}`);
             const feedIdAsU64 = this.api.createType('u64', feedId);
             resolve(feedIdAsU64);
-          }
-        });
-    });
-  }
-
-  sendBalanceTx(from: SignerWithAddress, toAddress: string, amount: number): Promise<void> {
-    const fromAddress = from.address;
-    this.logger.info(`Sending balance ${amount} from ${fromAddress} to ${toAddress}`);
-    return new Promise((resolve) => {
-      const subscription = this.api.rx.tx.balances
-        .transfer(toAddress, amount * Math.pow(10, 12))
-        .signAndSend(fromAddress, { nonce: -1, signer: from }, Promise.resolve)
-        .pipe(
-          takeWhile(({ status }) => !status.isInBlock, true),
-          catchError((error) => {
-            this.logger.error(error);
-            return EMPTY;
-          }))
-        .subscribe((result) => {
-          this.logTxResult(result, subscription);
-
-          if (result.status.isInBlock) {
-            resolve();
           }
         });
     });
