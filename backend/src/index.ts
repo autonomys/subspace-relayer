@@ -45,7 +45,7 @@ async function main() {
   const state = new State({ folder: "./state" });
   const targetApi = await createApi(config.targetChainUrl);
 
-  const target = new Target({ api: targetApi, logger, state });
+  const target = new Target({ api: targetApi, logger });
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
 
   const processingChains = [config.primaryChain, ...config.parachains]
