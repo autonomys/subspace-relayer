@@ -187,9 +187,7 @@ async function *readBlocksInBatches(
           })();
         }
 
-        // TODO: Check what timer prevents this from exiting naturally and remove this piece of code, this will also
-        //  cause problems when we have more than one archive
-        process.exit(0);
+        targetApi.disconnect();
       });
     } else {
       // default - processing blocks from RPC API

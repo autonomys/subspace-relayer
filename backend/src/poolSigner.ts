@@ -39,6 +39,7 @@ class SigningWorker {
                 callback(`0x${Buffer.from(signature).toString('hex')}`);
             }
         });
+        this.worker.unref();
     }
 
     public sign(message: Uint8Array): Promise<`0x${string}`> {
