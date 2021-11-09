@@ -3,3 +3,4 @@ dist
 coverage
 state
 src/config/archives.json
+.nyc_output
