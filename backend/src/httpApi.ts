@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 
 import { blockToBinary, isInstanceOfSignedBlockJsonRpc } from './utils';
 import { ChainName } from './types';
+import { HexString } from "@polkadot/util/types";
 
 export async function getLastFinalizedBlock(url: string): Promise<number> {
     const blockHash: string = await fetch(url, {
@@ -43,8 +44,11 @@ export async function getLastFinalizedBlock(url: string): Promise<number> {
         });
 }
 
-export async function getBlockByNumber(url: string, blockNumber: number): Promise<Buffer> {
-    const blockHash: string = await fetch(url, {
+/**
+ * @returns [blockHash, blockBytes]
+ */
+export async function getBlockByNumber(url: string, blockNumber: number): Promise<[HexString, Buffer]> {
+    const blockHash: HexString = await fetch(url, {
         method: "post",
         body: JSON.stringify({
             id: 1,
@@ -63,7 +67,7 @@ export async function getBlockByNumber(url: string, blockNumber: number): Promis
             return body.result;
         });
 
-    return fetch(url, {
+    const block = await fetch(url, {
         method: "post",
         body: JSON.stringify({
             id: 1,
@@ -81,6 +85,8 @@ export async function getBlockByNumber(url: string, blockNumber: number): Promis
 
             return blockToBinary(body.result);
         });
+
+    return [blockHash, block];
 }
 
 export async function getChainName(url: string): Promise<ChainName> {

@@ -1,44 +1,49 @@
-import * as dotenv from "dotenv";
-import { ParachainConfigType } from './types';
+import * as fs from "fs";
+import { z } from "zod";
+import { ChainId } from "./types";
 
-dotenv.config();
+const AnyChainConfig = z.object({
+  downloadedArchivePath: z.string().optional(),
+  httpUrl: z.string(),
+  accountSeed: z.string(),
+  feedId: z.number().refine((number) => {
+    return number >= 0;
+  }),
+});
 
-interface SourceChain {
-  url: string;
-  parachains: ParachainConfigType[];
-}
+export type AnyChainConfig = z.infer<typeof AnyChainConfig>;
 
-interface Archive {
-  path: string;
-  url: string;
-}
+const PrimaryChainConfig = AnyChainConfig.extend({
+  wsUrl: z.string(),
+});
 
-interface ConfigParams {
-  accountSeed: string | undefined;
-  targetChainUrl: string | undefined;
-  sourceChains: SourceChain[];
-  archives: Archive[];
-}
+export type PrimaryChainConfig = z.infer<typeof PrimaryChainConfig>;
 
-class Config {
-  public readonly accountSeed: string;
+const ParachainConfig = AnyChainConfig.extend({
+  paraId: z.number().refine((number): number is ChainId => {
+    return number > 0;
+  }),
+});
+
+export type ParachainConfig = z.infer<typeof ParachainConfig>;
+
+const ChainFile = z.object({
+  targetChainUrl: z.string(),
+  primaryChain: PrimaryChainConfig,
+  parachains: z.array(ParachainConfig),
+});
+
+export class Config {
   public readonly targetChainUrl: string;
-  public readonly sourceChains: SourceChain[];
-  public readonly archives: Archive[];
+  public readonly primaryChain: PrimaryChainConfig;
+  public readonly parachains: ParachainConfig[];
 
-  constructor(params: ConfigParams) {
-    if (!params.accountSeed) {
-      throw new Error("Seed is not provided");
-    }
+  public constructor(configPath: string) {
+    const config = ChainFile.parse(JSON.parse(fs.readFileSync(configPath, 'utf-8')));
 
-    if (!params.targetChainUrl) {
-      throw new Error("Target chain endpoint url is not provided");
-    }
-
-    this.accountSeed = params.accountSeed;
-    this.targetChainUrl = params.targetChainUrl;
-    this.sourceChains = params.sourceChains;
-    this.archives = params.archives;
+    this.targetChainUrl = config.targetChainUrl;
+    this.primaryChain = config.primaryChain;
+    this.parachains = config.parachains;
   }
 }
 

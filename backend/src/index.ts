@@ -1,24 +1,19 @@
+import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { BN } from '@polkadot/util';
 
-import Config from "./config";
-import Source from "./source";
+import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import { createParachainsMap } from './utils';
-import { ChainName, BatchTxBlock } from './types';
 import State from './state';
-import ChainArchive from './chainArchive';
-import * as archives from './config/archives.json';
-import * as sourceChains from './config/sourceChains.json';
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
+import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
+import { ChainId, ParaHeadAndId } from "./types";
+import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
+import { getParaHeadAndIdFromEvent, isRelevantRecord } from "./utils";
 
-const args = process.argv.slice(2);
+dotenv.config();
 
-// TODO: remove hardcoded url
-const polkadotAppsUrl =
-  "https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer/query/";
 /**
  * How many bytes of data and metadata will we collect for one batch extrinsic (remember, there will be some overhead
  * for calls too)
@@ -28,213 +23,152 @@ const BATCH_BYTES_LIMIT = 3_500_000;
  * How many calls can fit into one batch (it should be possible to read this many blocks from disk within one second)
  */
 const BATCH_COUNT_LIMIT = 5_000;
-const SIGNER_POOL_SIZE = process.env.SIGNER_POOL_SIZE
-    ? parseInt(process.env.SIGNER_POOL_SIZE, 10)
-    : 4;
+/**
+ * It is convenient in a few places to treat primary chain as parachain with ID `0`
+ */
+const PRIMARY_CHAIN_ID = 0 as ChainId;
 
-const config = new Config({
-  accountSeed: process.env.ACCOUNT_SEED,
-  targetChainUrl: process.env.TARGET_CHAIN_URL,
-  sourceChains,
-  archives,
-});
+if (!process.env.CHAIN_CONFIG_PATH) {
+  throw new Error(`"CHAIN_CONFIG_PATH" environment variable is required, set it to path to JSON file with configuration of chain(s)`);
+}
 
-const createApi = async (url: string) => {
+const config = new Config(process.env.CHAIN_CONFIG_PATH);
+
+function createApi (url: string): Promise<ApiPromise> {
   const provider = new WsProvider(url);
-  const api = await ApiPromise.create({
+  return ApiPromise.create({
     provider,
-  });
-
-  return api;
-};
-
-// performs blocks resync first, after subscribes and processes new blocks
-const processSourceBlocks = (target: Target) => async (source: Source) => {
-  let hasResynced = false;
-  let lastFinalizedBlock: BN;
-
-  await new Promise<void>((resolve, reject) => {
-    try {
-      source.subscribeHeads().subscribe({
-        next: header => {
-          if (hasResynced) {
-            source.getBlocksByHash(header.hash).subscribe({
-              next: target.sendBlockTx,
-              error: (error) => logger.error((error as Error).message)
-            });
-          } else if (!lastFinalizedBlock) {
-            lastFinalizedBlock = header.number;
-            resolve();
-          } else {
-            lastFinalizedBlock = header.number;
-          }
-        }
-      });
-    } catch (error) {
-      if (!lastFinalizedBlock) {
-        reject(error);
-      } else {
-        logger.error((error as Error).message);
-      }
-    }
-  });
-
-  source.resyncBlocks().subscribe({
-    next: target.sendBlockTx,
-    error: (error) => logger.error((error as Error).message),
-    complete: () => {
-      hasResynced = true;
-    }
   });
 }
 
-async function *readBlocksInBatches(
-  archive: ChainArchive,
-  lastProcessedBlock: number,
-): AsyncGenerator<[BatchTxBlock[], number], void> {
-  let blocksToArchive: BatchTxBlock[] = [];
-  let accumulatedBytes = 0;
-  let lastBlockNumber = 0;
-  for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
-    const block = blockData.block;
-    const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
-    const extraBytes = block.byteLength + metadata.byteLength;
+async function main() {
+  const state = new State({ folder: "./state" });
+  const targetApi = await createApi(config.targetChainUrl);
 
-    if (accumulatedBytes + extraBytes >= BATCH_BYTES_LIMIT) {
-      // With new block limit will be exceeded, yield now
-      yield [blocksToArchive, lastBlockNumber];
-      blocksToArchive = [];
-      accumulatedBytes = 0;
-    }
+  const target = new Target({ api: targetApi, logger });
+  const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
 
-    blocksToArchive.push({
-      block: blockData.block,
-      metadata,
+  const processingChains = [config.primaryChain, ...config.parachains]
+    .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
+      const chainName = await getChainName(chainConfig.httpUrl);
+      const signer = new PoolSigner(
+        target.api.registry,
+        chainConfig.accountSeed,
+        1,
+      );
+
+      const feedId = await targetApi.createType('U64', chainConfig.feedId);
+
+      let lastProcessedBlock = -1;
+      if (chainConfig.downloadedArchivePath) {
+        try {
+          lastProcessedBlock = await relayFromDownloadedArchive(
+            feedId,
+            chainName,
+            chainConfig.downloadedArchivePath,
+            target,
+            state,
+            signer,
+            BATCH_BYTES_LIMIT,
+            BATCH_COUNT_LIMIT,
+          );
+        } catch (e) {
+          logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
+          process.exit(1);
+        }
+      }
+
+      if ('wsUrl' in chainConfig) {
+        const chainHeadState = new PrimaryChainHeadState(0);
+        chainHeadStateMap.set(PRIMARY_CHAIN_ID, chainHeadState);
+
+        const sourceApi = await createApi(chainConfig.wsUrl);
+        await sourceApi.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
+          try {
+            // TODO: Cache this, will be useful for relaying to not download twice
+            const {block} = await sourceApi.rpc.chain.getBlock(blockHeader.hash);
+
+            chainHeadState.lastFinalizedBlockNumber = blockHeader.number.toNumber();
+            if (chainHeadState.newHeadCallback) {
+              chainHeadState.newHeadCallback();
+              chainHeadState.newHeadCallback = undefined;
+            }
+
+            const blockRecords = await sourceApi.query.system.events.at(blockHeader.hash);
+
+            const result: ParaHeadAndId[] = [];
+
+            for (const [index, { method }] of block.extrinsics.entries()) {
+              if (method.section == "paraInherent" && method.method == "enter") {
+                blockRecords
+                  .filter(isRelevantRecord(index))
+                  .map(({ event }) => getParaHeadAndIdFromEvent(event))
+                  .forEach((parablockData) => {
+                    result.push(parablockData);
+
+                    const parachainHeadState = chainHeadStateMap.get(parablockData.paraId) as ParachainHeadState | undefined;
+                    if (parachainHeadState) {
+                      if (parachainHeadState.newHeadCallback) {
+                        parachainHeadState.newHeadCallback();
+                        parachainHeadState.newHeadCallback = undefined;
+                      }
+                    } else {
+                      logger.warn(`Unknown parachain with paraId ${parablockData.paraId}`);
+                    }
+                  });
+              }
+            }
+
+            logger.info(`Received primary chain block with ${result.length} associated parablocks`);
+            if (result.length > 0) {
+              logger.debug(`ParaIds: ${result.map(({ paraId }) => paraId).join(", ")}`);
+            }
+          } catch (e) {
+            logger.error(`Failed to process block from primary chain ${chainName} feedId ${feedId} ${e}`);
+            process.exit(1);
+          }
+        });
+
+        await relayFromPrimaryChainHeadState(
+          feedId,
+          chainName,
+          target,
+          state,
+          signer,
+          chainHeadState,
+          chainConfig,
+          lastProcessedBlock,
+        );
+      } else {
+        const chainHeadState = new ParachainHeadState();
+        chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
+
+        await relayFromParachainHeadState(
+          feedId,
+          chainName,
+          target,
+          state,
+          signer,
+          chainHeadState,
+          chainConfig,
+          lastProcessedBlock,
+        );
+      }
     });
-    accumulatedBytes += extraBytes;
-    lastBlockNumber = blockData.metadata.number;
 
-    if (blocksToArchive.length === BATCH_COUNT_LIMIT) {
-      // Reached block count limit, yield now
-      yield [blocksToArchive, lastBlockNumber];
-      blocksToArchive = [];
-      accumulatedBytes = 0;
-    }
-  }
-
-  if (blocksToArchive.length > 0) {
-    yield [blocksToArchive, lastBlockNumber];
-  }
+  await Promise.all(processingChains);
 }
 
 // TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
   try {
-    const state = new State({ folder: "./state" });
-    const targetApi = await createApi(config.targetChainUrl);
-
-    const target = new Target({ api: targetApi, logger, state });
-    const master = new PoolSigner(targetApi.registry, config.accountSeed, 1);
-
-    if (args.length && (args[0] === 'archive')) {
-      config.archives.map(async ({ path, url }) => {
-        const chain = await getChainName(url);
-        const signer = new PoolSigner(
-            target.api.registry,
-            `${config.accountSeed}/${chain}`,
-            SIGNER_POOL_SIZE,
-        );
-        // TODO: Do not send balance
-        await target.sendBalanceTx(master, signer.address, 1.5);
-        const feedId = await target.getFeedId(signer);
-
-        const archive = new ChainArchive({
-          path,
-          logger,
-        });
-
-        let lastBlockProcessingReportAt = Date.now();
-
-        let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
-        const lastProcessedString = await state.getLastProcessedBlockByName(chain);
-        const lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
-
-        let lastTxPromise: Promise<void> | undefined;
-        for await (const [blocksBatch, lastBlockNumber] of readBlocksInBatches(archive, lastProcessedBlock)) {
-          if (lastTxPromise) {
-            await lastTxPromise;
-          }
-          lastTxPromise = (async () => {
-            try {
-              const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
-              nonce++;
-
-              logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
-
-              {
-                const now = Date.now();
-                const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
-                lastBlockProcessingReportAt = now;
-
-                logger.info(`Processed downloaded ${chain} block ${lastBlockNumber} at ${rate} blocks/s`);
-              }
-
-              await state.saveLastProcessedBlock(chain, lastBlockNumber);
-            } catch (e) {
-              logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
-              process.exit(1);
-            }
-          })();
-        }
-
-        // TODO: Check what timer prevents this from exiting naturally and remove this piece of code, this will also
-        //  cause problems when we have more than one archive
-        process.exit(0);
-      });
-    } else {
-      // default - processing blocks from RPC API
-      const sources = await Promise.all(
-        config.sourceChains.map(async ({ url, parachains }) => {
-          const api = await createApi(url);
-          const chain = (await api.rpc.system.chain()).toString() as ChainName;
-          const signer = new PoolSigner(
-              target.api.registry,
-              `${config.accountSeed}/${chain}`,
-              SIGNER_POOL_SIZE,
-          );
-          const paraSigners = parachains.map(({ paraId }) => {
-            return new PoolSigner(
-              target.api.registry,
-              `${config.accountSeed}/${paraId}`,
-              SIGNER_POOL_SIZE,
-            );
-          });
-
-          // TODO: can be optimized by sending batch of txs
-          // TODO: master has to delegate spending to sourceSigner and paraSigners
-          for (const delegate of [signer, ...paraSigners]) {
-            // send 1.5 units
-            await target.sendBalanceTx(master, delegate.address, 1.5);
-          }
-
-          const feedId = await target.getFeedId(signer);
-          const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
-
-          return new Source({
-            api,
-            chain,
-            parachainsMap,
-            logger,
-            feedId,
-            signer,
-            state,
-          });
-        })
-      );
-
-      sources.forEach(processSourceBlocks(target));
-    }
+    await main();
   } catch (error) {
-    logger.error((error as Error).message);
+    if (error instanceof Error) {
+      logger.error(error.stack || String(error));
+    } else {
+      logger.error(String(error));
+    }
+    process.exit(1);
   }
 })();

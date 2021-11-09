@@ -1,28 +1,19 @@
 import { compactFromU8a, compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
+import { PolkadotPrimitivesV1CandidateReceipt } from "@polkadot/types/lookup";
 
-import {
-    ParaHeadAndId,
-    ParachainConfigType,
-    TxData,
-    ParachainsMap,
-    TxDataInput,
-    SignedBlockJsonRpc,
-    SignerWithAddress,
-} from "./types";
-import Parachain from "./parachain";
-import Target from "./target";
-import logger from "./logger";
-import { getChainName } from './httpApi';
+import { ParaHeadAndId, SignedBlockJsonRpc, ChainId } from "./types";
 
 // TODO: implement tests
 export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
-    // use 'any' because this is not typed array - element can be number, string or Record<string, unknown>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { paraHead, paraId } = (event.toJSON().data as Array<any>)[0]
-        .descriptor;
+    // We know its contents here, no idea how to extract types in a more correct way
+    const { descriptor } = event.data[0] as PolkadotPrimitivesV1CandidateReceipt;
 
-    return { paraHead, paraId };
+    return {
+        blockHash: descriptor.paraHead.toHex(),
+        // TODO: There is actually `toNumber()` method here, but it is not present in types for some reason
+        paraId: Number(descriptor.paraId.toBigInt()) as ChainId
+    };
 };
 
 // TODO: more explicit function name
@@ -38,43 +29,6 @@ export const isRelevantRecord =
                 event.method == "CandidateIncluded"
             );
         };
-
-export const createParachainsMap = async (
-    target: Target,
-    configParachains: ParachainConfigType[],
-    signers: SignerWithAddress[],
-): Promise<ParachainsMap> => {
-    const map = new Map();
-
-    for (const [index, { url, paraId }] of configParachains.entries()) {
-        const signer = signers[index];
-        const feedId = await target.getFeedId(signer);
-        const chain = await getChainName(url);
-        const parachain = new Parachain({ feedId, url, chain, logger, signer });
-        map.set(paraId, parachain);
-    }
-
-    // TODO: investigate why this code results in Uknown paraId error
-    // configParachains.forEach(async ({ url, chain, paraId }, index) => {
-    //     const signer = signers[index];
-    //     const feedId = await target.sendCreateFeedTx(signer);
-    //     const parachain = new Parachain({ feedId, url, chain: chain as ChainName, logger, signer });
-    //     map.set(paraId, parachain);
-    // });
-
-    return map;
-};
-
-export const toBlockTxData = ({ block, number, hash, feedId, chain, signer }: TxDataInput): TxData => ({
-    feedId,
-    block,
-    chain,
-    signer,
-    metadata: {
-        hash,
-        number,
-    },
-});
 
 function hexToUint8Array(hex: string): Uint8Array {
     return Buffer.from(hex.slice(2), 'hex');
