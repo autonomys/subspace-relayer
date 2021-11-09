@@ -162,6 +162,11 @@ async function main() {
   try {
     await main();
   } catch (error) {
-    logger.error((error as Error).message);
+    if (error instanceof Error) {
+      logger.error(error.stack || String(error));
+    } else {
+      logger.error(String(error));
+    }
+    process.exit(1);
   }
 })();
