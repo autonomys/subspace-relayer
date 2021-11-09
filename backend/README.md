@@ -28,3 +28,22 @@ By default application will process blocks from the chains specified in `config/
 - `npm run build` - build project
 
 License: Apache-2.0
+
+## Docker "local mode"
+
+Follow the instructions to run over a docker container:
+
+- https://github.com/subspace/subspace-relayer/blob/main/backend/relayer-archive.md
+
+## Docker "live mode"
+
+Follow the instructions to run over a docker container:
+
+- https://github.com/subspace/subspace-relayer/blob/main/backend/relayer-live.md
+
+### Download full chain from genesis.
+
+Follow the instructions to run the download tool:
+
+- https://github.com/subspace/subspace-relayer/blob/main/backend/relayer-download.md
+
