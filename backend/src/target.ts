@@ -51,32 +51,36 @@ class Target {
     }
   }
 
-  sendBlockTx({ feedId, block, metadata, chain, signer }: TxData, nonce?: number): Subscription {
-    this.logger.debug(`Sending ${chain} block to feed: ${feedId}`);
+  public sendBlockTx({ feedId, block, metadata, chainName, signer }: TxData, nonce?: number): Promise<Hash> {
+    this.logger.debug(`Sending ${chainName} block ${metadata.number} to feed: ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
-    // metadata is stored as Vec<u8>
-    // to decode: new TextDecoder().decode(new Uint8Array([...]))
-    const metadataPayload = JSON.stringify(metadata);
-    const subscription = this.api.rx.tx.feeds
-      .put(feedId, `0x${block.toString('hex')}`, metadataPayload)
-      // it is required to specify nonce, otherwise transaction within same block will be rejected
-      // if nonce is -1 API will do the lookup for the right value
-      // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-      .signAndSend(signer.address, { nonce: nonce || -1, signer }, Promise.resolve)
-      .pipe(
-        takeWhile(({ status }) => !status.isInBlock, true),
-        catchError((error) => {
-          this.logger.error(error);
-          return EMPTY;
+
+    return new Promise((resolve, reject) => {
+      let unsub: () => void;
+      this.api.tx.feeds
+        .put(feedId, `0x${block.toString('hex')}`, JSON.stringify(metadata))
+        // it is required to specify nonce, otherwise transaction within same block will be rejected
+        // if nonce is -1 API will do the lookup for the right value
+        // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
+        .signAndSend(signer.address, { nonce: nonce || -1, signer }, (result) => {
+          if (result.isError) {
+            reject(result.status.toString());
+            unsub();
+          } else if (result.status.isInBlock) {
+            resolve(result.status.asInBlock);
+            unsub();
+          }
         })
-      )
-      .subscribe((result) => {
-        this.logTxResult(result, subscription);
-      });
-    return subscription;
+        .then((unsubLocal) => {
+          unsub = unsubLocal;
+        })
+        .catch((e) => {
+          reject(e);
+        });
+    });
   }
 
-  sendBlocksBatchTx(
+  public sendBlocksBatchTx(
     feedId: U64,
     signer: SignerWithAddress,
     txData: BatchTxBlock[],
@@ -92,6 +96,7 @@ class Target {
         `0x${metadata.toString('hex')}`,
       );
     });
+
     return new Promise((resolve, reject) => {
       let unsub: () => void;
       this.api.tx.utility

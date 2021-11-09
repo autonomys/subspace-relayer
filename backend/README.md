@@ -22,62 +22,62 @@ CHAIN_CONFIG_PATH=config.json
             "downloadedArchivePath": "/path/to/statemine-archive-2021-oct-23",
             "httpUrl": "https://kusama-statemine-rpc.paritytech.net",
             "paraId": 1000,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//1000"
         },
         {
             "httpUrl": "https://karura.api.onfinality.io/public",
             "paraId": 2000,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2000"
         },
         {
             "httpUrl": "https://bifrost-parachain.api.onfinality.io/public",
             "paraId": 2001,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2001"
         },
         {
             "httpUrl": "https://khala.api.onfinality.io/public",
             "paraId": 2004,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2004"
         },
         {
             "httpUrl": "https://shiden.api.onfinality.io/public",
             "paraId": 2007,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2007"
         },
         {
             "httpUrl": "https://moonriver.api.onfinality.io/public",
             "paraId": 2023,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2023"
         },
         {
             "httpUrl": "https://calamari.api.onfinality.io/public",
             "paraId": 2084,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2084"
         },
         {
             "httpUrl": "https://spiritnet.api.onfinality.io/public",
             "paraId": 2086,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2086"
         },
         {
             "httpUrl": "https://basilisk.api.onfinality.io/public",
             "paraId": 2090,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2090"
         },
         {
             "httpUrl": "https://altair.api.onfinality.io/public",
             "paraId": 2088,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2088"
         },
         {
             "httpUrl": "https://parallel-heiko.api.onfinality.io/public",
             "paraId": 2085,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2085"
         },
         {
             "httpUrl": "https://kintsugi.api.onfinality.io/public",
             "paraId": 2092,
-            "accountSeed": "//Alice"
+            "accountSeed": "//Alice//2092"
         }
     ]
 }

@@ -5,6 +5,9 @@ import State from "./state";
 import { BatchTxBlock, ChainName, SignerWithAddress } from "./types";
 import ChainArchive from "./chainArchive";
 import logger from "./logger";
+import { getBlockByNumber, getLastFinalizedBlock } from "./httpApi";
+import { AnyChainConfig } from "./config";
+import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 
 // TODO: remove hardcoded url
 const polkadotAppsUrl =
@@ -98,4 +101,105 @@ export async function relayFromDownloadedArchive(
   }
 
   return lastProcessedBlock;
+}
+
+async function relayBlocks(
+  feedId: U64,
+  chainName: ChainName,
+  target: Target,
+  state: State,
+  signer: SignerWithAddress,
+  chainConfig: AnyChainConfig,
+  nextBlockToProcess: number,
+  lastFinalizedBlockNumber: () => number,
+): Promise<number> {
+  // TODO: Support batching
+  for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
+    // TODO: Cache of mapping from block number to its hash for faster fetching
+    // TODO: Retries
+    const [blockHash, block] = await getBlockByNumber(chainConfig.httpUrl, nextBlockToProcess);
+    await target.sendBlockTx({
+      feedId,
+      block,
+      metadata: {
+        hash: blockHash,
+        number: nextBlockToProcess,
+      },
+      chainName,
+      signer,
+    });
+
+    await state.saveLastProcessedBlock(chainName, nextBlockToProcess);
+  }
+
+  return nextBlockToProcess;
+}
+
+export async function relayFromPrimaryChainHeadState(
+  feedId: U64,
+  chainName: ChainName,
+  target: Target,
+  state: State,
+  signer: SignerWithAddress,
+  chainHeadState: PrimaryChainHeadState,
+  chainConfig: AnyChainConfig,
+  lastProcessedBlock: number,
+): Promise<void> {
+  let nextBlockToProcess = lastProcessedBlock + 1;
+  for (;;) {
+    nextBlockToProcess = await relayBlocks(
+      feedId,
+      chainName,
+      target,
+      state,
+      signer,
+      chainConfig,
+      nextBlockToProcess,
+      () => {
+        return chainHeadState.lastFinalizedBlockNumber;
+      }
+    );
+
+    await new Promise<void>((resolve) => {
+      if (nextBlockToProcess <= chainHeadState.lastFinalizedBlockNumber) {
+        resolve();
+      } else {
+        chainHeadState.newHeadCallback = resolve;
+      }
+    });
+  }
+}
+
+export async function relayFromParachainHeadState(
+  feedId: U64,
+  chainName: ChainName,
+  target: Target,
+  state: State,
+  signer: SignerWithAddress,
+  chainHeadState: ParachainHeadState,
+  chainConfig: AnyChainConfig,
+  lastProcessedBlock: number,
+): Promise<void> {
+  let nextBlockToProcess = lastProcessedBlock + 1;
+  for (;;) {
+    // TODO: This is simple, but not very efficient
+    // TODO: Retries
+    const lastFinalizedBlockNumber = await getLastFinalizedBlock(chainConfig.httpUrl);
+    nextBlockToProcess = await relayBlocks(
+      feedId,
+      chainName,
+      target,
+      state,
+      signer,
+      chainConfig,
+      nextBlockToProcess,
+      () => {
+        return lastFinalizedBlockNumber;
+      }
+    );
+
+    await new Promise<void>((resolve) => {
+      chainHeadState.newHeadCallback = resolve;
+    });
+  }
 }

@@ -1,16 +1,17 @@
 import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { BN } from '@polkadot/util';
 
-import Config from "./config";
-import Source from "./source";
+import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import { createParachainsMap } from './utils';
 import State from './state';
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
-import { relayFromDownloadedArchive } from "./relay";
+import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
+import { ChainId, ParaHeadAndId } from "./types";
+import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
+import { getParaHeadAndIdFromEvent, isRelevantRecord } from "./utils";
+
 
 dotenv.config();
 
@@ -23,6 +24,10 @@ const BATCH_BYTES_LIMIT = 3_500_000;
  * How many calls can fit into one batch (it should be possible to read this many blocks from disk within one second)
  */
 const BATCH_COUNT_LIMIT = 5_000;
+/**
+ * It is convenient in a few places to treat primary chain as parachain with ID `0`
+ */
+const PRIMARY_CHAIN_ID = 0 as ChainId;
 
 if (!process.env.CHAIN_CONFIG_PATH) {
   throw new Error(`"CHAIN_CONFIG_PATH" environment variable is required, set it to path to JSON file with configuration of chain(s)`);
@@ -30,64 +35,22 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
-const createApi = async (url: string) => {
+function createApi (url: string): Promise<ApiPromise> {
   const provider = new WsProvider(url);
-  const api = await ApiPromise.create({
+  return ApiPromise.create({
     provider,
-  });
-
-  return api;
-};
-
-// performs blocks resync first, after subscribes and processes new blocks
-const processSourceBlocks = (target: Target) => async (source: Source) => {
-  let hasResynced = false;
-  let lastFinalizedBlock: BN;
-
-  await new Promise<void>((resolve, reject) => {
-    try {
-      source.subscribeHeads().subscribe({
-        next: header => {
-          if (hasResynced) {
-            source.getBlocksByHash(header.hash).subscribe({
-              next: target.sendBlockTx,
-              error: (error) => logger.error((error as Error).message)
-            });
-          } else if (!lastFinalizedBlock) {
-            lastFinalizedBlock = header.number;
-            resolve();
-          } else {
-            lastFinalizedBlock = header.number;
-          }
-        }
-      });
-    } catch (error) {
-      if (!lastFinalizedBlock) {
-        reject(error);
-      } else {
-        logger.error((error as Error).message);
-      }
-    }
-  });
-
-  source.resyncBlocks().subscribe({
-    next: target.sendBlockTx,
-    error: (error) => logger.error((error as Error).message),
-    complete: () => {
-      hasResynced = true;
-    }
   });
 }
 
-// TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 async function main() {
   const state = new State({ folder: "./state" });
   const targetApi = await createApi(config.targetChainUrl);
 
   const target = new Target({ api: targetApi, logger, state });
+  const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
 
   const processingChains = [config.primaryChain, ...config.parachains]
-    .map(async (chainConfig) => {
+    .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
       const chainName = await getChainName(chainConfig.httpUrl);
       const signer = new PoolSigner(
         target.api.registry,
@@ -95,6 +58,7 @@ async function main() {
         1,
       );
 
+      // TODO: Don't create feed ID, read from config instead
       const feedId = await target.getFeedId(signer);
 
       let lastProcessedBlock = -1;
@@ -116,55 +80,86 @@ async function main() {
         }
       }
 
-      // TODO: Process in live mode
+      if ('wsUrl' in chainConfig) {
+        const chainHeadState = new PrimaryChainHeadState(0);
+        chainHeadStateMap.set(PRIMARY_CHAIN_ID, chainHeadState);
+
+        const api = await createApi(chainConfig.wsUrl);
+        await api.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
+          try {
+            // TODO: Cache this, will be useful for relaying to not download twice
+            const {block} = await api.rpc.chain.getBlock(blockHeader.hash);
+
+            chainHeadState.lastFinalizedBlockNumber = blockHeader.number.toNumber();
+            if (chainHeadState.newHeadCallback) {
+              chainHeadState.newHeadCallback();
+              chainHeadState.newHeadCallback = undefined;
+            }
+
+            const blockRecords = await api.query.system.events.at(blockHeader.hash);
+
+            const result: ParaHeadAndId[] = [];
+
+            for (const [index, { method }] of block.extrinsics.entries()) {
+              if (method.section == "paraInherent" && method.method == "enter") {
+                blockRecords
+                  .filter(isRelevantRecord(index))
+                  .map(({ event }) => getParaHeadAndIdFromEvent(event))
+                  .forEach((parablockData) => {
+                    result.push(parablockData);
+
+                    const parachainHeadState = chainHeadStateMap.get(parablockData.paraId) as ParachainHeadState | undefined;
+                    if (parachainHeadState) {
+                      if (parachainHeadState.newHeadCallback) {
+                        parachainHeadState.newHeadCallback();
+                        parachainHeadState.newHeadCallback = undefined;
+                      }
+                    } else {
+                      logger.warn(`Unknown parachain with paraId ${parablockData.paraId}`);
+                    }
+                  });
+              }
+            }
+
+            logger.info(`Associated parablocks: ${result.length}`);
+            logger.debug(`ParaIds: ${result.map(({ paraId }) => paraId).join(", ")}`);
+          } catch (e) {
+            logger.error(`Failed to process block from primary chain ${chainName} feedId ${feedId} ${e}`);
+            process.exit(1);
+          }
+        });
+
+        await relayFromPrimaryChainHeadState(
+          feedId,
+          chainName,
+          target,
+          state,
+          signer,
+          chainHeadState,
+          chainConfig,
+          lastProcessedBlock,
+        );
+      } else {
+        const chainHeadState = new ParachainHeadState();
+        chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
+
+        await relayFromParachainHeadState(
+          feedId,
+          chainName,
+          target,
+          state,
+          signer,
+          chainHeadState,
+          chainConfig,
+          lastProcessedBlock,
+        );
+      }
     });
 
   await Promise.all(processingChains);
-
-  await targetApi.disconnect();
-    // default - processing blocks from RPC API
-    // const sources = await Promise.all(
-    //   config.sourceChains.map(async ({ httpUrl, parachains }) => {
-    //     const api = await createApi(httpUrl);
-    //     const chain = await getChainName(httpUrl);
-    //     const signer = new PoolSigner(
-    //         target.api.registry,
-    //         `${config.accountSeed}/${chain}`,
-    //         1,
-    //     );
-    //     const paraSigners = parachains.map(({ paraId }) => {
-    //       return new PoolSigner(
-    //         target.api.registry,
-    //         `${config.accountSeed}/${paraId}`,
-    //         1,
-    //       );
-    //     });
-    //
-    //     // TODO: can be optimized by sending batch of txs
-    //     // TODO: master has to delegate spending to sourceSigner and paraSigners
-    //     for (const delegate of [signer, ...paraSigners]) {
-    //       // send 1.5 units
-    //       await target.sendBalanceTx(master, delegate.address, 1.5);
-    //     }
-    //
-    //     const feedId = await target.getFeedId(signer);
-    //     const parachainsMap = await createParachainsMap(target, parachains, paraSigners);
-    //
-    //     return new Source({
-    //       api,
-    //       chain,
-    //       parachainsMap,
-    //       logger,
-    //       feedId,
-    //       signer,
-    //       state,
-    //     });
-    //   })
-    // );
-    //
-    // sources.forEach(processSourceBlocks(target));
 }
 
+// TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
   try {
     await main();

@@ -60,8 +60,8 @@ export class PoolSigner extends SignerWithAddress {
 
     public constructor(
         private readonly registry: Registry,
-        private readonly keypairSeed: string,
-        private readonly poolSize: number,
+        keypairSeed: string,
+        poolSize: number,
     ) {
         super(getAccount(keypairSeed).address)
 
