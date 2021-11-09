@@ -6,19 +6,16 @@ import Source from "./source";
 import Target from "./target";
 import logger from "./logger";
 import { createParachainsMap } from './utils';
-import { ChainName, BatchTxBlock } from './types';
+import { ChainName } from './types';
 import State from './state';
-import ChainArchive from './chainArchive';
 import * as archives from './config/archives.json';
 import * as sourceChains from './config/sourceChains.json';
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
+import { relayFromDownloadedArchive } from "./relay";
 
 const args = process.argv.slice(2);
 
-// TODO: remove hardcoded url
-const polkadotAppsUrl =
-  "https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer/query/";
 /**
  * How many bytes of data and metadata will we collect for one batch extrinsic (remember, there will be some overhead
  * for calls too)
@@ -88,45 +85,6 @@ const processSourceBlocks = (target: Target) => async (source: Source) => {
   });
 }
 
-async function *readBlocksInBatches(
-  archive: ChainArchive,
-  lastProcessedBlock: number,
-): AsyncGenerator<[BatchTxBlock[], number], void> {
-  let blocksToArchive: BatchTxBlock[] = [];
-  let accumulatedBytes = 0;
-  let lastBlockNumber = 0;
-  for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
-    const block = blockData.block;
-    const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
-    const extraBytes = block.byteLength + metadata.byteLength;
-
-    if (accumulatedBytes + extraBytes >= BATCH_BYTES_LIMIT) {
-      // With new block limit will be exceeded, yield now
-      yield [blocksToArchive, lastBlockNumber];
-      blocksToArchive = [];
-      accumulatedBytes = 0;
-    }
-
-    blocksToArchive.push({
-      block: blockData.block,
-      metadata,
-    });
-    accumulatedBytes += extraBytes;
-    lastBlockNumber = blockData.metadata.number;
-
-    if (blocksToArchive.length === BATCH_COUNT_LIMIT) {
-      // Reached block count limit, yield now
-      yield [blocksToArchive, lastBlockNumber];
-      blocksToArchive = [];
-      accumulatedBytes = 0;
-    }
-  }
-
-  if (blocksToArchive.length > 0) {
-    yield [blocksToArchive, lastBlockNumber];
-  }
-}
-
 // TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
   try {
@@ -138,54 +96,26 @@ async function *readBlocksInBatches(
 
     if (args.length && (args[0] === 'archive')) {
       config.archives.map(async ({ path, url }) => {
-        const chain = await getChainName(url);
+        const chainName = await getChainName(url);
         const signer = new PoolSigner(
             target.api.registry,
-            `${config.accountSeed}/${chain}`,
+            `${config.accountSeed}/${chainName}`,
             SIGNER_POOL_SIZE,
         );
         // TODO: Do not send balance
         await target.sendBalanceTx(master, signer.address, 1.5);
         const feedId = await target.getFeedId(signer);
 
-        const archive = new ChainArchive({
+        await relayFromDownloadedArchive(
+          feedId,
+          chainName,
           path,
-          logger,
-        });
-
-        let lastBlockProcessingReportAt = Date.now();
-
-        let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
-        const lastProcessedString = await state.getLastProcessedBlockByName(chain);
-        const lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
-
-        let lastTxPromise: Promise<void> | undefined;
-        for await (const [blocksBatch, lastBlockNumber] of readBlocksInBatches(archive, lastProcessedBlock)) {
-          if (lastTxPromise) {
-            await lastTxPromise;
-          }
-          lastTxPromise = (async () => {
-            try {
-              const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
-              nonce++;
-
-              logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
-
-              {
-                const now = Date.now();
-                const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
-                lastBlockProcessingReportAt = now;
-
-                logger.info(`Processed downloaded ${chain} block ${lastBlockNumber} at ${rate} blocks/s`);
-              }
-
-              await state.saveLastProcessedBlock(chain, lastBlockNumber);
-            } catch (e) {
-              logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
-              process.exit(1);
-            }
-          })();
-        }
+          target,
+          state,
+          signer,
+          BATCH_BYTES_LIMIT,
+          BATCH_COUNT_LIMIT,
+        );
 
         targetApi.disconnect();
       });
