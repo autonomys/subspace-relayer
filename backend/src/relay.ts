@@ -1,4 +1,5 @@
 import { U64 } from "@polkadot/types";
+import pRetry from "p-retry";
 
 import Target from "./target";
 import State from "./state";
@@ -116,8 +117,9 @@ async function relayBlocks(
   // TODO: Support batching
   for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
     // TODO: Cache of mapping from block number to its hash for faster fetching
-    // TODO: Retries
-    const [blockHash, block] = await getBlockByNumber(chainConfig.httpUrl, nextBlockToProcess);
+    const [blockHash, block] = await pRetry(
+      () => getBlockByNumber(chainConfig.httpUrl, nextBlockToProcess),
+    );
     await target.sendBlockTx({
       feedId,
       block,
@@ -183,8 +185,9 @@ export async function relayFromParachainHeadState(
   let nextBlockToProcess = lastProcessedBlock + 1;
   for (;;) {
     // TODO: This is simple, but not very efficient
-    // TODO: Retries
-    const lastFinalizedBlockNumber = await getLastFinalizedBlock(chainConfig.httpUrl);
+    const lastFinalizedBlockNumber = await pRetry(
+      () => getLastFinalizedBlock(chainConfig.httpUrl),
+    );
     nextBlockToProcess = await relayBlocks(
       feedId,
       chainName,
