@@ -3,7 +3,7 @@ import { BN } from '@polkadot/util';
 
 import { ChainName } from './types';
 
-// TODO: consider providing fs methods to constructor
+// TODO: Retrieve these from the chain instead
 class State {
   private readonly lastBlockPath: string;
   private readonly folder: string;
