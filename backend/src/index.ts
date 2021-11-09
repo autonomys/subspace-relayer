@@ -119,8 +119,10 @@ async function main() {
               }
             }
 
-            logger.info(`Associated parablocks: ${result.length}`);
-            logger.debug(`ParaIds: ${result.map(({ paraId }) => paraId).join(", ")}`);
+            logger.info(`Received primary chain block with ${result.length} associated parablocks`);
+            if (result.length > 0) {
+              logger.debug(`ParaIds: ${result.map(({ paraId }) => paraId).join(", ")}`);
+            }
           } catch (e) {
             logger.error(`Failed to process block from primary chain ${chainName} feedId ${feedId} ${e}`);
             process.exit(1);
