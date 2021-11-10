@@ -2,7 +2,6 @@ import { U64 } from "@polkadot/types";
 import pRetry from "p-retry";
 
 import Target from "./target";
-import State from "./state";
 import { BatchTxBlock, ChainName, SignerWithAddress } from "./types";
 import ChainArchive from "./chainArchive";
 import logger from "./logger";
@@ -60,7 +59,7 @@ export async function relayFromDownloadedArchive(
   chainName: ChainName,
   path: string,
   target: Target,
-  state: State,
+  lastProcessedBlock: number,
   signer: SignerWithAddress,
   batchBytesLimit: number,
   batchCountLimit: number,
@@ -73,8 +72,6 @@ export async function relayFromDownloadedArchive(
   let lastBlockProcessingReportAt = Date.now();
 
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
-  const lastProcessedString = await state.getLastProcessedBlockByName(chainName);
-  let lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
 
   let lastTxPromise: Promise<void> | undefined;
   const blockBatches = readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
@@ -97,7 +94,6 @@ export async function relayFromDownloadedArchive(
       }
 
       lastProcessedBlock = lastBlockNumber;
-      await state.saveLastProcessedBlock(chainName, lastProcessedBlock);
     })();
   }
 
@@ -113,7 +109,6 @@ async function relayBlocks(
   feedId: U64,
   chainName: ChainName,
   target: Target,
-  state: State,
   signer: SignerWithAddress,
   chainConfig: AnyChainConfig,
   nonce: bigint,
@@ -138,8 +133,6 @@ async function relayBlocks(
       nonce,
     });
     nonce++;
-
-    await state.saveLastProcessedBlock(chainName, nextBlockToProcess);
   }
 
   return {
@@ -152,7 +145,6 @@ export async function relayFromPrimaryChainHeadState(
   feedId: U64,
   chainName: ChainName,
   target: Target,
-  state: State,
   signer: SignerWithAddress,
   chainHeadState: PrimaryChainHeadState,
   chainConfig: AnyChainConfig,
@@ -165,7 +157,6 @@ export async function relayFromPrimaryChainHeadState(
       feedId,
       chainName,
       target,
-      state,
       signer,
       chainConfig,
       nonce,
@@ -191,7 +182,6 @@ export async function relayFromParachainHeadState(
   feedId: U64,
   chainName: ChainName,
   target: Target,
-  state: State,
   signer: SignerWithAddress,
   chainHeadState: ParachainHeadState,
   chainConfig: AnyChainConfig,
@@ -208,7 +198,6 @@ export async function relayFromParachainHeadState(
       feedId,
       chainName,
       target,
-      state,
       signer,
       chainConfig,
       nonce,
