@@ -5,13 +5,15 @@ on: [push, pull_request]
 jobs:
   ts-lint-and-build:
     runs-on: ubuntu-20.04
-    name: Run eslint and check typescript
+    name: Run eslint, check typescript and run tests
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
         with:
           node-version: "16"
       - run: npm ci
+        working-directory: backend
+      - run: npm test
         working-directory: backend
       - run: npm run lint
         working-directory: backend
