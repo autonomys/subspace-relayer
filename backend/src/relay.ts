@@ -9,9 +9,12 @@ import { getBlockByNumber, getLastFinalizedBlock } from "./httpApi";
 import { AnyChainConfig } from "./config";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 
-// TODO: remove hardcoded url
-const polkadotAppsUrl =
-  "https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer/query/";
+function polkadotAppsUrl(targetChainUrl: string) {
+  const url = new URL('https://polkadot.js.org/apps/');
+  url.searchParams.set('rpc', targetChainUrl);
+  url.hash = '/explorer/query/'
+  return url.toString();
+}
 
 async function *readBlocksInBatches(
   archive: ChainArchive,
@@ -61,6 +64,7 @@ export async function relayFromDownloadedArchive(
   batchBytesLimit: number,
   batchCountLimit: number,
 ): Promise<number> {
+  const polkadotAppsBaseUrl = polkadotAppsUrl(target.targetChainUrl);
   const archive = new ChainArchive({
     path,
     logger,
@@ -81,7 +85,7 @@ export async function relayFromDownloadedArchive(
       nonce++;
 
       logger.debug(
-        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsUrl}${blockHash}`,
+        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
       );
 
       {
@@ -165,6 +169,7 @@ async function relayBlocks(
   batchBytesLimit: number,
   batchCountLimit: number,
 ): Promise<RelayBlocksResult> {
+  const polkadotAppsBaseUrl = polkadotAppsUrl(target.targetChainUrl);
   let lastTxPromise: Promise<void> | undefined;
   const blockBatches = fetchBlocksInBatches(
     chainConfig.httpUrl,
@@ -185,7 +190,7 @@ async function relayBlocks(
       nonce++;
 
       logger.debug(
-        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsUrl}${blockHash}`,
+        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
       );
     })();
   }

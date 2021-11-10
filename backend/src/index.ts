@@ -44,7 +44,11 @@ function createApi(url: string): Promise<ApiPromise> {
 async function main() {
   const targetApi = await createApi(config.targetChainUrl);
 
-  const target = new Target({ api: targetApi, logger });
+  const target = new Target({
+    api: targetApi,
+    logger,
+    targetChainUrl: config.targetChainUrl,
+  });
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
 
   const processingChains = [config.primaryChain, ...config.parachains]
