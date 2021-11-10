@@ -2,25 +2,27 @@ import { U64 } from "@polkadot/types";
 import pRetry from "p-retry";
 
 import Target from "./target";
-import State from "./state";
-import { BatchTxBlock, ChainName, SignerWithAddress } from "./types";
+import { TxBlock, ChainName, SignerWithAddress } from "./types";
 import ChainArchive from "./chainArchive";
 import logger from "./logger";
 import { getBlockByNumber, getLastFinalizedBlock } from "./httpApi";
 import { AnyChainConfig } from "./config";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 
-// TODO: remove hardcoded url
-const polkadotAppsUrl =
-  "https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer/query/";
+function polkadotAppsUrl(targetChainUrl: string) {
+  const url = new URL('https://polkadot.js.org/apps/');
+  url.searchParams.set('rpc', targetChainUrl);
+  url.hash = '/explorer/query/'
+  return url.toString();
+}
 
 async function *readBlocksInBatches(
   archive: ChainArchive,
   lastProcessedBlock: number,
   batchBytesLimit: number,
   batchCountLimit: number,
-): AsyncGenerator<[BatchTxBlock[], number], void> {
-  let blocksToArchive: BatchTxBlock[] = [];
+): AsyncGenerator<[TxBlock[], number], void> {
+  let blocksToArchive: TxBlock[] = [];
   let accumulatedBytes = 0;
   let lastBlockNumber = 0;
   for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
@@ -35,10 +37,7 @@ async function *readBlocksInBatches(
       accumulatedBytes = 0;
     }
 
-    blocksToArchive.push({
-      block: blockData.block,
-      metadata,
-    });
+    blocksToArchive.push({ block, metadata });
     accumulatedBytes += extraBytes;
     lastBlockNumber = blockData.metadata.number;
 
@@ -60,11 +59,12 @@ export async function relayFromDownloadedArchive(
   chainName: ChainName,
   path: string,
   target: Target,
-  state: State,
+  lastProcessedBlock: number,
   signer: SignerWithAddress,
   batchBytesLimit: number,
   batchCountLimit: number,
 ): Promise<number> {
+  const polkadotAppsBaseUrl = polkadotAppsUrl(target.targetChainUrl);
   const archive = new ChainArchive({
     path,
     logger,
@@ -73,94 +73,168 @@ export async function relayFromDownloadedArchive(
   let lastBlockProcessingReportAt = Date.now();
 
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
-  const lastProcessedString = await state.getLastProcessedBlockByName(chainName);
-  let lastProcessedBlock = lastProcessedString ? parseInt(lastProcessedString, 10) : 0;
 
   let lastTxPromise: Promise<void> | undefined;
   const blockBatches = readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
-  for await (const [blocksBatch, lastBlockNumber] of blockBatches) {
+  for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
     if (lastTxPromise) {
       await lastTxPromise;
     }
     lastTxPromise = (async () => {
-      const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
+      const blockHash = await target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce);
       nonce++;
 
-      logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
+      logger.debug(
+        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
+      );
 
       {
         const now = Date.now();
-        const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
+        const rate = (blocksToArchive.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
         lastBlockProcessingReportAt = now;
 
         logger.info(`Processed downloaded ${chainName} block ${lastBlockNumber} at ${rate} blocks/s`);
       }
 
       lastProcessedBlock = lastBlockNumber;
-      await state.saveLastProcessedBlock(chainName, lastProcessedBlock);
     })();
   }
 
+  if (lastTxPromise) {
+    await lastTxPromise;
+  }
+
   return lastProcessedBlock;
+}
+
+interface RelayBlocksResult {
+  nonce: bigint;
+  nextBlockToProcess: number;
+}
+
+async function *fetchBlocksInBatches(
+  httpUrl: string,
+  nextBlockToProcess: number,
+  lastFinalizedBlockNumber: () => number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
+): AsyncGenerator<[TxBlock[], number], void> {
+  let blocksToArchive: TxBlock[] = [];
+  let accumulatedBytes = 0;
+  for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
+    // TODO: Cache of mapping from block number to its hash for faster fetching
+    const [blockHash, block] = await pRetry(
+      () => getBlockByNumber(httpUrl, nextBlockToProcess),
+    );
+    const metadata = Buffer.from(
+      JSON.stringify({
+        hash: blockHash,
+        number: nextBlockToProcess,
+      }),
+      'utf-8',
+    );
+    const extraBytes = block.byteLength + metadata.byteLength;
+    if (accumulatedBytes + extraBytes >= batchBytesLimit) {
+      // With new block limit will be exceeded, yield now
+      yield [blocksToArchive, nextBlockToProcess];
+      blocksToArchive = [];
+      accumulatedBytes = 0;
+    }
+
+    blocksToArchive.push({ block, metadata });
+    accumulatedBytes += extraBytes;
+
+    if (blocksToArchive.length === batchCountLimit) {
+      // Reached block count limit, yield now
+      yield [blocksToArchive, nextBlockToProcess];
+      blocksToArchive = [];
+      accumulatedBytes = 0;
+    }
+  }
+
+  if (blocksToArchive.length > 0) {
+    yield [blocksToArchive, nextBlockToProcess];
+  }
 }
 
 async function relayBlocks(
   feedId: U64,
   chainName: ChainName,
   target: Target,
-  state: State,
   signer: SignerWithAddress,
   chainConfig: AnyChainConfig,
+  nonce: bigint,
   nextBlockToProcess: number,
   lastFinalizedBlockNumber: () => number,
-): Promise<number> {
-  // TODO: Support batching
-  for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
-    // TODO: Cache of mapping from block number to its hash for faster fetching
-    const [blockHash, block] = await pRetry(
-      () => getBlockByNumber(chainConfig.httpUrl, nextBlockToProcess),
-    );
-    await target.sendBlockTx({
-      feedId,
-      block,
-      metadata: {
-        hash: blockHash,
-        number: nextBlockToProcess,
-      },
-      chainName,
-      signer,
-    });
+  batchBytesLimit: number,
+  batchCountLimit: number,
+): Promise<RelayBlocksResult> {
+  const polkadotAppsBaseUrl = polkadotAppsUrl(target.targetChainUrl);
+  let lastTxPromise: Promise<void> | undefined;
+  const blockBatches = fetchBlocksInBatches(
+    chainConfig.httpUrl,
+    nextBlockToProcess,
+    lastFinalizedBlockNumber,
+    batchBytesLimit,
+    batchCountLimit,
+  );
+  for await (const [blocksToArchive, newNextBlockToProcess] of blockBatches) {
+    nextBlockToProcess = newNextBlockToProcess;
+    if (lastTxPromise) {
+      await lastTxPromise;
+    }
+    lastTxPromise = (async () => {
+      const blockHash = blocksToArchive.length > 1
+        ? await target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
+        : await target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce);
+      nonce++;
 
-    await state.saveLastProcessedBlock(chainName, nextBlockToProcess);
+      logger.debug(
+        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
+      );
+    })();
   }
 
-  return nextBlockToProcess;
+  if (lastTxPromise) {
+    await lastTxPromise;
+  }
+
+  return {
+    nonce,
+    nextBlockToProcess,
+  };
 }
 
 export async function relayFromPrimaryChainHeadState(
   feedId: U64,
   chainName: ChainName,
   target: Target,
-  state: State,
   signer: SignerWithAddress,
   chainHeadState: PrimaryChainHeadState,
   chainConfig: AnyChainConfig,
   lastProcessedBlock: number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
+  let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
   for (;;) {
-    nextBlockToProcess = await relayBlocks(
+    const result = await relayBlocks(
       feedId,
       chainName,
       target,
-      state,
       signer,
       chainConfig,
+      nonce,
       nextBlockToProcess,
       () => {
         return chainHeadState.lastFinalizedBlockNumber;
-      }
+      },
+      batchBytesLimit,
+      batchCountLimit,
     );
+    nonce = result.nonce;
+    nextBlockToProcess = result.nextBlockToProcess;
 
     await new Promise<void>((resolve) => {
       if (nextBlockToProcess <= chainHeadState.lastFinalizedBlockNumber) {
@@ -176,30 +250,36 @@ export async function relayFromParachainHeadState(
   feedId: U64,
   chainName: ChainName,
   target: Target,
-  state: State,
   signer: SignerWithAddress,
   chainHeadState: ParachainHeadState,
   chainConfig: AnyChainConfig,
   lastProcessedBlock: number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
+  let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
   for (;;) {
     // TODO: This is simple, but not very efficient
     const lastFinalizedBlockNumber = await pRetry(
       () => getLastFinalizedBlock(chainConfig.httpUrl),
     );
-    nextBlockToProcess = await relayBlocks(
+    const result = await relayBlocks(
       feedId,
       chainName,
       target,
-      state,
       signer,
       chainConfig,
+      nonce,
       nextBlockToProcess,
       () => {
         return lastFinalizedBlockNumber;
-      }
+      },
+      batchBytesLimit,
+      batchCountLimit,
     );
+    nonce = result.nonce;
+    nextBlockToProcess = result.nextBlockToProcess;
 
     await new Promise<void>((resolve) => {
       chainHeadState.newHeadCallback = resolve;

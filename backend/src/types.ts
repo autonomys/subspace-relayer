@@ -1,4 +1,3 @@
-import { U64 } from "@polkadot/types/primitive";
 import { Signer, SignerPayloadJSON, SignerResult } from "@polkadot/types/types/extrinsic";
 import { HexString } from "@polkadot/util/types";
 
@@ -16,20 +15,12 @@ export abstract class SignerWithAddress implements Signer {
   abstract signPayload(payload: SignerPayloadJSON): Promise<SignerResult>;
 }
 
-export interface TxData {
-  feedId: U64;
-  block: Buffer;
-  metadata: BlockMetadata;
-  chainName: ChainName;
-  signer: SignerWithAddress;
-}
-
 export interface BlockMetadata {
   hash: HexString;
   number: number;
 }
 
-export interface BatchTxBlock {
+export interface TxBlock {
   block: Buffer;
   metadata: Buffer;
 }
