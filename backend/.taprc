@@ -1,0 +1,3 @@
+ts: true
+coverage: true
+check-coverage: false
