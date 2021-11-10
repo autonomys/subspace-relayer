@@ -1,4 +1,4 @@
-import { blake2AsU8a } from '@polkadot/util-crypto';
+import { blake2AsHex } from '@polkadot/util-crypto';
 import * as fsp from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -6,7 +6,6 @@ const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
 import { Logger } from "pino";
-import { TypeRegistry } from '@polkadot/types';
 
 import { getHeaderLength } from './utils';
 import { BlockMetadata } from "./types";
@@ -30,15 +29,11 @@ class ChainArchive {
   private readonly db: any;
   private readonly path: string;
   private readonly logger: Logger;
-  // use TypeRegistry to create types Header and Hash instead of using polkadot.js WS API
-  private readonly registry: TypeRegistry;
 
   public constructor(params: ChainArchiveConstructorParams) {
     this.db = levelup(rocksdb(`${params.path}/db`));
     this.path = params.path;
     this.logger = params.logger;
-    this.getBlockByNumber = this.getBlockByNumber.bind(this);
-    this.registry = new TypeRegistry();
   }
 
   private getBlockByNumber(blockNumber: number): Promise<Buffer> {
@@ -51,7 +46,7 @@ class ChainArchive {
     return parseInt(file, 10);
   }
 
-  async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
+  public async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
     this.logger.info('Start processing blocks from archive');
 
     const lastFromDb = await this.getLastBlockNumberFromDb();
@@ -61,7 +56,7 @@ class ChainArchive {
       const block = await this.getBlockByNumber(number);
       // get block hash by hashing block header (using Blake2) instead of requesting from RPC API
       const headerLength = getHeaderLength(block);
-      const hash = this.registry.createType("Hash", blake2AsU8a(block.subarray(0, headerLength)));
+      const hash = blake2AsHex(block.subarray(0, headerLength));
 
       lastProcessedBlock = number;
 

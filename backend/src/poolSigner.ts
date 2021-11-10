@@ -39,6 +39,7 @@ class SigningWorker {
                 callback(`0x${Buffer.from(signature).toString('hex')}`);
             }
         });
+        this.worker.unref();
     }
 
     public sign(message: Uint8Array): Promise<`0x${string}`> {
@@ -59,8 +60,8 @@ export class PoolSigner extends SignerWithAddress {
 
     public constructor(
         private readonly registry: Registry,
-        private readonly keypairSeed: string,
-        private readonly poolSize: number,
+        keypairSeed: string,
+        poolSize: number,
     ) {
         super(getAccount(keypairSeed).address)
 

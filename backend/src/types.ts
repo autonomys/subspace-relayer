@@ -1,10 +1,11 @@
 import { U64 } from "@polkadot/types/primitive";
-import { Hash } from "@polkadot/types/interfaces";
 import { Signer, SignerPayloadJSON, SignerResult } from "@polkadot/types/types/extrinsic";
+import { HexString } from "@polkadot/util/types";
 
-import Parachain from "./parachain";
+type Brand<K, T> = K & { __brand: T; };
 
-export type ChainName = Brand<string, 'chain'>;
+export type ChainName = Brand<string, 'ChainName'>;
+export type ChainId = Brand<number, 'ChainId'>;
 
 export abstract class SignerWithAddress implements Signer {
   protected constructor(
@@ -19,12 +20,12 @@ export interface TxData {
   feedId: U64;
   block: Buffer;
   metadata: BlockMetadata;
-  chain: ChainName;
+  chainName: ChainName;
   signer: SignerWithAddress;
 }
 
 export interface BlockMetadata {
-  hash: Hash;
+  hash: HexString;
   number: number;
 }
 
@@ -34,26 +35,13 @@ export interface BatchTxBlock {
 }
 
 export interface ParaHeadAndId {
-  paraId: string;
-  paraHead: Hash;
+  paraId: ChainId;
+  blockHash: HexString;
 }
-
-export type Brand<K, T> = K & { __brand: T; };
 
 export interface ParachainConfigType {
   url: string;
   paraId: number;
-}
-
-export type ParachainsMap = Map<string, Parachain>;
-
-export interface TxDataInput {
-  block: Buffer;
-  number: number;
-  hash: Hash;
-  feedId: U64;
-  chain: ChainName;
-  signer: SignerWithAddress;
 }
 
 interface BlockJsonRpc {
