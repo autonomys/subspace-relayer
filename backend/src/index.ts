@@ -1,10 +1,10 @@
 import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { U64 } from "@polkadot/types";
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import State from './state';
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
 import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
@@ -34,7 +34,7 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
-function createApi (url: string): Promise<ApiPromise> {
+function createApi(url: string): Promise<ApiPromise> {
   const provider = new WsProvider(url);
   return ApiPromise.create({
     provider,
@@ -42,10 +42,13 @@ function createApi (url: string): Promise<ApiPromise> {
 }
 
 async function main() {
-  const state = new State({ folder: "./state" });
   const targetApi = await createApi(config.targetChainUrl);
 
-  const target = new Target({ api: targetApi, logger });
+  const target = new Target({
+    api: targetApi,
+    logger,
+    targetChainUrl: config.targetChainUrl,
+  });
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
 
   const processingChains = [config.primaryChain, ...config.parachains]
@@ -59,7 +62,10 @@ async function main() {
 
       const feedId = await targetApi.createType('U64', chainConfig.feedId);
 
-      let lastProcessedBlock = -1;
+      const totals = (await targetApi.query.feeds.totals(feedId)) as unknown as { size: U64, count: U64 };
+      // We know that block number will not exceed 53-bit size integer
+      let lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
+
       if (chainConfig.downloadedArchivePath) {
         try {
           lastProcessedBlock = await relayFromDownloadedArchive(
@@ -67,7 +73,7 @@ async function main() {
             chainName,
             chainConfig.downloadedArchivePath,
             target,
-            state,
+            lastProcessedBlock,
             signer,
             BATCH_BYTES_LIMIT,
             BATCH_COUNT_LIMIT,
@@ -86,7 +92,7 @@ async function main() {
         await sourceApi.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
           try {
             // TODO: Cache this, will be useful for relaying to not download twice
-            const {block} = await sourceApi.rpc.chain.getBlock(blockHeader.hash);
+            const { block } = await sourceApi.rpc.chain.getBlock(blockHeader.hash);
 
             chainHeadState.lastFinalizedBlockNumber = blockHeader.number.toNumber();
             if (chainHeadState.newHeadCallback) {
@@ -119,7 +125,7 @@ async function main() {
               }
             }
 
-            logger.info(`Received primary chain block with ${result.length} associated parablocks`);
+            logger.info(`Received ${chainName} primary chain block ${blockHeader.number} with ${result.length} associated parablocks`);
             if (result.length > 0) {
               logger.debug(`ParaIds: ${result.map(({ paraId }) => paraId).join(", ")}`);
             }
@@ -133,11 +139,12 @@ async function main() {
           feedId,
           chainName,
           target,
-          state,
           signer,
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
+          BATCH_BYTES_LIMIT,
+          BATCH_COUNT_LIMIT,
         );
       } else {
         const chainHeadState = new ParachainHeadState();
@@ -147,11 +154,12 @@ async function main() {
           feedId,
           chainName,
           target,
-          state,
           signer,
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
+          BATCH_BYTES_LIMIT,
+          BATCH_COUNT_LIMIT,
         );
       }
     });
