@@ -5,7 +5,7 @@ import { ISubmittableResult } from "@polkadot/types/types";
 import { Hash } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 
-import { SignerWithAddress, TxData, BatchTxBlock } from "./types";
+import { SignerWithAddress, TxBlock, ChainName } from "./types";
 
 // TODO: remove hardcoded url
 const polkadotAppsUrl =
@@ -45,14 +45,24 @@ class Target {
     }
   }
 
-  public sendBlockTx({ feedId, block, metadata, chainName, signer, nonce }: TxData): Promise<Hash> {
-    this.logger.debug(`Sending ${chainName} block ${metadata.number} to feed: ${feedId}`);
+  public sendBlockTx(
+    feedId: U64,
+    chainName: ChainName,
+    signer: SignerWithAddress,
+    { block, metadata }: TxBlock,
+    nonce: bigint,
+  ): Promise<Hash> {
+    this.logger.debug(`Sending ${chainName} block to feed: ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
     return new Promise((resolve, reject) => {
       let unsub: () => void;
       this.api.tx.feeds
-        .put(feedId, `0x${block.toString('hex')}`, JSON.stringify(metadata))
+        .put(
+          feedId,
+          `0x${block.toString('hex')}`,
+          `0x${metadata.toString('hex')}`,
+        )
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
             reject(result.status.toString());
@@ -73,14 +83,15 @@ class Target {
 
   public sendBlocksBatchTx(
     feedId: U64,
+    chainName: ChainName,
     signer: SignerWithAddress,
-    txData: BatchTxBlock[],
+    txData: TxBlock[],
     nonce: bigint,
   ): Promise<Hash> {
-    this.logger.debug(`Sending ${txData.length} blocks to feed: ${feedId}`);
+    this.logger.debug(`Sending ${txData.length}g ${chainName} blocks to feed: ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
-    const putCalls = txData.map(({ block, metadata }: BatchTxBlock) => {
+    const putCalls = txData.map(({ block, metadata }: TxBlock) => {
       return this.api.tx.feeds.put(
         feedId,
         `0x${block.toString('hex')}`,

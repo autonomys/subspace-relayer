@@ -121,7 +121,7 @@ async function main() {
               }
             }
 
-            logger.info(`Received primary chain block with ${result.length} associated parablocks`);
+            logger.info(`Received ${chainName} primary chain block ${blockHeader.number} with ${result.length} associated parablocks`);
             if (result.length > 0) {
               logger.debug(`ParaIds: ${result.map(({ paraId }) => paraId).join(", ")}`);
             }
@@ -139,6 +139,8 @@ async function main() {
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
+          BATCH_BYTES_LIMIT,
+          BATCH_COUNT_LIMIT,
         );
       } else {
         const chainHeadState = new ParachainHeadState();
@@ -152,6 +154,8 @@ async function main() {
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
+          BATCH_BYTES_LIMIT,
+          BATCH_COUNT_LIMIT,
         );
       }
     });

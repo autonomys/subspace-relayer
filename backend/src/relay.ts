@@ -2,7 +2,7 @@ import { U64 } from "@polkadot/types";
 import pRetry from "p-retry";
 
 import Target from "./target";
-import { BatchTxBlock, ChainName, SignerWithAddress } from "./types";
+import { TxBlock, ChainName, SignerWithAddress } from "./types";
 import ChainArchive from "./chainArchive";
 import logger from "./logger";
 import { getBlockByNumber, getLastFinalizedBlock } from "./httpApi";
@@ -18,8 +18,8 @@ async function *readBlocksInBatches(
   lastProcessedBlock: number,
   batchBytesLimit: number,
   batchCountLimit: number,
-): AsyncGenerator<[BatchTxBlock[], number], void> {
-  let blocksToArchive: BatchTxBlock[] = [];
+): AsyncGenerator<[TxBlock[], number], void> {
+  let blocksToArchive: TxBlock[] = [];
   let accumulatedBytes = 0;
   let lastBlockNumber = 0;
   for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
@@ -34,10 +34,7 @@ async function *readBlocksInBatches(
       accumulatedBytes = 0;
     }
 
-    blocksToArchive.push({
-      block: blockData.block,
-      metadata,
-    });
+    blocksToArchive.push({ block, metadata });
     accumulatedBytes += extraBytes;
     lastBlockNumber = blockData.metadata.number;
 
@@ -75,19 +72,21 @@ export async function relayFromDownloadedArchive(
 
   let lastTxPromise: Promise<void> | undefined;
   const blockBatches = readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
-  for await (const [blocksBatch, lastBlockNumber] of blockBatches) {
+  for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
     if (lastTxPromise) {
       await lastTxPromise;
     }
     lastTxPromise = (async () => {
-      const blockHash = await target.sendBlocksBatchTx(feedId, signer, blocksBatch, nonce);
+      const blockHash = await target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce);
       nonce++;
 
-      logger.debug(`Transaction included: ${polkadotAppsUrl}${blockHash}`);
+      logger.debug(
+        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsUrl}${blockHash}`,
+      );
 
       {
         const now = Date.now();
-        const rate = (blocksBatch.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
+        const rate = (blocksToArchive.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
         lastBlockProcessingReportAt = now;
 
         logger.info(`Processed downloaded ${chainName} block ${lastBlockNumber} at ${rate} blocks/s`);
@@ -97,12 +96,61 @@ export async function relayFromDownloadedArchive(
     })();
   }
 
+  if (lastTxPromise) {
+    await lastTxPromise;
+  }
+
   return lastProcessedBlock;
 }
 
 interface RelayBlocksResult {
   nonce: bigint;
   nextBlockToProcess: number;
+}
+
+async function *fetchBlocksInBatches(
+  httpUrl: string,
+  nextBlockToProcess: number,
+  lastFinalizedBlockNumber: () => number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
+): AsyncGenerator<[TxBlock[], number], void> {
+  let blocksToArchive: TxBlock[] = [];
+  let accumulatedBytes = 0;
+  for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
+    // TODO: Cache of mapping from block number to its hash for faster fetching
+    const [blockHash, block] = await pRetry(
+      () => getBlockByNumber(httpUrl, nextBlockToProcess),
+    );
+    const metadata = Buffer.from(
+      JSON.stringify({
+        hash: blockHash,
+        number: nextBlockToProcess,
+      }),
+      'utf-8',
+    );
+    const extraBytes = block.byteLength + metadata.byteLength;
+    if (accumulatedBytes + extraBytes >= batchBytesLimit) {
+      // With new block limit will be exceeded, yield now
+      yield [blocksToArchive, nextBlockToProcess];
+      blocksToArchive = [];
+      accumulatedBytes = 0;
+    }
+
+    blocksToArchive.push({ block, metadata });
+    accumulatedBytes += extraBytes;
+
+    if (blocksToArchive.length === batchCountLimit) {
+      // Reached block count limit, yield now
+      yield [blocksToArchive, nextBlockToProcess];
+      blocksToArchive = [];
+      accumulatedBytes = 0;
+    }
+  }
+
+  if (blocksToArchive.length > 0) {
+    yield [blocksToArchive, nextBlockToProcess];
+  }
 }
 
 async function relayBlocks(
@@ -114,25 +162,36 @@ async function relayBlocks(
   nonce: bigint,
   nextBlockToProcess: number,
   lastFinalizedBlockNumber: () => number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
 ): Promise<RelayBlocksResult> {
-  // TODO: Support batching
-  for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
-    // TODO: Cache of mapping from block number to its hash for faster fetching
-    const [blockHash, block] = await pRetry(
-      () => getBlockByNumber(chainConfig.httpUrl, nextBlockToProcess),
-    );
-    await target.sendBlockTx({
-      feedId,
-      block,
-      metadata: {
-        hash: blockHash,
-        number: nextBlockToProcess,
-      },
-      chainName,
-      signer,
-      nonce,
-    });
-    nonce++;
+  let lastTxPromise: Promise<void> | undefined;
+  const blockBatches = fetchBlocksInBatches(
+    chainConfig.httpUrl,
+    nextBlockToProcess,
+    lastFinalizedBlockNumber,
+    batchBytesLimit,
+    batchCountLimit,
+  );
+  for await (const [blocksToArchive, newNextBlockToProcess] of blockBatches) {
+    nextBlockToProcess = newNextBlockToProcess;
+    if (lastTxPromise) {
+      await lastTxPromise;
+    }
+    lastTxPromise = (async () => {
+      const blockHash = blocksToArchive.length > 1
+        ? await target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
+        : await target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce);
+      nonce++;
+
+      logger.debug(
+        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsUrl}${blockHash}`,
+      );
+    })();
+  }
+
+  if (lastTxPromise) {
+    await lastTxPromise;
   }
 
   return {
@@ -149,6 +208,8 @@ export async function relayFromPrimaryChainHeadState(
   chainHeadState: PrimaryChainHeadState,
   chainConfig: AnyChainConfig,
   lastProcessedBlock: number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
@@ -163,7 +224,9 @@ export async function relayFromPrimaryChainHeadState(
       nextBlockToProcess,
       () => {
         return chainHeadState.lastFinalizedBlockNumber;
-      }
+      },
+      batchBytesLimit,
+      batchCountLimit,
     );
     nonce = result.nonce;
     nextBlockToProcess = result.nextBlockToProcess;
@@ -186,6 +249,8 @@ export async function relayFromParachainHeadState(
   chainHeadState: ParachainHeadState,
   chainConfig: AnyChainConfig,
   lastProcessedBlock: number,
+  batchBytesLimit: number,
+  batchCountLimit: number,
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
@@ -204,7 +269,9 @@ export async function relayFromParachainHeadState(
       nextBlockToProcess,
       () => {
         return lastFinalizedBlockNumber;
-      }
+      },
+      batchBytesLimit,
+      batchCountLimit,
     );
     nonce = result.nonce;
     nextBlockToProcess = result.nextBlockToProcess;
