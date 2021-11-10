@@ -22,6 +22,7 @@ export interface TxData {
   metadata: BlockMetadata;
   chainName: ChainName;
   signer: SignerWithAddress;
+  nonce: bigint;
 }
 
 export interface BlockMetadata {

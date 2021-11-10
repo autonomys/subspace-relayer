@@ -104,6 +104,11 @@ export async function relayFromDownloadedArchive(
   return lastProcessedBlock;
 }
 
+interface RelayBlocksResult {
+  nonce: bigint;
+  nextBlockToProcess: number;
+}
+
 async function relayBlocks(
   feedId: U64,
   chainName: ChainName,
@@ -111,9 +116,10 @@ async function relayBlocks(
   state: State,
   signer: SignerWithAddress,
   chainConfig: AnyChainConfig,
+  nonce: bigint,
   nextBlockToProcess: number,
   lastFinalizedBlockNumber: () => number,
-): Promise<number> {
+): Promise<RelayBlocksResult> {
   // TODO: Support batching
   for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
     // TODO: Cache of mapping from block number to its hash for faster fetching
@@ -129,12 +135,17 @@ async function relayBlocks(
       },
       chainName,
       signer,
+      nonce,
     });
+    nonce++;
 
     await state.saveLastProcessedBlock(chainName, nextBlockToProcess);
   }
 
-  return nextBlockToProcess;
+  return {
+    nonce,
+    nextBlockToProcess,
+  };
 }
 
 export async function relayFromPrimaryChainHeadState(
@@ -148,19 +159,23 @@ export async function relayFromPrimaryChainHeadState(
   lastProcessedBlock: number,
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
+  let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
   for (;;) {
-    nextBlockToProcess = await relayBlocks(
+    const result = await relayBlocks(
       feedId,
       chainName,
       target,
       state,
       signer,
       chainConfig,
+      nonce,
       nextBlockToProcess,
       () => {
         return chainHeadState.lastFinalizedBlockNumber;
       }
     );
+    nonce = result.nonce;
+    nextBlockToProcess = result.nextBlockToProcess;
 
     await new Promise<void>((resolve) => {
       if (nextBlockToProcess <= chainHeadState.lastFinalizedBlockNumber) {
@@ -183,23 +198,27 @@ export async function relayFromParachainHeadState(
   lastProcessedBlock: number,
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
+  let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
   for (;;) {
     // TODO: This is simple, but not very efficient
     const lastFinalizedBlockNumber = await pRetry(
       () => getLastFinalizedBlock(chainConfig.httpUrl),
     );
-    nextBlockToProcess = await relayBlocks(
+    const result = await relayBlocks(
       feedId,
       chainName,
       target,
       state,
       signer,
       chainConfig,
+      nonce,
       nextBlockToProcess,
       () => {
         return lastFinalizedBlockNumber;
       }
     );
+    nonce = result.nonce;
+    nextBlockToProcess = result.nextBlockToProcess;
 
     await new Promise<void>((resolve) => {
       chainHeadState.newHeadCallback = resolve;

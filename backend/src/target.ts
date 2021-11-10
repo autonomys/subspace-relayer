@@ -23,7 +23,6 @@ class Target {
   constructor({ api, logger }: TargetConstructorParams) {
     this.api = api;
     this.logger = logger;
-    this.sendBlockTx = this.sendBlockTx.bind(this);
     this.logTxResult = this.logTxResult.bind(this);
   }
 
@@ -46,7 +45,7 @@ class Target {
     }
   }
 
-  public sendBlockTx({ feedId, block, metadata, chainName, signer }: TxData, nonce?: number): Promise<Hash> {
+  public sendBlockTx({ feedId, block, metadata, chainName, signer, nonce }: TxData): Promise<Hash> {
     this.logger.debug(`Sending ${chainName} block ${metadata.number} to feed: ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
@@ -54,10 +53,7 @@ class Target {
       let unsub: () => void;
       this.api.tx.feeds
         .put(feedId, `0x${block.toString('hex')}`, JSON.stringify(metadata))
-        // it is required to specify nonce, otherwise transaction within same block will be rejected
-        // if nonce is -1 API will do the lookup for the right value
-        // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer.address, { nonce: nonce || -1, signer }, (result) => {
+        .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
             reject(result.status.toString());
             unsub();
@@ -79,7 +75,7 @@ class Target {
     feedId: U64,
     signer: SignerWithAddress,
     txData: BatchTxBlock[],
-    nonce?: bigint,
+    nonce: bigint,
   ): Promise<Hash> {
     this.logger.debug(`Sending ${txData.length} blocks to feed: ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
@@ -96,10 +92,7 @@ class Target {
       let unsub: () => void;
       this.api.tx.utility
         .batchAll(putCalls)
-        // it is required to specify nonce, otherwise transaction within same block will be rejected
-        // if nonce is -1 API will do the lookup for the right value
-        // https://polkadot.js.org/docs/api/cookbook/tx/#how-do-i-take-the-pending-tx-pool-into-account-in-my-nonce
-        .signAndSend(signer.address, { nonce: nonce || -1, signer }, (result) => {
+        .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
             reject(result.status.toString());
             unsub();
