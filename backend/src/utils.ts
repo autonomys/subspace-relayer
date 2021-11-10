@@ -11,7 +11,7 @@ export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
 
     return {
         blockHash: descriptor.paraHead.toHex(),
-        // TODO: There is actually `toNumber()` method here, but it is not present in types for some reason
+        // We know that parachain ID will not exceed 53-bit size integer
         paraId: Number(descriptor.paraId.toBigInt()) as ChainId
     };
 };

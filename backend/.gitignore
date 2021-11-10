@@ -1,6 +1,5 @@
 node_modules
 dist
 coverage
-state
 .nyc_output
 config.json
