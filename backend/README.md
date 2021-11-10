@@ -13,6 +13,7 @@ CHAIN_CONFIG_PATH=config.json
 
 ```json
 {
+    "targetChainUrl": "ws://127.0.0.1:9944",
     "primaryChain": {
         "downloadedArchivePath": "/path/to/kusama-archive-2021-oct-23",
         "httpUrl": "https://kusama-rpc.polkadot.io",
