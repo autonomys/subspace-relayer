@@ -1,7 +1,6 @@
 // Small utility that can download blocks from Substrate-based chain starting from genesis and store them by block
 // number in a directory
 
-import * as fs from "fs/promises";
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const levelup = require("levelup");
@@ -37,13 +36,13 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
 
   const db = levelup(rocksdb(`${targetDir}/db`));
 
-  const lastDownloadedBlock = await (async () => {
-    try {
-      return parseInt(await fs.readFile(`${targetDir}/last-downloaded-block`, { encoding: 'utf-8' }), 10);
-    } catch {
-      return -1;
-    }
-  })();
+  let lastDownloadedBlock;
+  try {
+    // We know blocks will not exceed 53-bit integer
+    lastDownloadedBlock = Number((await db.get('last-downloaded-block') as Buffer).readBigUInt64LE());
+  } catch {
+    lastDownloadedBlock = -1;
+  }
 
   if (lastDownloadedBlock > -1) {
     console.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
@@ -53,11 +52,23 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   let blockNumber = lastDownloadedBlock + 1;
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
-    const blockBytes = await getBlockByNumber(sourceChainRpc, blockNumber);
+    const [blockHash, blockBytes] = await getBlockByNumber(sourceChainRpc, blockNumber);
 
-    await db.put(Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer), blockBytes);
+    const blockNumberAsBuffer = Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
+    await db.put(
+      blockNumberAsBuffer,
+      Buffer.concat([
+        // Block hash length in bytes
+        Buffer.from(Uint8Array.of(32)),
+        // Block hash itself
+        Buffer.from(blockHash.slice(2), 'hex'),
+        // Block bytes in full
+        blockBytes,
+      ]),
+    );
+    await db.put('last-downloaded-block', blockNumberAsBuffer);
 
-    if (blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
+    if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
       const now = Date.now();
       const downloadRate = lastDownloadingReportAt
         ? ` (${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastDownloadingReportAt) / 1000)).toFixed(2)} blocks/s)`
@@ -67,14 +78,12 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
       console.info(
         `Downloaded block ${blockNumber}/${lastFinalizedBlockNumber}${downloadRate}`
       );
-
-      await fs.writeFile(`${targetDir}/last-downloaded-block`, blockNumber.toString());
     }
   }
 
   console.info("Archived everything");
 
-  await fs.writeFile(`${targetDir}/last-downloaded-block`, blockNumber.toString());
+  await db.close();
 
   process.exit(0);
 })();
