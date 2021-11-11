@@ -15,6 +15,8 @@ class Target {
   public readonly api: ApiPromise;
   public readonly targetChainUrl: string;
   private readonly logger: Logger;
+  // TODO: Temporary workaround before node switches to inherents for root block extrinsics: https://github.com/subspace/subspace/issues/127
+  private promiseChain = Promise.resolve();
 
   constructor({ api, logger, targetChainUrl }: TargetConstructorParams) {
     this.api = api;
@@ -32,7 +34,7 @@ class Target {
     this.logger.debug(`Sending ${chainName} block to feed ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
-    return new Promise((resolve, reject) => {
+    const promiseFn = () => new Promise<Hash>((resolve, reject) => {
       let unsub: () => void;
       this.api.tx.feeds
         .put(
@@ -56,6 +58,15 @@ class Target {
           reject(e);
         });
     });
+
+    const promise = this.promiseChain.then(promiseFn);
+    this.promiseChain = promise
+      .then(() => undefined)
+      .catch(() => {
+        // We don't want to break the chain here even when promise gets rejected
+      });
+
+    return promise;
   }
 
   public sendBlocksBatchTx(
@@ -76,7 +87,7 @@ class Target {
       );
     });
 
-    return new Promise((resolve, reject) => {
+    const promiseFn = () => new Promise<Hash>((resolve, reject) => {
       let unsub: () => void;
       this.api.tx.utility
         .batchAll(putCalls)
@@ -96,6 +107,15 @@ class Target {
           reject(e);
         });
     });
+
+    const promise = this.promiseChain.then(promiseFn);
+    this.promiseChain = promise
+      .then(() => undefined)
+      .catch(() => {
+        // We don't want to break the chain here even when promise gets rejected
+      });
+
+    return promise;
   }
 }
 
