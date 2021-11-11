@@ -29,7 +29,7 @@ class Target {
     { block, metadata }: TxBlock,
     nonce: bigint,
   ): Promise<Hash> {
-    this.logger.debug(`Sending ${chainName} block to feed: ${feedId}`);
+    this.logger.debug(`Sending ${chainName} block to feed ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
     return new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ class Target {
         )
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
-            reject(result.status.toString());
+            reject(new Error(result.status.toString()));
             unsub();
           } else if (result.status.isInBlock) {
             resolve(result.status.asInBlock);
@@ -65,7 +65,7 @@ class Target {
     txData: TxBlock[],
     nonce: bigint,
   ): Promise<Hash> {
-    this.logger.debug(`Sending ${txData.length}g ${chainName} blocks to feed: ${feedId}`);
+    this.logger.debug(`Sending ${txData.length} ${chainName} blocks to feed ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
     const putCalls = txData.map(({ block, metadata }: TxBlock) => {
@@ -82,7 +82,7 @@ class Target {
         .batchAll(putCalls)
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
-            reject(result.status.toString());
+            reject(new Error(result.status.toString()));
             unsub();
           } else if (result.status.isInBlock) {
             resolve(result.status.asInBlock);
