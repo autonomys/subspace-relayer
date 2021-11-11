@@ -65,7 +65,9 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
 // disable eslint rules and allow 'any' because we're checking API response
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
 export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlockJsonRpc {
-    return 'block' in object &&
+    return (
+        object &&
+        'block' in object &&
         'justifications' in object &&
         Array.isArray(object.block.extrinsics) &&
         Array.isArray(object.block.header.digest.logs) &&
@@ -73,7 +75,8 @@ export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlo
         typeof object.block.header.number === 'string' &&
         typeof object.block.header.stateRoot === 'string' &&
         typeof object.block.header.extrinsicsRoot === 'string' &&
-        typeof object.block.header.parentHash === 'string';
+        typeof object.block.header.parentHash === 'string'
+    );
 }
 
 enum DigestItemType {
