@@ -98,6 +98,10 @@ export async function relayFromDownloadedArchive(
 
       lastProcessedBlock = lastBlockNumber;
     })();
+
+    lastTxPromise.catch(() => {
+      // This is just to prevent uncaught promise rejection due to promise being stored in a variable
+    });
   }
 
   if (lastTxPromise) {
@@ -193,6 +197,10 @@ async function relayBlocks(
         `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
       );
     })();
+
+    lastTxPromise.catch(() => {
+      // This is just to prevent uncaught promise rejection due to promise being stored in a variable
+    });
   }
 
   if (lastTxPromise) {
