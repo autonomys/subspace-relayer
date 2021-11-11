@@ -6,6 +6,7 @@
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
+import pRetry from "p-retry";
 
 import { getLastFinalizedBlock, getBlockByNumber } from '../httpApi';
 
@@ -52,7 +53,9 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   let blockNumber = lastDownloadedBlock + 1;
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
-    const [blockHash, blockBytes] = await getBlockByNumber(sourceChainRpc, blockNumber);
+    const [blockHash, blockBytes] = await pRetry(
+      () => getBlockByNumber(sourceChainRpc, blockNumber),
+    );
 
     const blockNumberAsBuffer = Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
     await db.put(
