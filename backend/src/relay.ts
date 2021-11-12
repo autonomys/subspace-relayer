@@ -140,7 +140,7 @@ async function* fetchBlocksInBatches(
       {
         forever: true,
         minTimeout: 1000,
-        maxTimeout: 2000,
+        maxTimeout: 60 * 60 * 1000,
         onFailedAttempt: error => logger.error(error, "getBlockByNumber retry error: "),
       },
     );
