@@ -16,7 +16,7 @@ function polkadotAppsUrl(targetChainUrl: string) {
   return url.toString();
 }
 
-async function *readBlocksInBatches(
+async function* readBlocksInBatches(
   archive: ChainArchive,
   lastProcessedBlock: number,
   batchBytesLimit: number,
@@ -124,7 +124,7 @@ interface RelayBlocksResult {
   nextBlockToProcess: number;
 }
 
-async function *fetchBlocksInBatches(
+async function* fetchBlocksInBatches(
   httpUrl: string,
   nextBlockToProcess: number,
   lastFinalizedBlockNumber: () => number,
@@ -137,6 +137,12 @@ async function *fetchBlocksInBatches(
     // TODO: Cache of mapping from block number to its hash for faster fetching
     const [blockHash, block] = await pRetry(
       () => getBlockByNumber(httpUrl, nextBlockToProcess),
+      {
+        forever: true,
+        minTimeout: 1000,
+        maxTimeout: 2000,
+        onFailedAttempt: error => logger.error(error, "getBlockByNumber retry error: "),
+      },
     );
     const metadata = Buffer.from(
       JSON.stringify({
@@ -202,11 +208,11 @@ async function relayBlocks(
             ? target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
             : target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce)
         )
-        .catch((e) => {
-          // Increase nonce in case error is caused by nonce used by other transaction
-          nonce++;
-          throw e;
-        });
+          .catch((e) => {
+            // Increase nonce in case error is caused by nonce used by other transaction
+            nonce++;
+            throw e;
+          });
       });
       nonce++;
 
@@ -243,7 +249,7 @@ export async function relayFromPrimaryChainHeadState(
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
-  for (;;) {
+  for (; ;) {
     const result = await relayBlocks(
       feedId,
       chainName,
@@ -284,7 +290,7 @@ export async function relayFromParachainHeadState(
 ): Promise<void> {
   let nextBlockToProcess = lastProcessedBlock + 1;
   let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
-  for (;;) {
+  for (; ;) {
     // TODO: This is simple, but not very efficient
     const lastFinalizedBlockNumber = await pRetry(
       () => getLastFinalizedBlock(chainConfig.httpUrl),
