@@ -180,3 +180,16 @@ async function main() {
     process.exit(1);
   }
 })();
+
+process.on('uncaughtException', (error: Error) => {
+  logger.error(error, 'Uncaught exception: ');
+  // TODO: add monitoring
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  logger.error((reason as any), 'Unhandled rejection: ');
+  // TODO: add monitoring
+  process.exit(1);
+});
