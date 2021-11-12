@@ -1,4 +1,4 @@
-import { compactFromU8a, compactToU8a } from "@polkadot/util";
+import { compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { PolkadotPrimitivesV1CandidateReceipt } from "@polkadot/types/lookup";
 
@@ -77,79 +77,4 @@ export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlo
         typeof object.block.header.extrinsicsRoot === 'string' &&
         typeof object.block.header.parentHash === 'string'
     );
-}
-
-enum DigestItemType {
-    Other = 0,
-    ChangesTrieRoot = 2,
-    Consensus = 4,
-    Seal = 5,
-    PreRuntime = 6,
-    ChangesTrieSignal = 7,
-    RuntimeEnvironmentUpdated = 8,
-}
-
-/**
- * Returns number of bytes occupied at the beginning of the block by the header
- */
-export function getHeaderLength(block: Uint8Array): number {
-    // TODO: Assumes every chain has exactly 32 bytes hash size, which might not be the case (check all para chains and
-    //  remove this todo if this is in fact true)
-    const hashLength = 32;
-    const parentHashLength = hashLength;
-    const [numberLength] = compactFromU8a(block.subarray(parentHashLength));
-    const stateRootLength = hashLength;
-    const extrinsicsRoot = hashLength;
-    let digestLength;
-    {
-        const digest = block.subarray(
-            numberLength +
-            parentHashLength +
-            stateRootLength +
-            extrinsicsRoot
-        );
-        const [digestLogsOffset, digestLogsCount] = compactFromU8a(digest);
-
-        digestLength = digestLogsOffset;
-
-        for (let i = 0; i < digestLogsCount.toNumber(); i++) {
-            const digestItemType = digest[digestLength];
-            digestLength += 1;
-
-            switch (digestItemType) {
-                case DigestItemType.Other: {
-                    // Some bytes
-                    const [offset, length] = compactFromU8a(digest.subarray(digestLength));
-                    digestLength += offset + length.toNumber();
-                    break;
-                }
-                case DigestItemType.ChangesTrieRoot: {
-                    digestLength += hashLength;
-                    break;
-                }
-                case DigestItemType.Consensus:
-                case DigestItemType.Seal:
-                case DigestItemType.PreRuntime: {
-                    // Consensus engine ID
-                    digestLength += 4;
-                    // Some bytes
-                    const [offset, length] = compactFromU8a(digest.subarray(digestLength));
-                    digestLength += offset + length.toNumber();
-                    break;
-                }
-                case DigestItemType.ChangesTrieSignal: {
-                    // `1` for `ChangesTrieSignal` enum variant
-                    // `1` for `Option<ChangesTrieConfiguration>`
-                    // `8` for `ChangesTrieConfiguration`
-                    digestLength += 1 + 1 + 8;
-                    break;
-                }
-                case DigestItemType.RuntimeEnvironmentUpdated:
-                    // No data here
-                    break;
-            }
-        }
-    }
-
-    return parentHashLength + numberLength + stateRootLength + extrinsicsRoot + digestLength;
 }
