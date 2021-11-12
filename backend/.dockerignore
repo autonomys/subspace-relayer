@@ -6,5 +6,3 @@
 !package.json
 !package-lock.json
 !entrypoint.sh
-# TODO: config.json provided by user, not hardcoded, need help with this one.
-!config.json

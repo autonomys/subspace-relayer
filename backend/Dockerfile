@@ -19,12 +19,8 @@ RUN npm run build
 
 # Stage 4
 # release
-FROM dependencies 
-# TODO: config.json provided by user, not hardcoded, need help with this one.
-ENV CHAIN_CONFIG_PATH=config.json
-COPY config.json ./
+FROM node:16 
 COPY --from=build /app/dist ./dist
 COPY --from=prune /app/node_modules ./node_modules
 COPY entrypoint.sh ./
 ENTRYPOINT ["/bin/bash", "./entrypoint.sh"] 
-
