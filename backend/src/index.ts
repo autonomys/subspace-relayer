@@ -5,7 +5,6 @@ import { U64 } from "@polkadot/types";
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import errorHandler from './errorHandler';
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
 import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
@@ -183,19 +182,14 @@ async function main() {
 })();
 
 process.on('uncaughtException', (error: Error) => {
-  errorHandler.handleExceptionError(error);
+  logger.error(error, 'Uncaught exception: ');
+  // TODO: add monitoring
+  process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  errorHandler.handleRejectionError(reason);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  logger.error((reason as any), 'Unhandled rejection: ');
+  // TODO: add monitoring
+  process.exit(1);
 });
-
-process.on('SIGTERM', () => {
-  logger.info(`Process ${process.pid} received a SIGTERM signal`)
-  process.exit(0)
-})
-
-process.on('SIGINT', () => {
-  logger.info(`Process ${process.pid} has been interrupted`)
-  process.exit(0)
-})
