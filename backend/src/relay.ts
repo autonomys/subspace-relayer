@@ -81,7 +81,15 @@ export async function relayFromDownloadedArchive(
       await lastTxPromise;
     }
     lastTxPromise = (async () => {
-      const blockHash = await target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce);
+      const blockHash = await pRetry(
+        () => target
+          .sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
+          .catch((e) => {
+            // Increase nonce in case error is caused by nonce used by other transaction
+            nonce++;
+            throw e;
+          }),
+      );
       nonce++;
 
       logger.debug(
@@ -98,6 +106,10 @@ export async function relayFromDownloadedArchive(
 
       lastProcessedBlock = lastBlockNumber;
     })();
+
+    lastTxPromise.catch(() => {
+      // This is just to prevent uncaught promise rejection due to promise being stored in a variable
+    });
   }
 
   if (lastTxPromise) {
@@ -184,15 +196,28 @@ async function relayBlocks(
       await lastTxPromise;
     }
     lastTxPromise = (async () => {
-      const blockHash = blocksToArchive.length > 1
-        ? await target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
-        : await target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce);
+      const blockHash = await pRetry(() => {
+        return (
+          blocksToArchive.length > 1
+            ? target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
+            : target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce)
+        )
+        .catch((e) => {
+          // Increase nonce in case error is caused by nonce used by other transaction
+          nonce++;
+          throw e;
+        });
+      });
       nonce++;
 
       logger.debug(
         `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
       );
     })();
+
+    lastTxPromise.catch(() => {
+      // This is just to prevent uncaught promise rejection due to promise being stored in a variable
+    });
   }
 
   if (lastTxPromise) {
