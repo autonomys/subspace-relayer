@@ -1,21 +1,30 @@
-FROM node:16 as builder
-WORKDIR /usr/src/relayer-backend
+# Stage 1
+# dependencies
+FROM node:16 as dependencies
+WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+
+# Stage 2
+# prune 
+FROM dependencies as prune
+RUN npm prune --production
+
+# Stage 3
+# build
+FROM dependencies as build
 COPY tsconfig.json ./
-COPY src src
+COPY src ./src
 RUN npm run build
 
-FROM node:16
-ENV CHAIN_CONFIG_PATH="config.json"
-ENV FUNDS_ACCOUNT_SEED="//Alice"
-ENV MODE="relayer"
-WORKDIR /usr/src/relayer-backend
-RUN mkdir -p /usr/src/relayer-backend/chain-data
-COPY package*.json ./
+# Stage 4
+# release
+FROM dependencies 
+# TODO: config.json provided by user, not hardcoded, need help with this one.
+ENV CHAIN_CONFIG_PATH=config.json
 COPY config.json ./
+COPY --from=build /app/dist ./dist
+COPY --from=prune /app/node_modules ./node_modules
 COPY entrypoint.sh ./
-RUN npm ci
-COPY --from=builder /usr/src/relayer-backend/dist/ dist/
 ENTRYPOINT ["/bin/bash", "./entrypoint.sh"] 
 

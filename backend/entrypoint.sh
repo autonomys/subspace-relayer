@@ -1,12 +1,8 @@
 #!/bin/sh
-
-if [ $MODE = "feeds" ]; then
-    echo  "Starting on create feeds mode"
-    node dist/tools/create-feeds.js
-elif [ $MODE = "fund" ]; then
-    echo  "Starting on fund accounts mode"
-    node dist/tools/fund-accounts.js
+if [ "$1" = "create-feeds" ] || [ "$1" = "fund-accounts" ]; then
+    echo "Starting" $1 " Mode"
+    node dist/tools/$1.js
 else
-    echo  "Starting on relayer mode"
+    echo "Starting relayer Mode"
     node dist/index.js
 fi
