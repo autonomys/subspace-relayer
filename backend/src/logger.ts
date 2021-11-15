@@ -1,11 +1,11 @@
 import * as pino from "pino";
 
 const logger = pino({
-    prettyPrint: true,
-    // remove PID and Hostname from logs from now
-    formatters: {
-        bindings: () => ({})
-    },
+    prettyPrint: {
+        colorize: true,
+        translateTime: 'yyyy-mm-dd HH:MM:ss',
+        ignore: 'hostname,pid',
+    }
 });
 
 logger.level = process.env.DEBUG ? 'debug' : 'info';
