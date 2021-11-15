@@ -116,3 +116,62 @@ Where:
 - `npm run build` - build project
 
 License: Apache-2.0
+
+## Docker
+
+Instructions to build and run with docker:
+
+<details>
+
+### Build
+
+```
+docker build . -t relayer-backend
+```
+
+### Run account funding.
+
+Replace **LOCAL_CONFIG_PATH** with your local path to **config.json**
+
+```
+   docker run -it \
+        -e CHAIN_CONFIG_PATH="/config.json" \
+        -e FUNDS_ACCOUNT_SEED="//Alice" \
+        --volume /LOCAL_CONFIG_PATH/config.json:/config.json \
+        --network subspace \
+        --name relayer-fund \
+        relayer-backend \
+        fund-accounts
+```
+
+### Run feed creation.
+
+Replace **LOCAL_CONFIG_PATH** with your local path to **config.json**
+
+```
+    docker run -it \
+        -e CHAIN_CONFIG_PATH="/config.json" \
+        --volume /LOCAL_CONFIG_PATH/config.json:/config.json \
+        --network subspace \
+        --name relayer-create-feeds \
+        relayer-backend \
+        create-feeds
+```
+
+### Run relayer
+
+Replace **LOCAL_CONFIG_PATH** with your local path to **config.json**
+Replace **VOL_DIR** with the droplet volume name.
+Replace **ARCHIVE_DIR** with the archive name.
+
+```
+    docker run -d -it \
+        -e CHAIN_CONFIG_PATH="/config.json" \
+        --volume /LOCAL_CONFIG_PATH/config.json:/config.json \
+        --volume /mnt/VOL_DIR/ARCHIVE_DIR:/ARCHIVE_DIR \
+        --network subspace \
+        --name relayer-backend \
+        relayer-backend
+```
+
+</details>
