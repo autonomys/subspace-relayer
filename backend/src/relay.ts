@@ -89,6 +89,12 @@ export async function relayFromDownloadedArchive(
             nonce++;
             throw e;
           }),
+        {
+          forever: true,
+          minTimeout: 1000,
+          maxTimeout: 60 * 60 * 1000,
+          onFailedAttempt: error => logger.error(error, 'sendBlocksBatchTx retry error:'),
+        },
       );
       nonce++;
 
@@ -141,7 +147,7 @@ async function* fetchBlocksInBatches(
         forever: true,
         minTimeout: 1000,
         maxTimeout: 60 * 60 * 1000,
-        onFailedAttempt: error => logger.error(error, "getBlockByNumber retry error: "),
+        onFailedAttempt: error => logger.error(error, 'getBlockByNumber retry error:'),
       },
     );
     const metadata = Buffer.from(
@@ -202,18 +208,26 @@ async function relayBlocks(
       await lastTxPromise;
     }
     lastTxPromise = (async () => {
-      const blockHash = await pRetry(() => {
-        return (
-          blocksToArchive.length > 1
-            ? target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
-            : target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce)
-        )
-          .catch((e) => {
-            // Increase nonce in case error is caused by nonce used by other transaction
-            nonce++;
-            throw e;
-          });
-      });
+      const blockHash = await pRetry(
+        () => {
+          return (
+            blocksToArchive.length > 1
+              ? target.sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
+              : target.sendBlockTx(feedId, chainName, signer, blocksToArchive[0], nonce)
+          )
+            .catch((e) => {
+              // Increase nonce in case error is caused by nonce used by other transaction
+              nonce++;
+              throw e;
+            });
+        },
+        {
+          forever: true,
+          minTimeout: 1000,
+          maxTimeout: 60 * 60 * 1000,
+          onFailedAttempt: error => logger.error(error, 'sendBlock[sBatch]Tx retry error:'),
+        },
+      );
       nonce++;
 
       logger.debug(
@@ -294,6 +308,12 @@ export async function relayFromParachainHeadState(
     // TODO: This is simple, but not very efficient
     const lastFinalizedBlockNumber = await pRetry(
       () => getLastFinalizedBlock(chainConfig.httpUrl),
+      {
+        forever: true,
+        minTimeout: 1000,
+        maxTimeout: 60 * 60 * 1000,
+        onFailedAttempt: error => logger.error(error, 'getLastFinalizedBlock retry error:'),
+      },
     );
     const result = await relayBlocks(
       feedId,
