@@ -24,7 +24,7 @@ tap.test('Target module', (t) => {
     isError: false,
     status: {
       isInBlock: true,
-      asInBlock: 'random hash'
+      asInBlock: registry.createType('Hash', '0xde8f69eeb5e065e18c6950ff708d7e551f68dc9bf59a07c52367c0280f805ec7'),
     }
   } as unknown as ISubmittableResult;
 
