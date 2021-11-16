@@ -80,7 +80,7 @@ async function main() {
           );
         } catch (e) {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
-          process.exit(1);
+          logger.info('Continuing in regular mode anyway');
         }
       }
 
