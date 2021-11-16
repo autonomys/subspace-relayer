@@ -1,3 +1,4 @@
 ts: true
 coverage: true
 check-coverage: false
+test-ignore: /dist/

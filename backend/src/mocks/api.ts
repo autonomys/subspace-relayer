@@ -12,6 +12,15 @@ export const createMockPutWithResult = (result: ISubmittableResult): ApiPromise 
           }
         }
       }
+    },
+    utility: {
+      batchAll() {
+        return {
+          signAndSend(_account: string, _options: SignerOptions, statusCallback: Callback<ISubmittableResult>) {
+            statusCallback(result)
+          }
+        }
+      }
     }
   }
 }) as unknown as ApiPromise;
