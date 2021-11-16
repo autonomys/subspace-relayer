@@ -28,9 +28,9 @@ class ChainArchive {
   private readonly logger: Logger;
 
   public constructor(params: ChainArchiveConstructorParams) {
-    this.db = levelup(rocksdb(`${params.path}/db`, {
+    this.db = levelup(rocksdb(`${params.path}/db`), {
       readOnly: true,
-    }));
+    });
     this.logger = params.logger;
   }
 
