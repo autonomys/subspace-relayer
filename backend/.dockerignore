@@ -2,7 +2,7 @@
 *
 ## Do not ignore
 !src/
-!tsconfig.json
+!entrypoint.sh
 !package.json
 !package-lock.json
-!entrypoint.sh
+!tsconfig.json
