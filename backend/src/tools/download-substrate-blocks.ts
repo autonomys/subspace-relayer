@@ -14,6 +14,18 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
   : 100;
 
+let shouldStop = false;
+
+process
+  .on('SIGINT', () => {
+    console.log('Got SIGINT, will stop as soon as possible');
+    shouldStop = true;
+  })
+  .on('SIGTERM', () => {
+    console.log('Got SIGTERM, will stop as soon as possible');
+    shouldStop = true;
+  });
+
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
   if (!(sourceChainRpc && sourceChainRpc.startsWith('http'))) {
@@ -53,6 +65,9 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   let blockNumber = lastDownloadedBlock + 1;
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
+    if (shouldStop) {
+      break;
+    }
     const [blockHash, blockBytes] = await pRetry(
       () => getBlockByNumber(sourceChainRpc, blockNumber),
     );
@@ -84,7 +99,9 @@ const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
     }
   }
 
-  console.info("Archived everything");
+  if (!shouldStop) {
+    console.info("Archived everything");
+  }
 
   await db.close();
 
