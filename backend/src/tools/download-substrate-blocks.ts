@@ -26,6 +26,32 @@ process
     shouldStop = true;
   });
 
+function blockNumberToBuffer(blockNumber: number): Buffer {
+  return Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, db: any): Promise<void> {
+  const [blockHash, blockBytes] = await pRetry(
+    () => getBlockByNumber(sourceChainRpc, blockNumber),
+  );
+
+  const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
+  const blockHashAsBuffer = Buffer.from(blockHash.slice(2), 'hex');
+  await db.put(
+    blockNumberAsBuffer,
+    Buffer.concat([
+      // Block hash length in bytes
+      Buffer.from(Uint8Array.of(blockHashAsBuffer.byteLength)),
+      // Block hash itself
+      blockHashAsBuffer,
+      // Block bytes in full
+      blockBytes,
+    ]),
+  );
+  await db.put('last-downloaded-block', blockNumberAsBuffer);
+}
+
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
   if (!(sourceChainRpc && sourceChainRpc.startsWith('http'))) {
@@ -61,46 +87,59 @@ process
     console.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
   }
 
-  let lastDownloadingReportAt;
+  let lastDownloadingReportAt = Date.now();
   let blockNumber = lastDownloadedBlock + 1;
 
   for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
     if (shouldStop) {
       break;
     }
-    const [blockHash, blockBytes] = await pRetry(
-      () => getBlockByNumber(sourceChainRpc, blockNumber),
-    );
 
-    const blockNumberAsBuffer = Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
-    await db.put(
-      blockNumberAsBuffer,
-      Buffer.concat([
-        // Block hash length in bytes
-        Buffer.from(Uint8Array.of(32)),
-        // Block hash itself
-        Buffer.from(blockHash.slice(2), 'hex'),
-        // Block bytes in full
-        blockBytes,
-      ]),
-    );
-    await db.put('last-downloaded-block', blockNumberAsBuffer);
+    await fetchAndStoreBlock(sourceChainRpc, blockNumber, db);
 
     if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
       const now = Date.now();
-      const downloadRate = lastDownloadingReportAt
-        ? ` (${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastDownloadingReportAt) / 1000)).toFixed(2)} blocks/s)`
-        : "";
+      const downloadingRate =
+        `(${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastDownloadingReportAt) / 1000)).toFixed(2)} blocks/s)`;
       lastDownloadingReportAt = now;
 
       console.info(
-        `Downloaded block ${blockNumber}/${lastFinalizedBlockNumber}${downloadRate}`
+        `Downloaded block ${blockNumber}/${lastFinalizedBlockNumber} ${downloadingRate}`
       );
     }
   }
 
   if (!shouldStop) {
-    console.info("Archived everything");
+    console.info("Archived everything, verifying and fixing up archive if needed");
+
+    blockNumber = 0;
+
+    let lastVerificationReportAt = Date.now();
+
+    for (; blockNumber <= lastFinalizedBlockNumber; ++blockNumber) {
+      if (shouldStop) {
+        break;
+      }
+
+      const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
+      try {
+        await db.get(blockNumberAsBuffer);
+      } catch (e) {
+        console.log(`Found problematic block ${blockNumber} during archive verification, fixing it`);
+        await fetchAndStoreBlock(sourceChainRpc, blockNumber, db);
+      }
+
+      if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
+        const now = Date.now();
+        const verificationRate =
+          `(${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastVerificationReportAt) / 1000)).toFixed(2)} blocks/s)`;
+        lastVerificationReportAt = now;
+
+        console.info(
+          `Verified block ${blockNumber}/${lastFinalizedBlockNumber} ${verificationRate}`
+        );
+      }
+    }
   }
 
   await db.close();
