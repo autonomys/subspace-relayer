@@ -48,20 +48,21 @@ class ChainArchive {
     this.logger.info('Start processing blocks from archive');
 
     const lastFromDb = await this.getLastBlockNumberFromDb();
+    let nextBlockToProcess = lastProcessedBlock + 1;
 
-    while (lastProcessedBlock <= lastFromDb) {
-      const number = lastProcessedBlock + 1;
-      const blockData = await this.getBlockByNumber(number);
+    while (nextBlockToProcess <= lastFromDb) {
+      const blockData = await this.getBlockByNumber(nextBlockToProcess);
       const blockHashLength = blockData[0];
       const hash: HexString = `0x${blockData.slice(1, blockHashLength + 1).toString('hex')}`;
       const blockBytes = blockData.slice(blockHashLength + 1);
 
-      lastProcessedBlock = number;
 
       yield new ArchivedBlock(blockBytes, {
-        number,
+        number: nextBlockToProcess,
         hash,
       });
+
+      nextBlockToProcess++;
     }
   }
 }

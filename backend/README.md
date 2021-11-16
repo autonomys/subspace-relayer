@@ -115,4 +115,58 @@ Where:
 - `npm run lint` - check codebase with Eslint
 - `npm run build` - build project
 
-License: Apache-2.0
+## Docker
+
+Instructions to build and run with docker:
+
+<details>
+
+### Build
+
+If you decide to build image yourself:
+```
+docker build -t subspacelabs/subspace-relayer:latest .
+```
+
+### Run account funding
+
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
+
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    --network host \
+    subspacelabs/subspace-relayer \
+    fund-accounts
+```
+
+### Run feed creation
+
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
+
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config.json" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    --network host \
+    subspacelabs/subspace-relayer \
+    create-feeds
+```
+
+### Run relayer
+
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located (we mount directory such that config can be
+re-read on restart by relayer if updated).
+
+```bash
+docker run --rm -it --init \
+    -e CHAIN_CONFIG_PATH="/config/config.json" \
+    --volume /DIR_WITH_CONFIG:/config:ro \
+    --network host \
+    --name subspace-relayer \
+    subspacelabs/subspace-relayer
+```
+
+</details>
