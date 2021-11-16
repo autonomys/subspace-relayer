@@ -115,8 +115,6 @@ Where:
 - `npm run lint` - check codebase with Eslint
 - `npm run build` - build project
 
-License: Apache-2.0
-
 ## Docker
 
 Instructions to build and run with docker:
@@ -125,53 +123,50 @@ Instructions to build and run with docker:
 
 ### Build
 
+If you decide to build image yourself:
 ```
-docker build . -t relayer-backend
-```
-
-### Run account funding.
-
-Replace **LOCAL_CONFIG_PATH** with your local path to **config.json**
-
-```
-   docker run -it \
-        -e CHAIN_CONFIG_PATH="/config.json" \
-        -e FUNDS_ACCOUNT_SEED="//Alice" \
-        --volume /LOCAL_CONFIG_PATH/config.json:/config.json \
-        --network subspace \
-        --name relayer-fund \
-        relayer-backend \
-        fund-accounts
+docker build -t subspacelabs/subspace-relayer:latest .
 ```
 
-### Run feed creation.
+### Run account funding
 
-Replace **LOCAL_CONFIG_PATH** with your local path to **config.json**
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
 
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    --network host \
+    subspacelabs/subspace-relayer \
+    fund-accounts
 ```
-    docker run -it \
-        -e CHAIN_CONFIG_PATH="/config.json" \
-        --volume /LOCAL_CONFIG_PATH/config.json:/config.json \
-        --network subspace \
-        --name relayer-create-feeds \
-        relayer-backend \
-        create-feeds
+
+### Run feed creation
+
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
+
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config.json" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    --network host \
+    subspacelabs/subspace-relayer \
+    create-feeds
 ```
 
 ### Run relayer
 
-Replace **LOCAL_CONFIG_PATH** with your local path to **config.json**
-Replace **VOL_DIR** with the droplet volume name.
-Replace **ARCHIVE_DIR** with the archive name.
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located (we mount directory such that config can be
+re-read on restart by relayer if updated).
 
-```
-    docker run -d -it \
-        -e CHAIN_CONFIG_PATH="/config.json" \
-        --volume /LOCAL_CONFIG_PATH/config.json:/config.json \
-        --volume /mnt/VOL_DIR/ARCHIVE_DIR:/ARCHIVE_DIR \
-        --network subspace \
-        --name relayer-backend \
-        relayer-backend
+```bash
+docker run --rm -it --init \
+    -e CHAIN_CONFIG_PATH="/config/config.json" \
+    --volume /DIR_WITH_CONFIG:/config:ro \
+    --network host \
+    --name subspace-relayer \
+    subspacelabs/subspace-relayer
 ```
 
 </details>
