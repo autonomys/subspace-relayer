@@ -90,6 +90,7 @@ export async function relayFromDownloadedArchive(
             throw e;
           }),
         {
+          randomize: true,
           forever: true,
           minTimeout: 1000,
           maxTimeout: 60 * 60 * 1000,
@@ -144,6 +145,7 @@ async function* fetchBlocksInBatches(
     const [blockHash, block] = await pRetry(
       () => getBlockByNumber(httpUrl, nextBlockToProcess),
       {
+        randomize: true,
         forever: true,
         minTimeout: 1000,
         maxTimeout: 60 * 60 * 1000,
@@ -222,6 +224,7 @@ async function relayBlocks(
             });
         },
         {
+          randomize: true,
           forever: true,
           minTimeout: 1000,
           maxTimeout: 60 * 60 * 1000,
@@ -309,6 +312,7 @@ export async function relayFromParachainHeadState(
     const lastFinalizedBlockNumber = await pRetry(
       () => getLastFinalizedBlock(chainConfig.httpUrl),
       {
+        randomize: true,
         forever: true,
         minTimeout: 1000,
         maxTimeout: 60 * 60 * 1000,

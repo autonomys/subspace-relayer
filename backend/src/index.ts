@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { U64 } from "@polkadot/types";
+import pRetry from "p-retry";
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
@@ -53,7 +54,16 @@ async function main() {
 
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
-      const chainName = await getChainName(chainConfig.httpUrl);
+      const chainName = await pRetry(
+        () => getChainName(chainConfig.httpUrl),
+        {
+          randomize: true,
+          forever: true,
+          minTimeout: 1000,
+          maxTimeout: 60 * 60 * 1000,
+          onFailedAttempt: error => logger.error(error, 'getChainName retry error:'),
+        },
+      );
       const signer = new PoolSigner(
         target.api.registry,
         chainConfig.accountSeed,
