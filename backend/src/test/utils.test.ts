@@ -1,7 +1,7 @@
 import * as tap from 'tap';
 import { Event, EventRecord } from "@polkadot/types/interfaces/system";
 
-import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from '../utils';
+import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc } from '../utils';
 
 tap.test('Utils module', (t) => {
   tap.test('getParaHeadAndIdFromEvent should return parablock hash and paraId', (t) => {
@@ -31,14 +31,9 @@ tap.test('Utils module', (t) => {
     t.end();
   });
 
-  tap.test('hexToUint8Array should accept hex string and return Uint8Array');
-
   tap.test('blockToBinary should convert SignedBlockJsonRpc to Buffer');
 
-  tap.test('isInstanceOfSignedBlockJsonRpc should return "true" if object is an instance of SignedBlockJsonRpc');
-
   t.end();
-
 })
 
 tap.test('isIncludedParablockRecord util function', (t) => {
@@ -110,6 +105,52 @@ tap.test('isIncludedParablockRecord util function', (t) => {
     const wrongMethod = isIncludedParablockRecord(phaseIndex)(eventRecordWrongMethod);
     t.notOk(wrongMethod);
 
+    t.end();
+  });
+
+  t.end();
+})
+
+tap.test('isInstanceOfSignedBlockJsonRpc util function', (t) => {
+  tap.test('isInstanceOfSignedBlockJsonRpc should return "true" if object is an instance of SignedBlockJsonRpc', (t) => {
+    const validObject = {
+      block: {
+        extrinsics: [],
+        header: {
+          digest: { logs: [] },
+          extrinsicsRoot: '0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314',
+          number: '0x0',
+          parentHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+          stateRoot: '0x299ac939ea4722d1fcf7f4873675040ebc83d144620c76206dbeb7468cf30cdf'
+        }
+      },
+      justifications: null
+    };
+
+    const result = isInstanceOfSignedBlockJsonRpc(validObject);
+
+    t.ok(result);
+    t.end();
+  });
+
+  tap.test('isInstanceOfSignedBlockJsonRpc should return "false" if object is not an instance of SignedBlockJsonRpc', (t) => {
+    const invalidObject = {
+      block: {
+        extrinsics: {}, // should be array
+        header: {
+          digest: { logs: [] },
+          extrinsicsRoot: '0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314',
+          number: 12, // should be string
+          parentHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+          stateRoot: '0x299ac939ea4722d1fcf7f4873675040ebc83d144620c76206dbeb7468cf30cdf'
+        }
+      },
+      justifications: null
+    };
+
+    const result = isInstanceOfSignedBlockJsonRpc(invalidObject);
+
+    t.notOk(result);
     t.end();
   });
 
