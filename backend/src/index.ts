@@ -10,7 +10,7 @@ import { PoolSigner } from "./poolSigner";
 import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
 import { ChainId, ParaHeadAndId } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { getParaHeadAndIdFromEvent, isRelevantRecord } from "./utils";
+import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from "./utils";
 
 dotenv.config();
 
@@ -107,7 +107,7 @@ async function main() {
             for (const [index, { method }] of block.extrinsics.entries()) {
               if (method.section == "paraInherent" && method.method == "enter") {
                 blockRecords
-                  .filter(isRelevantRecord(index))
+                  .filter(isIncludedParablockRecord(index))
                   .map(({ event }) => getParaHeadAndIdFromEvent(event))
                   .forEach((parablockData) => {
                     result.push(parablockData);
