@@ -1,7 +1,8 @@
 import * as tap from 'tap';
 import { Event, EventRecord } from "@polkadot/types/interfaces/system";
 
-import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc } from '../utils';
+import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc, blockToBinary } from '../utils';
+import * as signedBlockMock from '../mocks/signedBlock.json';
 
 tap.test('Utils module', (t) => {
   tap.test('getParaHeadAndIdFromEvent should return parablock hash and paraId', (t) => {
@@ -31,7 +32,25 @@ tap.test('Utils module', (t) => {
     t.end();
   });
 
-  tap.test('blockToBinary should convert SignedBlockJsonRpc to Buffer');
+  tap.test('blockToBinary should convert SignedBlockJsonRpc to Buffer', (t) => {
+    const result = blockToBinary(signedBlockMock);
+
+    const expected = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 154, 201,
+      57, 234, 71, 34, 209, 252, 247, 244, 135, 54, 117, 4,
+      14, 188, 131, 209, 68, 98, 12, 118, 32, 109, 190, 183,
+      70, 140, 243, 12, 223, 3, 23, 10, 46, 117, 151, 183,
+      183, 227, 216, 76, 5, 57, 29, 19, 154, 98, 177, 87,
+      231, 135, 134, 216, 192, 130, 242, 157, 207, 76, 17, 19,
+      20, 0, 0, 0
+    ])
+
+    t.same(result, expected);
+
+    t.end();
+  });
 
   t.end();
 })
@@ -113,21 +132,7 @@ tap.test('isIncludedParablockRecord util function', (t) => {
 
 tap.test('isInstanceOfSignedBlockJsonRpc util function', (t) => {
   tap.test('isInstanceOfSignedBlockJsonRpc should return "true" if object is an instance of SignedBlockJsonRpc', (t) => {
-    const validObject = {
-      block: {
-        extrinsics: [],
-        header: {
-          digest: { logs: [] },
-          extrinsicsRoot: '0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314',
-          number: '0x0',
-          parentHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-          stateRoot: '0x299ac939ea4722d1fcf7f4873675040ebc83d144620c76206dbeb7468cf30cdf'
-        }
-      },
-      justifications: null
-    };
-
-    const result = isInstanceOfSignedBlockJsonRpc(validObject);
+    const result = isInstanceOfSignedBlockJsonRpc(signedBlockMock);
 
     t.ok(result);
     t.end();
@@ -135,17 +140,10 @@ tap.test('isInstanceOfSignedBlockJsonRpc util function', (t) => {
 
   tap.test('isInstanceOfSignedBlockJsonRpc should return "false" if object is not an instance of SignedBlockJsonRpc', (t) => {
     const invalidObject = {
+      ...signedBlockMock,
       block: {
         extrinsics: {}, // should be array
-        header: {
-          digest: { logs: [] },
-          extrinsicsRoot: '0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314',
-          number: 12, // should be string
-          parentHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-          stateRoot: '0x299ac939ea4722d1fcf7f4873675040ebc83d144620c76206dbeb7468cf30cdf'
-        }
       },
-      justifications: null
     };
 
     const result = isInstanceOfSignedBlockJsonRpc(invalidObject);

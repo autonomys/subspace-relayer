@@ -1,0 +1,15 @@
+{
+    "block": {
+        "extrinsics": [],
+        "header": {
+            "digest": {
+                "logs": []
+            },
+            "extrinsicsRoot": "0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314",
+            "number": "0x0",
+            "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "stateRoot": "0x299ac939ea4722d1fcf7f4873675040ebc83d144620c76206dbeb7468cf30cdf"
+        }
+    },
+    "justifications": null
+}
