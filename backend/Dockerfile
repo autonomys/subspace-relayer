@@ -24,8 +24,8 @@ RUN npm run build
 # Release
 FROM node:16
 
-COPY --from=build /app/dist /dist
 COPY --from=prune /app/node_modules /node_modules
+COPY --from=build /app/dist /dist
 COPY entrypoint.sh /entrypoint.sh
 
 USER nobody:nogroup
