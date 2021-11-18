@@ -16,8 +16,7 @@ export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
     };
 };
 
-// TODO: more explicit function name
-export const isRelevantRecord =
+export const isIncludedParablockRecord =
     (index: number) =>
         ({ phase, event }: EventRecord): boolean => {
             return (
