@@ -1,5 +1,10 @@
 import { U64 } from "@polkadot/types";
 import pRetry from "p-retry";
+// TODO: Types do not seem to match the code, hence usage of it like this
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const levelup = require("levelup");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const rocksdb = require("rocksdb");
 
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
@@ -65,10 +70,10 @@ export async function relayFromDownloadedArchive(
   batchCountLimit: number,
 ): Promise<number> {
   const polkadotAppsBaseUrl = polkadotAppsUrl(target.targetChainUrl);
-  const archive = new ChainArchive({
-    path,
-    logger,
-  });
+
+  const db = levelup(rocksdb(`${path}/db`), { readOnly: true });
+
+  const archive = new ChainArchive({ db, logger });
 
   let lastBlockProcessingReportAt = Date.now();
 
