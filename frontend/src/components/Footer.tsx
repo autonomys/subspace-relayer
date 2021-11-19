@@ -14,7 +14,7 @@ const Footer = () => {
                 target="_blank"
               >
                 {
-                  `A permanent archival storage service for Polkadot and Kusama | © ${new Date().getFullYear()} Powered by the Subspace Network`
+                  `© ${new Date().getFullYear()} Powered by the Subspace Network`
                 }
                 
               </a>

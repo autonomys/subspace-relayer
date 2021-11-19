@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { HealthContext, RelayerContext, SystemContext } from "context";
 import {
   Card,
@@ -35,21 +35,21 @@ const Header = () => {
       setAcumulatedObjects(acumulatedObjects);
     }
   }, [feedsTotals]);
-  
+
   // TODO: Card to component.
   return (
-    <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
+    <div className="header bg-gradient-gray-dark p-4 ">
       <Container fluid>
         <Row>
-          <Col lg="2">
+          <Col md="2">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase mb-0">
-                      <h2>Chains</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
-                        {parachains.length - 1}
+                      <h2 className="text-truncate">Chains</h2>
+                      <h2 className="font-weight-bold text-primary">
+                        {parachains.length}
                         {isSyncing && (
                           <Spinner
                             className="ml-2"
@@ -57,21 +57,21 @@ const Header = () => {
                             size={"6"}
                           ></Spinner>
                         )}
-                      </span>
+                      </h2>
                     </CardTitle>
                   </div>
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col lg="4">
+          <Col md="4">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Total Storage</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
+                      <h2 className="text-truncate">Storage</h2>
+                      <h2 className="font-weight-bold text-primary">
                         {acumulatedSizes && bytesToSize(acumulatedSizes)}
                         {isSyncing && (
                           <Spinner
@@ -80,58 +80,41 @@ const Header = () => {
                             size={"6"}
                           ></Spinner>
                         )}
-                      </span>
+                      </h2>
                     </CardTitle>
                   </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-archive" />
-                    </div>
-                  </Col>
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col lg="4">
+          <Col md="4">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Total Blocks Archived</h2>
-                      <span className="h2 font-weight-bold mb-0 ml-2 text-primary">
+                      <h2 className="text-truncate">Blocks Archived</h2>
+                      <h2 className="font-weight-bold text-primary">
                         {acumulatedObjects &&
                           acumulatedObjects.toLocaleString()}
-                      </span>
+                      </h2>
                     </CardTitle>
                   </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-archive" />
-                    </div>
-                  </Col>
                 </Row>
               </CardBody>
             </Card>
           </Col>
 
-          <Col lg="2">
+          <Col md="2">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Version</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
-                        {version?.substring(0, 5)}
-                        {isSyncing && (
-                          <Spinner
-                            className="ml-2"
-                            color="text-primary"
-                            size={"6"}
-                          ></Spinner>
-                        )}
-                      </span>
+                      <h2 className="text-truncate">Version</h2>
+                      <h2 className="font-weight-bold text-primary text-truncate">
+                        {version ? version.substring(0, 5) : "..."}
+                      </h2>
                     </CardTitle>
                   </div>
                 </Row>
