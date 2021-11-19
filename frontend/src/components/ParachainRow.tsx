@@ -23,9 +23,11 @@ const ParachainRow = ({
   useEffect(() => {
     if (!isApiReady) return;
     api.query.feeds.metadata(feedId, (metadata: any) => {
-      const feed = JSON.parse(metadata.toHuman()?.toString() || "");
-      setLastFeed(feed);
-      setLastUpdate(Date.now);
+      if (!metadata.isEmpty) {
+        const feed = JSON.parse(metadata.toHuman()?.toString() || "");
+        setLastFeed(feed);
+        setLastUpdate(Date.now);
+      }
     });
   }, [isApiReady, api, feedId]);
 
@@ -132,12 +134,12 @@ const ParachainRow = ({
         )}
       </td>
       <td className="col-md-1 text-lg text-left">
-        {feedsTotals[feedId] && (
+        {lastFeed && feedsTotals[feedId] && (
           <span>{bytesToSize(feedsTotals[feedId].size_.toNumber())}</span>
         )}
       </td>
       <td className="col-md-1 text-lg text-left">
-        {feedsTotals[feedId] && (
+        {lastFeed && feedsTotals[feedId] && (
           <span>{feedsTotals[feedId].count.toNumber().toLocaleString()}</span>
         )}
       </td>
