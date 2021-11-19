@@ -1,21 +1,33 @@
-import React, { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
-import { formatDistance } from "date-fns";
-import { ParachainProps } from "config/interfaces/Parachain";
-import { prettyHash } from "components/utils";
+import { formatDistanceToNow } from "date-fns";
+import { Feed, ParachainProps } from "config/interfaces/Parachain";
+import { bytesToSize, prettyHash } from "components/utils";
+import { ApiPromiseContext, RelayerContext } from "context";
+import { useWindowSize } from "hooks/WindowsSize";
 
 const ParachainRow = ({
+  feedId,
   chain,
   chainName,
-  lastUpdate,
-  explorer,
-  lastBlockHeight,
-  lastBlockHash,
-  blockSize,
-  subspaceHash,
   web,
+  explorer,
 }: ParachainProps) => {
+  const { api, isApiReady } = useContext(ApiPromiseContext);
   const [count, setCount] = useState<number>(0);
+  const [lastFeed, setLastFeed] = useState<Feed>();
+  const [lastUpdate, setLastUpdate] = useState<any>(0);
+  const { feedsTotals } = useContext(RelayerContext);
+  const { width } = useWindowSize();
+
+  useEffect(() => {
+    if (!isApiReady) return;
+    api.query.feeds.metadata(feedId, (metadata: any) => {
+      const feed = JSON.parse(metadata.toHuman()?.toString() || "");
+      setLastFeed(feed);
+      setLastUpdate(Date.now);
+    });
+  }, [isApiReady, api, feedId]);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
@@ -24,11 +36,20 @@ const ParachainRow = ({
 
   useEffect(() => {
     setCount(0);
-  }, [lastUpdate]);
+  }, [lastFeed]);
 
   return (
     <tr>
       <th scope="row" className="col-md-2">
+        {width < 920 && (
+          <UncontrolledTooltip
+            delay={0}
+            placement="top"
+            target={chain + feedId.toString()}
+          >
+            {chainName}
+          </UncontrolledTooltip>
+        )}
         <Media className="align-items-center">
           <a
             rel="noreferrer"
@@ -36,16 +57,20 @@ const ParachainRow = ({
             href={web}
             target="_blank"
           >
-            <img
-              alt="parachain logo"
-              src={
-                require("../assets/img/parachains/" + chain + ".png").default
-              }
-            />
+            <span data-placement="top" id={chain + feedId.toString()}>
+              <img
+                alt="parachain logo"
+                src={
+                  require("../assets/img/parachains/" + chain + ".png").default
+                }
+              />
+            </span>
           </a>
-          <a href={web} rel="noreferrer" target="_blank" className="h3 pl-3">
-            {chainName}
-          </a>
+          {width > 920 && (
+            <a href={web} rel="noreferrer" target="_blank" className="h3 pl-3">
+              {chainName}
+            </a>
+          )}
         </Media>
       </th>
       <td className="col-md-2 text-md">
@@ -62,7 +87,7 @@ const ParachainRow = ({
                 }
               />
             </Badge>
-            <span>{formatDistance(lastUpdate, Date.now())}</span>
+            <span>{formatDistanceToNow(lastUpdate)}</span>
           </>
         ) : (
           <>
@@ -76,53 +101,47 @@ const ParachainRow = ({
         )}
       </td>
       <td className="col-md-3 text-lg text-left">
-        {lastBlockHash && (
+        {lastFeed && (
           <>
             <UncontrolledTooltip delay={0} placement="top" target={chain}>
-              {lastBlockHash}
+              {lastFeed.hash}
             </UncontrolledTooltip>
             <span data-placement="top" id={chain}>
               <a
                 rel="noreferrer"
                 target="_blank"
-                href={explorer + "/" + lastBlockHash}
+                href={explorer + "/" + lastFeed.hash}
               >
-                {prettyHash(lastBlockHash)}
+                {width > 920
+                  ? prettyHash(lastFeed.hash, 16, 10)
+                  : prettyHash(lastFeed.hash, 6, 4)}
               </a>
             </span>
           </>
         )}
       </td>
-      <td className="col-md-1 text-lg">
-        {lastBlockHeight && (
+      <td className="col-md-2 text-lg">
+        {lastFeed && (
           <a
             rel="noreferrer"
             target="_blank"
-            href={explorer + "/" + lastBlockHeight}
+            href={explorer + "/" + lastFeed.number}
           >
             <span>
               {"# "}
-              {lastBlockHeight.toLocaleString()}
+              {lastFeed.number.toLocaleString()}
             </span>
           </a>
         )}
       </td>
-      <td className="col-md-2 text-lg">
-        {blockSize && <span>{blockSize}</span>}
+      <td className="col-md-1 text-lg text-left">
+        {feedsTotals[feedId] && (
+          <span>{bytesToSize(feedsTotals[feedId].size_.toNumber())}</span>
+        )}
       </td>
-      <td className="col-md-2 text-lg text-right">
-        {subspaceHash && (
-          <span>
-            <a
-              target="_blank"
-              rel="noreferrer"
-              href={
-                process.env.REACT_APP_POLKADOT_APP_SUBSPACE + "/" + subspaceHash
-              }
-            >
-              {prettyHash(subspaceHash)}
-            </a>
-          </span>
+      <td className="col-md-1 text-lg text-left">
+        {feedsTotals[feedId] && (
+          <span>{feedsTotals[feedId].count.toNumber().toLocaleString()}</span>
         )}
       </td>
     </tr>

@@ -23,19 +23,19 @@ const Header = () => {
     if (feedsTotals) {
       const acumulatedSizes = feedsTotals.reduce(
         (accumulator, currentValue) =>
-          accumulator + currentValue.size_.toNumber(),
+          accumulator + currentValue?.size_.toNumber() || 0,
         0
       );
       const acumulatedObjects = feedsTotals.reduce(
         (accumulator, currentValue) =>
-          accumulator + currentValue.count.toNumber(),
+          accumulator + currentValue?.count.toNumber() || 0,
         0
       );
       setAcumulatedSizes(acumulatedSizes);
       setAcumulatedObjects(acumulatedObjects);
     }
   }, [feedsTotals]);
-
+  
   // TODO: Card to component.
   return (
     <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
