@@ -2,21 +2,15 @@ import * as tap from 'tap';
 
 import ChainArchive, { ArchivedBlock } from "../chainArchive";
 import loggerMock from '../mocks/logger';
+import { createDbMock } from '../mocks/db';
 
 tap.test('ChainArchive module', (t) => {
-  const dbMock = {
-    get(query: string | number) {
-      if (query === 'last-downloaded-block') {
-        // last downloaded block number is 3
-        const buf = Buffer.alloc(8);
-        buf.writeUInt8(0x3, 0);
-        return buf;
-      }
-
-      // random Buffer
-      return Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]);
-    }
-  }
+  const blocks = [
+    Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]),
+    Buffer.from([2, 3, 4, 5, 6, 7, 8, 9]),
+    Buffer.from([3, 4, 5, 6, 7, 8, 9, 10]),
+  ]
+  const dbMock = createDbMock(blocks);
   const chainArchive = new ChainArchive({ logger: loggerMock, db: dbMock });
 
   tap.test('getBlocks method should return AsyncGenerator with ArchivedBlocks', async (t) => {
