@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { Badge, Media, Spinner, UncontrolledTooltip } from "reactstrap";
+import { Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistanceToNow } from "date-fns";
 import { Feed, ParachainProps } from "config/interfaces/Parachain";
 import { bytesToSize, prettyHash } from "components/utils";
@@ -74,28 +74,25 @@ const ParachainRow = ({
         </Media>
       </th>
       <td className="col-md-2 text-md">
-        {lastUpdate ? (
+        {lastFeed ? (
           <>
-            <Badge className="mr-2 badge-dot badge-lg">
-              <i
-                className={
-                  count < 60
-                    ? "bg-success"
-                    : count >= 60 && count < 120
-                    ? "bg-yellow"
-                    : "bg-red"
-                }
-              />
-            </Badge>
+            <Spinner
+              className={
+                "mr-2 " +
+                (count < 60
+                  ? "bg-success"
+                  : count >= 60 && count < 120
+                  ? "bg-yellow"
+                  : "bg-red")
+              }
+              type="grow"
+              size={"sm"}
+            />
             <span>{formatDistanceToNow(lastUpdate)}</span>
           </>
         ) : (
           <>
-            <Spinner
-              className="mr-4"
-              color="text-primary"
-              size={"sm"}
-            ></Spinner>
+            <Spinner className="mr-2" type="grow" size={"sm"} />
             <span>Listening pending feeds ...</span>
           </>
         )}
