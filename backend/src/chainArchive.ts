@@ -51,7 +51,6 @@ class ChainArchive {
       const hash: HexString = `0x${blockData.slice(1, blockHashLength + 1).toString('hex')}`;
       const blockBytes = blockData.slice(blockHashLength + 1);
 
-
       yield new ArchivedBlock(blockBytes, {
         number: nextBlockToProcess,
         hash,
