@@ -146,7 +146,6 @@ async function main() {
             }
           } catch (e) {
             logger.error(`Failed to process block from primary chain ${chainName} feedId ${feedId} ${e}`);
-            process.exit(1);
           }
         });
 
