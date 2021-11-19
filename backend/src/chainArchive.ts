@@ -1,15 +1,12 @@
-// TODO: Types do not seem to match the code, hence usage of it like this
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const levelup = require("levelup");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const rocksdb = require("rocksdb");
 import { Logger } from "pino";
 import { HexString } from "@polkadot/util/types";
 
 import { BlockMetadata } from "./types";
 
 interface ChainArchiveConstructorParams {
-  path: string;
+  // There are no TS types for `db` :(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any;
   logger: Logger;
 }
 
@@ -27,11 +24,9 @@ class ChainArchive {
   private readonly db: any;
   private readonly logger: Logger;
 
-  public constructor(params: ChainArchiveConstructorParams) {
-    this.db = levelup(rocksdb(`${params.path}/db`), {
-      readOnly: true,
-    });
-    this.logger = params.logger;
+  public constructor({ db, logger }: ChainArchiveConstructorParams) {
+    this.db = db;
+    this.logger = logger;
   }
 
   private getBlockByNumber(blockNumber: number): Promise<Buffer> {
