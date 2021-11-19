@@ -1,17 +1,15 @@
-import queryString from "query-string";
 import { assert } from "@polkadot/util";
 
 export function getApiUrl(): string {
-  const urlOptions = queryString.parse(window.location.href.split("?")[1]);
-  if (urlOptions.rpc) {
-    assert(!Array.isArray(urlOptions.rpc), "Invalid WS endpoint specified");
-    const url = decodeURIComponent(urlOptions.rpc);
+  const url = new URL(window.location.href);
+  const rpc = url.searchParams.get("rpc");
+  if (rpc) {
     assert(
-      url.startsWith("ws://") || url.startsWith("wss://"),
+      rpc.startsWith("ws://") || rpc.startsWith("wss://"),
       "Non-prefixed ws/wss url"
     );
-    console.log("Using WS endpoint from query string:", url);
-    return url;
+    console.log("Using WS endpoint from query string:", rpc);
+    return rpc;
   }
   const wsUrl = process.env.REACT_APP_WS_PROVIDER || "ws://localhost:9944";
   console.log("Using default WS endpoint:", wsUrl);

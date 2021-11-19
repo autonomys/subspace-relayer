@@ -1,5 +1,10 @@
 import { U64 } from "@polkadot/types";
 import pRetry from "p-retry";
+// TODO: Types do not seem to match the code, hence usage of it like this
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const levelup = require("levelup");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const rocksdb = require("rocksdb");
 
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
@@ -65,62 +70,66 @@ export async function relayFromDownloadedArchive(
   batchCountLimit: number,
 ): Promise<number> {
   const polkadotAppsBaseUrl = polkadotAppsUrl(target.targetChainUrl);
-  const archive = new ChainArchive({
-    path,
-    logger,
-  });
 
-  let lastBlockProcessingReportAt = Date.now();
+  const db = levelup(rocksdb(`${path}/db`), { readOnly: true });
 
-  let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
+  try {
+    const archive = new ChainArchive({ db, logger });
 
-  let lastTxPromise: Promise<void> | undefined;
-  const blockBatches = readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
-  for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
+    let lastBlockProcessingReportAt = Date.now();
+
+    let nonce = (await target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
+
+    let lastTxPromise: Promise<void> | undefined;
+    const blockBatches = readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
+    for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
+      if (lastTxPromise) {
+        await lastTxPromise;
+      }
+      lastTxPromise = (async () => {
+        const blockHash = await pRetry(
+          () => target
+            .sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
+            .catch((e) => {
+              // Increase nonce in case error is caused by nonce used by other transaction
+              nonce++;
+              throw e;
+            }),
+          {
+            randomize: true,
+            forever: true,
+            minTimeout: 1000,
+            maxTimeout: 60 * 60 * 1000,
+            onFailedAttempt: error => logger.error(error, 'sendBlocksBatchTx retry error:'),
+          },
+        );
+        nonce++;
+
+        logger.debug(
+          `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
+        );
+
+        {
+          const now = Date.now();
+          const rate = (blocksToArchive.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
+          lastBlockProcessingReportAt = now;
+
+          logger.info(`Processed downloaded ${chainName} block ${lastBlockNumber} at ${rate} blocks/s`);
+        }
+
+        lastProcessedBlock = lastBlockNumber;
+      })();
+
+      lastTxPromise.catch(() => {
+        // This is just to prevent uncaught promise rejection due to promise being stored in a variable
+      });
+    }
+
     if (lastTxPromise) {
       await lastTxPromise;
     }
-    lastTxPromise = (async () => {
-      const blockHash = await pRetry(
-        () => target
-          .sendBlocksBatchTx(feedId, chainName, signer, blocksToArchive, nonce)
-          .catch((e) => {
-            // Increase nonce in case error is caused by nonce used by other transaction
-            nonce++;
-            throw e;
-          }),
-        {
-          randomize: true,
-          forever: true,
-          minTimeout: 1000,
-          maxTimeout: 60 * 60 * 1000,
-          onFailedAttempt: error => logger.error(error, 'sendBlocksBatchTx retry error:'),
-        },
-      );
-      nonce++;
-
-      logger.debug(
-        `Transaction included with ${blocksToArchive.length} ${chainName} blocks: ${polkadotAppsBaseUrl}${blockHash}`,
-      );
-
-      {
-        const now = Date.now();
-        const rate = (blocksToArchive.length / ((now - lastBlockProcessingReportAt) / 1000)).toFixed(2);
-        lastBlockProcessingReportAt = now;
-
-        logger.info(`Processed downloaded ${chainName} block ${lastBlockNumber} at ${rate} blocks/s`);
-      }
-
-      lastProcessedBlock = lastBlockNumber;
-    })();
-
-    lastTxPromise.catch(() => {
-      // This is just to prevent uncaught promise rejection due to promise being stored in a variable
-    });
-  }
-
-  if (lastTxPromise) {
-    await lastTxPromise;
+  } finally {
+    await db.close();
   }
 
   return lastProcessedBlock;
@@ -149,7 +158,7 @@ async function* fetchBlocksInBatches(
         forever: true,
         minTimeout: 1000,
         maxTimeout: 60 * 60 * 1000,
-        onFailedAttempt: error => logger.error(error, 'getBlockByNumber retry error:'),
+        onFailedAttempt: error => logger.debug(error, 'getBlockByNumber retry error:'),
       },
     );
     const metadata = Buffer.from(
