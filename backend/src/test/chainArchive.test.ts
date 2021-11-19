@@ -17,8 +17,6 @@ tap.test('ChainArchive module', (t) => {
     for await (const blockData of chainArchive.getBlocks(0)) {
       t.type(blockData, ArchivedBlock);
     }
-
-    t.end();
   })
 
   tap.test('getBlocks should maintain block numbers sequence', async (t) => {
@@ -39,8 +37,6 @@ tap.test('ChainArchive module', (t) => {
     const fourthBlock = await blockGenerator.next();
     t.ok(fourthBlock.done);
     t.notOk(fourthBlock.value);
-
-    t.end();
   })
 
   t.end();
