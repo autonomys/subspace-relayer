@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { HealthContext, RelayerContext, SystemContext } from "context";
+import { RelayerContext, SystemContext } from "context";
 import {
   Card,
   CardBody,
@@ -14,7 +14,6 @@ import { bytesToSize } from "./utils";
 
 const Header = () => {
   const { version } = useContext(SystemContext);
-  const { isSyncing } = useContext(HealthContext);
   const { feedsTotals } = useContext(RelayerContext);
   const [acumulatedSizes, setAcumulatedSizes] = useState<number>();
   const [acumulatedObjects, setAcumulatedObjects] = useState<number>();
@@ -50,13 +49,6 @@ const Header = () => {
                       <h2 className="text-truncate">Chains</h2>
                       <h2 className="font-weight-bold text-primary">
                         {parachains.length}
-                        {isSyncing && (
-                          <Spinner
-                            className="ml-2"
-                            color="text-primary"
-                            size={"6"}
-                          ></Spinner>
-                        )}
                       </h2>
                     </CardTitle>
                   </div>
@@ -72,12 +64,13 @@ const Header = () => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2 className="text-truncate">Storage</h2>
                       <h2 className="font-weight-bold text-primary">
-                        {acumulatedSizes && bytesToSize(acumulatedSizes)}
-                        {isSyncing && (
+                        {acumulatedSizes ? (
+                          bytesToSize(acumulatedSizes)
+                        ) : (
                           <Spinner
                             className="ml-2"
                             color="text-primary"
-                            size={"6"}
+                            size={"sm"}
                           ></Spinner>
                         )}
                       </h2>
@@ -95,8 +88,15 @@ const Header = () => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2 className="text-truncate">Blocks Archived</h2>
                       <h2 className="font-weight-bold text-primary">
-                        {acumulatedObjects &&
-                          acumulatedObjects.toLocaleString()}
+                        {acumulatedObjects ? (
+                          acumulatedObjects.toLocaleString()
+                        ) : (
+                          <Spinner
+                            className="ml-2"
+                            color="text-primary"
+                            size={"sm"}
+                          ></Spinner>
+                        )}
                       </h2>
                     </CardTitle>
                   </div>
@@ -113,7 +113,15 @@ const Header = () => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2 className="text-truncate">Version</h2>
                       <h2 className="font-weight-bold text-primary text-truncate">
-                        {version ? version.substring(0, 5) : "..."}
+                        {version ? (
+                          version.substring(0, 5)
+                        ) : (
+                          <Spinner
+                            className="ml-2"
+                            color="text-primary"
+                            size={"sm"}
+                          ></Spinner>
+                        )}
                       </h2>
                     </CardTitle>
                   </div>
