@@ -1,12 +1,17 @@
 import * as tap from 'tap';
+import { TypeRegistry } from '@polkadot/types';
+import { ISubmittableResult } from '@polkadot/types/types';
 
 import ChainArchive from "../chainArchive";
 import loggerMock from '../mocks/logger';
 import { createDbMock } from '../mocks/db';
 import * as signedBlockMock from '../mocks/signedBlock.json';
-import { readBlocksInBatches } from "../relay";
+import Relay from "../relay";
+import Target from "../target";
 import { TxBlock } from '../types';
 import { blockToBinary } from '../utils';
+import { createMockPutWithResult } from '../mocks/api';
+import { HttpApi } from "../httpApi";
 
 tap.test('Relay module', (t) => {
   const blocksMock = [
@@ -19,9 +24,21 @@ tap.test('Relay module', (t) => {
   const lastProcessedBlock = 0;
   const bytesLimit = 3_500_000;
   const countLimit = 2;
+  const targetChainUrl = 'random url';
+  const registry = new TypeRegistry();
+  const putSuccessResult = {
+    isError: false,
+    status: {
+      isInBlock: true,
+      asInBlock: registry.createType('Hash', '0xde8f69eeb5e065e18c6950ff708d7e551f68dc9bf59a07c52367c0280f805ec7'),
+    }
+  } as unknown as ISubmittableResult;
+  const apiSuccess = createMockPutWithResult(putSuccessResult);
+  const targetMock = new Target({ api: apiSuccess, logger: loggerMock, targetChainUrl });
+  const relay = new Relay({ logger: loggerMock, db: dbMock, target: targetMock, httpApi: {} as HttpApi });
 
   tap.test('readBlocksInBatches method should return AsyncGenerator with batch of TxBlock items and last block number', async (t) => {
-    const batchesGenerator = readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+    const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
 
     for await (const [blocks, lastBlockNumber] of batchesGenerator) {
       t.ok(blocks.length <= countLimit);
@@ -33,7 +50,7 @@ tap.test('Relay module', (t) => {
   });
 
   tap.test('readBlocksInBatches should yield last block number equal to the block number of the last block in the batch', async (t) => {
-    const batchesGenerator = readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+    const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
 
     {
       const first = await batchesGenerator.next();
@@ -63,7 +80,7 @@ tap.test('Relay module', (t) => {
     {
       // we know that blocks in mock + metadata are 123 bytes each
       const bytesLimit = 130;
-      const batchesGenerator = readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+      const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
 
       // only one block can fit
       for await (const [blocks] of batchesGenerator) {
@@ -73,7 +90,7 @@ tap.test('Relay module', (t) => {
 
     {
       const bytesLimit = 300;
-      const batchesGenerator = readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+      const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);

@@ -4,6 +4,12 @@ import { blockToBinary, isInstanceOfSignedBlockJsonRpc } from './utils';
 import { ChainName } from './types';
 import { HexString } from "@polkadot/util/types";
 
+export interface HttpApi {
+    getLastFinalizedBlock(url: string): Promise<number>;
+    getBlockByNumber(url: string, blockNumber: number): Promise<[HexString, Buffer]>;
+    getChainName(url: string): Promise<ChainName>
+}
+
 export async function getLastFinalizedBlock(url: string): Promise<number> {
     const blockHash: string = await fetch(url, {
         method: "post",

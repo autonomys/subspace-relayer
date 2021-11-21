@@ -14,6 +14,7 @@ tap.test('Target module', (t) => {
   const chainName = 'random chain' as ChainName;
   const signer = { address: 'random signer address' } as SignerWithAddress;
   const txBlock = {
+    // TODO: replace with real block buffer and metadata
     block: Buffer.from([]),
     metadata: Buffer.from([]),
   }

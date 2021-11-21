@@ -2,13 +2,18 @@ import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { U64 } from "@polkadot/types";
 import pRetry from "p-retry";
+// TODO: Types do not seem to match the code, hence usage of it like this
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const levelup = require("levelup");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const rocksdb = require("rocksdb");
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import { getChainName } from './httpApi';
+import * as httpApi from './httpApi';
 import { PoolSigner } from "./poolSigner";
-import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
+import Relay from "./relay";
 import { ChainId, ParaHeadAndId } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from "./utils";
@@ -54,8 +59,12 @@ async function main() {
 
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
+      const db = chainConfig.downloadedArchivePath && levelup(rocksdb(`${chainConfig.downloadedArchivePath}/db`), { readOnly: true });
+
+      const relay = new Relay({ logger, db, target, httpApi });
+
       const chainName = await pRetry(
-        () => getChainName(chainConfig.httpUrl),
+        () => httpApi.getChainName(chainConfig.httpUrl),
         {
           randomize: true,
           forever: true,
@@ -78,7 +87,7 @@ async function main() {
 
       if (chainConfig.downloadedArchivePath) {
         try {
-          lastProcessedBlock = await relayFromDownloadedArchive(
+          lastProcessedBlock = await relay.relayFromDownloadedArchive(
             feedId,
             chainName,
             chainConfig.downloadedArchivePath,
@@ -145,10 +154,9 @@ async function main() {
           }
         });
 
-        await relayFromPrimaryChainHeadState(
+        await relay.relayFromPrimaryChainHeadState(
           feedId,
           chainName,
-          target,
           signer,
           chainHeadState,
           chainConfig,
@@ -160,10 +168,9 @@ async function main() {
         const chainHeadState = new ParachainHeadState();
         chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
 
-        await relayFromParachainHeadState(
+        await relay.relayFromParachainHeadState(
           feedId,
           chainName,
-          target,
           signer,
           chainHeadState,
           chainConfig,
