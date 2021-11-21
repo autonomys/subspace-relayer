@@ -1,19 +1,23 @@
 import * as tap from 'tap';
 import { TypeRegistry } from '@polkadot/types';
 import { ISubmittableResult } from '@polkadot/types/types';
-
+import { cryptoWaitReady } from "@polkadot/util-crypto";
 import ChainArchive from "../chainArchive";
 import loggerMock from '../mocks/logger';
 import { createDbMock } from '../mocks/db';
 import * as signedBlockMock from '../mocks/signedBlock.json';
 import Relay from "../relay";
 import Target from "../target";
-import { TxBlock } from '../types';
+import {
+  TxBlock,
+  ChainName
+} from '../types';
 import { blockToBinary } from '../utils';
 import { createMockPutWithResult } from '../mocks/api';
 import { HttpApi } from "../httpApi";
+import { PoolSigner } from "../poolSigner";
 
-tap.test('Relay module', (t) => {
+tap.test('Relay module', async (t) => {
   const blocksMock = [
     blockToBinary(signedBlockMock),
     blockToBinary(signedBlockMock),
@@ -21,7 +25,7 @@ tap.test('Relay module', (t) => {
   ]
   const dbMock = createDbMock(blocksMock);
   const chainArchive = new ChainArchive({ logger: loggerMock, db: dbMock });
-  const lastProcessedBlock = 0;
+  const initialLastProcessedBlock = 0;
   const batchBytesLimit = 3_500_000;
   const batchCountLimit = 2;
   const targetChainUrl = 'random url';
@@ -44,9 +48,32 @@ tap.test('Relay module', (t) => {
     batchCountLimit,
   };
   const relay = new Relay(defaultRelayParams);
+  await cryptoWaitReady();
+  const signer = new PoolSigner(
+    registry,
+    'random account seed',
+    1,
+  );
+  const feedId = registry.createType('u64', 10);
+  const chainName = 'Cool chain' as ChainName;
+
+  tap.test('relayFromDownloadedArchive method should process blocks from archive and return last block number', async (t) => {
+    const lastProcessedBlock = await relay.relayFromDownloadedArchive(
+      feedId,
+      chainName,
+      initialLastProcessedBlock,
+      signer,
+    );
+
+    t.equal(lastProcessedBlock, blocksMock.length);
+  });
+
+  tap.test('relayFromDownloadedArchive method should reject if API fails to get nonce');
+
+  tap.test('relayFromDownloadedArchive method should retry if sending transaction fails');
 
   tap.test('readBlocksInBatches method should return AsyncGenerator with batch of TxBlock items and last block number', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
+    const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
 
     for await (const [blocks, lastBlockNumber] of batchesGenerator) {
       t.ok(blocks.length <= batchCountLimit);
@@ -58,7 +85,7 @@ tap.test('Relay module', (t) => {
   });
 
   tap.test('readBlocksInBatches should yield last block number equal to the block number of the last block in the batch', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
+    const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
 
     {
       const first = await batchesGenerator.next();
@@ -92,7 +119,7 @@ tap.test('Relay module', (t) => {
         ...defaultRelayParams,
         batchBytesLimit,
       });
-      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
+      const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
 
       // only one block can fit
       for await (const [blocks] of batchesGenerator) {
@@ -106,7 +133,7 @@ tap.test('Relay module', (t) => {
         ...defaultRelayParams,
         batchBytesLimit,
       });
-      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
+      const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);
@@ -121,6 +148,8 @@ tap.test('Relay module', (t) => {
       t.equal(secondBatch.length, 1);
     }
   });
+
+  tap.test('relayFromDownloadedArchive should throw an error if no archive provided');
 
 
   t.end();

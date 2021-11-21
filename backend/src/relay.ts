@@ -23,7 +23,6 @@ interface RelayParams {
   httpApi: HttpApi;
   batchBytesLimit: number;
   batchCountLimit: number;
-
 }
 
 interface RelayBlocksResult {
@@ -50,8 +49,8 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  // TODO: make private method
-  async *readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
+  // made it public for testing purposes
+  public async *readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
@@ -86,7 +85,7 @@ export default class Relay {
     }
   }
 
-  async relayFromDownloadedArchive(
+  public async relayFromDownloadedArchive(
     feedId: U64,
     chainName: ChainName,
     lastProcessedBlock: number,
@@ -148,7 +147,7 @@ export default class Relay {
     return lastProcessedBlock;
   }
 
-  async *fetchBlocksInBatches(
+  private async *fetchBlocksInBatches(
     httpUrl: string,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
@@ -198,7 +197,7 @@ export default class Relay {
     }
   }
 
-  async relayBlocks(
+  private async relayBlocks(
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,
@@ -262,7 +261,7 @@ export default class Relay {
     };
   }
 
-  async relayFromPrimaryChainHeadState(
+  public async relayFromPrimaryChainHeadState(
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,
@@ -297,7 +296,7 @@ export default class Relay {
     }
   }
 
-  async relayFromParachainHeadState(
+  public async relayFromParachainHeadState(
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,

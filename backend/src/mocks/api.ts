@@ -22,5 +22,16 @@ export const createMockPutWithResult = (result: ISubmittableResult): ApiPromise 
         }
       }
     }
+  },
+  rpc: {
+    system: {
+      accountNextIndex() {
+        return {
+          toBigInt() {
+            return BigInt(0);
+          }
+        }
+      }
+    }
   }
 }) as unknown as ApiPromise;
