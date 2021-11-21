@@ -21,6 +21,9 @@ interface RelayParams {
   archive?: ChainArchive;
   target: Target;
   httpApi: HttpApi;
+  batchBytesLimit: number;
+  batchCountLimit: number;
+
 }
 
 interface RelayBlocksResult {
@@ -34,6 +37,8 @@ export default class Relay {
   private readonly polkadotAppsBaseUrl: string;
   private readonly target: Target;
   private readonly httpApi: HttpApi;
+  private readonly batchBytesLimit: number;
+  private readonly batchCountLimit: number;
 
   public constructor(params: RelayParams) {
     this.logger = params.logger;
@@ -41,14 +46,12 @@ export default class Relay {
     this.target = params.target;
     this.httpApi = params.httpApi;
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
+    this.batchBytesLimit = params.batchBytesLimit;
+    this.batchCountLimit = params.batchCountLimit;
   }
 
   // TODO: make private method
-  async *readBlocksInBatches(
-    lastProcessedBlock: number,
-    batchBytesLimit: number,
-    batchCountLimit: number,
-  ): AsyncGenerator<[TxBlock[], number], void> {
+  async *readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
@@ -59,7 +62,7 @@ export default class Relay {
       const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
       const extraBytes = block.byteLength + metadata.byteLength;
 
-      if (accumulatedBytes + extraBytes >= batchBytesLimit) {
+      if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, lastBlockNumber];
         blocksToArchive = [];
@@ -70,7 +73,7 @@ export default class Relay {
       accumulatedBytes += extraBytes;
       lastBlockNumber = blockData.metadata.number;
 
-      if (blocksToArchive.length === batchCountLimit) {
+      if (blocksToArchive.length === this.batchCountLimit) {
         // Reached block count limit, yield now
         yield [blocksToArchive, lastBlockNumber];
         blocksToArchive = [];
@@ -88,15 +91,13 @@ export default class Relay {
     chainName: ChainName,
     lastProcessedBlock: number,
     signer: SignerWithAddress,
-    batchBytesLimit: number,
-    batchCountLimit: number,
   ): Promise<number> {
     let lastBlockProcessingReportAt = Date.now();
 
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
 
     let lastTxPromise: Promise<void> | undefined;
-    const blockBatches = this.readBlocksInBatches(lastProcessedBlock, batchBytesLimit, batchCountLimit);
+    const blockBatches = this.readBlocksInBatches(lastProcessedBlock);
     for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
       if (lastTxPromise) {
         await lastTxPromise;
@@ -151,8 +152,6 @@ export default class Relay {
     httpUrl: string,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
-    batchBytesLimit: number,
-    batchCountLimit: number,
   ): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
@@ -176,7 +175,7 @@ export default class Relay {
         'utf-8',
       );
       const extraBytes = block.byteLength + metadata.byteLength;
-      if (accumulatedBytes + extraBytes >= batchBytesLimit) {
+      if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, nextBlockToProcess];
         blocksToArchive = [];
@@ -186,7 +185,7 @@ export default class Relay {
       blocksToArchive.push({ block, metadata });
       accumulatedBytes += extraBytes;
 
-      if (blocksToArchive.length === batchCountLimit) {
+      if (blocksToArchive.length === this.batchCountLimit) {
         // Reached block count limit, yield now
         yield [blocksToArchive, nextBlockToProcess];
         blocksToArchive = [];
@@ -207,16 +206,12 @@ export default class Relay {
     nonce: bigint,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
-    batchBytesLimit: number,
-    batchCountLimit: number,
   ): Promise<RelayBlocksResult> {
     let lastTxPromise: Promise<void> | undefined;
     const blockBatches = this.fetchBlocksInBatches(
       chainConfig.httpUrl,
       nextBlockToProcess,
       lastFinalizedBlockNumber,
-      batchBytesLimit,
-      batchCountLimit,
     );
     for await (const [blocksToArchive, newNextBlockToProcess] of blockBatches) {
       nextBlockToProcess = newNextBlockToProcess;
@@ -274,8 +269,6 @@ export default class Relay {
     chainHeadState: PrimaryChainHeadState,
     chainConfig: AnyChainConfig,
     lastProcessedBlock: number,
-    batchBytesLimit: number,
-    batchCountLimit: number,
   ): Promise<void> {
     let nextBlockToProcess = lastProcessedBlock + 1;
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
@@ -290,8 +283,6 @@ export default class Relay {
         () => {
           return chainHeadState.lastFinalizedBlockNumber;
         },
-        batchBytesLimit,
-        batchCountLimit,
       );
       nonce = result.nonce;
       nextBlockToProcess = result.nextBlockToProcess;
@@ -313,8 +304,6 @@ export default class Relay {
     chainHeadState: ParachainHeadState,
     chainConfig: AnyChainConfig,
     lastProcessedBlock: number,
-    batchBytesLimit: number,
-    batchCountLimit: number,
   ): Promise<void> {
     let nextBlockToProcess = lastProcessedBlock + 1;
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
@@ -340,8 +329,6 @@ export default class Relay {
         () => {
           return lastFinalizedBlockNumber;
         },
-        batchBytesLimit,
-        batchCountLimit,
       );
       nonce = result.nonce;
       nextBlockToProcess = result.nextBlockToProcess;

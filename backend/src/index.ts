@@ -61,14 +61,22 @@ async function main() {
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
       // TODO: there is another if below
-      let relay;
+      const relayParams = {
+        logger,
+        target,
+        httpApi,
+        batchBytesLimit: BATCH_BYTES_LIMIT,
+        batchCountLimit: BATCH_COUNT_LIMIT
+      };
+
+      let relay
 
       if (chainConfig.downloadedArchivePath) {
         const db = levelup(rocksdb(`${chainConfig.downloadedArchivePath}/db`), { readOnly: true });
         const archive = new ChainArchive({ db, logger });
-        relay = new Relay({ logger, archive, target, httpApi });
+        relay = new Relay({ ...relayParams, archive });
       } else {
-        relay = new Relay({ logger, target, httpApi });
+        relay = new Relay(relayParams);
       }
 
       const chainName = await pRetry(
@@ -100,8 +108,6 @@ async function main() {
             chainName,
             lastProcessedBlock,
             signer,
-            BATCH_BYTES_LIMIT,
-            BATCH_COUNT_LIMIT,
           );
         } catch (e) {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
@@ -167,8 +173,6 @@ async function main() {
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
-          BATCH_BYTES_LIMIT,
-          BATCH_COUNT_LIMIT,
         );
       } else {
         const chainHeadState = new ParachainHeadState();
@@ -181,8 +185,6 @@ async function main() {
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
-          BATCH_BYTES_LIMIT,
-          BATCH_COUNT_LIMIT,
         );
       }
     });

@@ -22,8 +22,8 @@ tap.test('Relay module', (t) => {
   const dbMock = createDbMock(blocksMock);
   const chainArchive = new ChainArchive({ logger: loggerMock, db: dbMock });
   const lastProcessedBlock = 0;
-  const bytesLimit = 3_500_000;
-  const countLimit = 2;
+  const batchBytesLimit = 3_500_000;
+  const batchCountLimit = 2;
   const targetChainUrl = 'random url';
   const registry = new TypeRegistry();
   const putSuccessResult = {
@@ -35,13 +35,21 @@ tap.test('Relay module', (t) => {
   } as unknown as ISubmittableResult;
   const apiSuccess = createMockPutWithResult(putSuccessResult);
   const targetMock = new Target({ api: apiSuccess, logger: loggerMock, targetChainUrl });
-  const relay = new Relay({ logger: loggerMock, archive: chainArchive, target: targetMock, httpApi: {} as HttpApi });
+  const defaultRelayParams = {
+    logger: loggerMock,
+    archive: chainArchive,
+    target: targetMock,
+    httpApi: {} as HttpApi,
+    batchBytesLimit,
+    batchCountLimit,
+  };
+  const relay = new Relay(defaultRelayParams);
 
   tap.test('readBlocksInBatches method should return AsyncGenerator with batch of TxBlock items and last block number', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
+    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
 
     for await (const [blocks, lastBlockNumber] of batchesGenerator) {
-      t.ok(blocks.length <= countLimit);
+      t.ok(blocks.length <= batchCountLimit);
       t.type(blocks[0].block, Buffer);
       t.type(blocks[0].metadata, Buffer);
       // should be greater than zero if batch has items
@@ -50,7 +58,7 @@ tap.test('Relay module', (t) => {
   });
 
   tap.test('readBlocksInBatches should yield last block number equal to the block number of the last block in the batch', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
+    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
 
     {
       const first = await batchesGenerator.next();
@@ -79,8 +87,12 @@ tap.test('Relay module', (t) => {
   tap.test('readBlocksInBatches should fit maximum number of blocks within size limit', async (t) => {
     {
       // we know that blocks in mock + metadata are 123 bytes each
-      const bytesLimit = 130;
-      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
+      const batchBytesLimit = 130;
+      const relay = new Relay({
+        ...defaultRelayParams,
+        batchBytesLimit,
+      });
+      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
 
       // only one block can fit
       for await (const [blocks] of batchesGenerator) {
@@ -89,8 +101,12 @@ tap.test('Relay module', (t) => {
     }
 
     {
-      const bytesLimit = 300;
-      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
+      const batchBytesLimit = 300;
+      const relay = new Relay({
+        ...defaultRelayParams,
+        batchBytesLimit,
+      });
+      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock);
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);
