@@ -14,6 +14,7 @@ import logger from "./logger";
 import * as httpApi from './httpApi';
 import { PoolSigner } from "./poolSigner";
 import Relay from "./relay";
+import ChainArchive from "./chainArchive";
 import { ChainId, ParaHeadAndId } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from "./utils";
@@ -59,9 +60,16 @@ async function main() {
 
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
-      const db = chainConfig.downloadedArchivePath && levelup(rocksdb(`${chainConfig.downloadedArchivePath}/db`), { readOnly: true });
+      // TODO: there is another if below
+      let relay;
 
-      const relay = new Relay({ logger, db, target, httpApi });
+      if (chainConfig.downloadedArchivePath) {
+        const db = levelup(rocksdb(`${chainConfig.downloadedArchivePath}/db`), { readOnly: true });
+        const archive = new ChainArchive({ db, logger });
+        relay = new Relay({ logger, archive, target, httpApi });
+      } else {
+        relay = new Relay({ logger, target, httpApi });
+      }
 
       const chainName = await pRetry(
         () => httpApi.getChainName(chainConfig.httpUrl),
@@ -90,8 +98,6 @@ async function main() {
           lastProcessedBlock = await relay.relayFromDownloadedArchive(
             feedId,
             chainName,
-            chainConfig.downloadedArchivePath,
-            target,
             lastProcessedBlock,
             signer,
             BATCH_BYTES_LIMIT,

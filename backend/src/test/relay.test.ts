@@ -35,10 +35,10 @@ tap.test('Relay module', (t) => {
   } as unknown as ISubmittableResult;
   const apiSuccess = createMockPutWithResult(putSuccessResult);
   const targetMock = new Target({ api: apiSuccess, logger: loggerMock, targetChainUrl });
-  const relay = new Relay({ logger: loggerMock, db: dbMock, target: targetMock, httpApi: {} as HttpApi });
+  const relay = new Relay({ logger: loggerMock, archive: chainArchive, target: targetMock, httpApi: {} as HttpApi });
 
   tap.test('readBlocksInBatches method should return AsyncGenerator with batch of TxBlock items and last block number', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
 
     for await (const [blocks, lastBlockNumber] of batchesGenerator) {
       t.ok(blocks.length <= countLimit);
@@ -50,7 +50,7 @@ tap.test('Relay module', (t) => {
   });
 
   tap.test('readBlocksInBatches should yield last block number equal to the block number of the last block in the batch', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+    const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
 
     {
       const first = await batchesGenerator.next();
@@ -80,7 +80,7 @@ tap.test('Relay module', (t) => {
     {
       // we know that blocks in mock + metadata are 123 bytes each
       const bytesLimit = 130;
-      const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
 
       // only one block can fit
       for await (const [blocks] of batchesGenerator) {
@@ -90,7 +90,7 @@ tap.test('Relay module', (t) => {
 
     {
       const bytesLimit = 300;
-      const batchesGenerator = relay.readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
+      const batchesGenerator = relay.readBlocksInBatches(lastProcessedBlock, bytesLimit, countLimit);
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);

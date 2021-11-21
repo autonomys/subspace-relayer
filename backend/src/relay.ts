@@ -18,9 +18,7 @@ function polkadotAppsUrl(targetChainUrl: string) {
 
 interface RelayParams {
   logger: Logger;
-  // There are no TS types for `db` :(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any;
+  archive?: ChainArchive;
   target: Target;
   httpApi: HttpApi;
 }
@@ -31,18 +29,15 @@ interface RelayBlocksResult {
 }
 
 export default class Relay {
-  // TODO: add private
-  readonly logger: Logger;
-  // There are no TS types for `db` :(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly db: any;
-  readonly polkadotAppsBaseUrl: string;
-  readonly target: Target;
-  readonly httpApi: HttpApi;
+  private readonly logger: Logger;
+  private readonly archive?: ChainArchive;
+  private readonly polkadotAppsBaseUrl: string;
+  private readonly target: Target;
+  private readonly httpApi: HttpApi;
 
   public constructor(params: RelayParams) {
     this.logger = params.logger;
-    this.db = params.db;
+    this.archive = params.archive;
     this.target = params.target;
     this.httpApi = params.httpApi;
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
@@ -50,7 +45,6 @@ export default class Relay {
 
   // TODO: make private method
   async *readBlocksInBatches(
-    archive: ChainArchive,
     lastProcessedBlock: number,
     batchBytesLimit: number,
     batchCountLimit: number,
@@ -58,7 +52,9 @@ export default class Relay {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
-    for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
+    // TODO: throw error if no archive
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    for await (const blockData of this.archive!.getBlocks(lastProcessedBlock)) {
       const block = blockData.block;
       const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
       const extraBytes = block.byteLength + metadata.byteLength;
@@ -90,23 +86,17 @@ export default class Relay {
   async relayFromDownloadedArchive(
     feedId: U64,
     chainName: ChainName,
-    // TODO: remove from parameters
-    _path: string,
-    _target: Target,
     lastProcessedBlock: number,
     signer: SignerWithAddress,
     batchBytesLimit: number,
     batchCountLimit: number,
   ): Promise<number> {
-    // TODO: pass archive as parameter
-    const archive = new ChainArchive({ db: this.db, logger: this.logger });
-
     let lastBlockProcessingReportAt = Date.now();
 
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
 
     let lastTxPromise: Promise<void> | undefined;
-    const blockBatches = this.readBlocksInBatches(archive, lastProcessedBlock, batchBytesLimit, batchCountLimit);
+    const blockBatches = this.readBlocksInBatches(lastProcessedBlock, batchBytesLimit, batchCountLimit);
     for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
       if (lastTxPromise) {
         await lastTxPromise;
