@@ -3,15 +3,16 @@ import * as tap from 'tap';
 import ChainArchive from "../chainArchive";
 import loggerMock from '../mocks/logger';
 import { createDbMock } from '../mocks/db';
+import * as signedBlockMock from '../mocks/signedBlock.json';
 import { readBlocksInBatches } from "../relay";
 import { TxBlock } from '../types';
+import { blockToBinary } from '../utils';
 
 tap.test('Relay module', (t) => {
-  // TODO: use real block buffers
   const blocksMock = [
-    Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]),
-    Buffer.from([2, 3, 4, 5, 6, 7, 8, 9]),
-    Buffer.from([3, 4, 5, 6, 7, 8, 9, 10]),
+    blockToBinary(signedBlockMock),
+    blockToBinary(signedBlockMock),
+    blockToBinary(signedBlockMock),
   ]
   const dbMock = createDbMock(blocksMock);
   const chainArchive = new ChainArchive({ logger: loggerMock, db: dbMock });
@@ -60,9 +61,8 @@ tap.test('Relay module', (t) => {
 
   tap.test('readBlocksInBatches should fit maximum number of blocks within size limit', async (t) => {
     {
-      // TODO: update this after when using mocks with real block buffers
-      // current block buffer + metadata usually has 32-34 bytes
-      const bytesLimit = 35;
+      // we know that blocks in mock + metadata are 123 bytes each
+      const bytesLimit = 130;
       const batchesGenerator = readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
 
       // only one block can fit
@@ -72,7 +72,7 @@ tap.test('Relay module', (t) => {
     }
 
     {
-      const bytesLimit = 70;
+      const bytesLimit = 300;
       const batchesGenerator = readBlocksInBatches(chainArchive, lastProcessedBlock, bytesLimit, countLimit);
 
       const first = await batchesGenerator.next();

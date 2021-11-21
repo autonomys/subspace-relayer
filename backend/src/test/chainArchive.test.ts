@@ -3,12 +3,14 @@ import * as tap from 'tap';
 import ChainArchive, { ArchivedBlock } from "../chainArchive";
 import loggerMock from '../mocks/logger';
 import { createDbMock } from '../mocks/db';
+import * as signedBlockMock from '../mocks/signedBlock.json';
+import { blockToBinary } from '../utils';
 
 tap.test('ChainArchive module', (t) => {
   const blocks = [
-    Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]),
-    Buffer.from([2, 3, 4, 5, 6, 7, 8, 9]),
-    Buffer.from([3, 4, 5, 6, 7, 8, 9, 10]),
+    blockToBinary(signedBlockMock),
+    blockToBinary(signedBlockMock),
+    blockToBinary(signedBlockMock),
   ]
   const dbMock = createDbMock(blocks);
   const chainArchive = new ChainArchive({ logger: loggerMock, db: dbMock });
