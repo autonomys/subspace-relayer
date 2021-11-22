@@ -165,7 +165,7 @@ export default class Relay {
       // TODO: Cache of mapping from block number to its hash for faster fetching
       const [blockHash, block] = await pRetry(
         () => this.httpApi.getBlockByNumber(httpUrl, nextBlockToProcess),
-        createRetryOptions(error => this.logger.error(error, 'httpApi.getBlockByNumber retry error:')),
+        createRetryOptions(error => this.logger.debug(error, 'httpApi.getBlockByNumber retry error:')),
       );
 
       const metadata = Buffer.from(

@@ -113,6 +113,8 @@ async function main() {
           const totals = (await targetApi.query.feeds.totals(feedId)) as unknown as { size: U64, count: U64 };
           // We know that block number will not exceed 53-bit size integer
           lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
+        } finally {
+          await db.close();
         }
       } else {
         relay = new Relay(relayParams);
