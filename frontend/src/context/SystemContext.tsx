@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { logger } from "@polkadot/util";
-import { combineLatest, interval, merge, MonoTypeOperatorFunction } from "rxjs";
+import { combineLatest, interval, MonoTypeOperatorFunction } from "rxjs";
 import { distinctUntilChanged, filter, switchMap, take } from "rxjs/operators";
 import { RpcCore } from "@polkadot/rpc-core";
 import { RpcInterface } from "@polkadot/rpc-core/types";
@@ -109,11 +109,11 @@ export function SystemContextProvider(
         filter((connected) => !!connected),
         switchMap(() =>
           combineLatest([
-            merge(
-              rpc.chain.subscribeNewHeads(),
-              interval(2000).pipe(switchMap(() => rpc.chain.getHeader()))
-            ).pipe(distinctCodecChanged()),
-            interval(2000).pipe(
+            interval(6000).pipe(
+              switchMap(() => rpc.chain.getHeader()),
+              distinctCodecChanged()
+            ),
+            interval(6000).pipe(
               switchMap(() => rpc.system.health()),
               distinctCodecChanged()
             ),

@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
-import { HealthContext, RelayerContext, SystemContext } from "context";
+import { useContext, useEffect, useState } from "react";
+import { RelayerContext, SystemContext } from "context";
 import {
   Card,
   CardBody,
@@ -14,7 +14,6 @@ import { bytesToSize } from "./utils";
 
 const Header = () => {
   const { version } = useContext(SystemContext);
-  const { isSyncing } = useContext(HealthContext);
   const { feedsTotals } = useContext(RelayerContext);
   const [acumulatedSizes, setAcumulatedSizes] = useState<number>();
   const [acumulatedObjects, setAcumulatedObjects] = useState<number>();
@@ -23,12 +22,12 @@ const Header = () => {
     if (feedsTotals) {
       const acumulatedSizes = feedsTotals.reduce(
         (accumulator, currentValue) =>
-          accumulator + currentValue.size_.toNumber(),
+          accumulator + currentValue?.size_.toNumber() || 0,
         0
       );
       const acumulatedObjects = feedsTotals.reduce(
         (accumulator, currentValue) =>
-          accumulator + currentValue.count.toNumber(),
+          accumulator + currentValue?.count.toNumber() || 0,
         0
       );
       setAcumulatedSizes(acumulatedSizes);
@@ -38,100 +37,92 @@ const Header = () => {
 
   // TODO: Card to component.
   return (
-    <div className="header bg-gradient-gray-dark pb-4 pt-2 pt-md-4 pl-4 pr-9 ">
+    <div className="header bg-gradient-gray-dark p-4 ">
       <Container fluid>
         <Row>
-          <Col lg="2">
+          <Col md="2">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase mb-0">
-                      <h2>Chains</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
-                        {parachains.length - 1}
-                        {isSyncing && (
-                          <Spinner
-                            className="ml-2"
-                            color="text-primary"
-                            size={"6"}
-                          ></Spinner>
-                        )}
-                      </span>
+                      <h2 className="text-truncate">Chains</h2>
+                      <h2 className="font-weight-bold text-primary">
+                        {parachains.length}
+                      </h2>
                     </CardTitle>
                   </div>
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col lg="4">
+          <Col md="4">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Total Storage</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
-                        {acumulatedSizes && bytesToSize(acumulatedSizes)}
-                        {isSyncing && (
+                      <h2 className="text-truncate">Storage</h2>
+                      <h2 className="font-weight-bold text-primary">
+                        {acumulatedSizes ? (
+                          bytesToSize(acumulatedSizes)
+                        ) : (
                           <Spinner
                             className="ml-2"
                             color="text-primary"
-                            size={"6"}
+                            size={"sm"}
                           ></Spinner>
                         )}
-                      </span>
+                      </h2>
                     </CardTitle>
                   </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-archive" />
-                    </div>
-                  </Col>
                 </Row>
               </CardBody>
             </Card>
           </Col>
-          <Col lg="4">
+          <Col md="4">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Total Blocks Archived</h2>
-                      <span className="h2 font-weight-bold mb-0 ml-2 text-primary">
-                        {acumulatedObjects &&
-                          acumulatedObjects.toLocaleString()}
-                      </span>
+                      <h2 className="text-truncate">Blocks Archived</h2>
+                      <h2 className="font-weight-bold text-primary">
+                        {acumulatedObjects ? (
+                          acumulatedObjects.toLocaleString()
+                        ) : (
+                          <Spinner
+                            className="ml-2"
+                            color="text-primary"
+                            size={"sm"}
+                          ></Spinner>
+                        )}
+                      </h2>
                     </CardTitle>
                   </div>
-                  <Col className="col-auto">
-                    <div className="icon icon-shape bg-primary text-white rounded-circle shadow icon-md">
-                      <i className="fas fa-archive" />
-                    </div>
-                  </Col>
                 </Row>
               </CardBody>
             </Card>
           </Col>
 
-          <Col lg="2">
+          <Col md="2">
             <Card className="card-stats mb-4 mb-xl-0">
               <CardBody>
                 <Row>
                   <div className="col">
                     <CardTitle className="text-uppercase text-muted mb-0">
-                      <h2>Version</h2>
-                      <span className="h2 font-weight-bold mb-0 text-primary">
-                        {version?.substring(0, 5)}
-                        {isSyncing && (
+                      <h2 className="text-truncate">Version</h2>
+                      <h2 className="font-weight-bold text-primary text-truncate">
+                        {version ? (
+                          version.substring(0, 5)
+                        ) : (
                           <Spinner
                             className="ml-2"
                             color="text-primary"
-                            size={"6"}
+                            size={"sm"}
                           ></Spinner>
                         )}
-                      </span>
+                      </h2>
                     </CardTitle>
                   </div>
                 </Row>

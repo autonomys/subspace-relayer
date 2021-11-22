@@ -5,7 +5,6 @@ import {
   RelayerContextType,
 } from "context/interfaces";
 import { Totals } from "config/interfaces/Parachain";
-
 import { parachains } from "config/AvailableParachain";
 import { ApiPromiseContext, SystemContext } from "context";
 import { ApiPromise } from "@polkadot/api";
@@ -30,6 +29,7 @@ export function RelayerContextProvider(
   const provider = useProvider();
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const { header } = useContext(SystemContext);
+
   const [feedsTotals, setFeedsTotals] = useState<Totals[]>(
     Array<Totals>(parachains.length)
   );
