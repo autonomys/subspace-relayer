@@ -1,6 +1,6 @@
 import { Logger } from "pino";
 import { U64 } from "@polkadot/types";
-import pRetry from "p-retry";
+import pRetry, { FailedAttemptError } from "p-retry";
 
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
@@ -29,6 +29,15 @@ interface RelayBlocksResult {
   nonce: bigint;
   nextBlockToProcess: number;
 }
+
+// used by pRetry in case of failing request
+const createRetryOptions = (onFailedAttempt: ((error: FailedAttemptError) => void | Promise<void>)) => ({
+  randomize: true,
+  forever: true,
+  minTimeout: 1000,
+  maxTimeout: 60 * 60 * 1000,
+  onFailedAttempt,
+})
 
 export default class Relay {
   private readonly logger: Logger;
@@ -110,13 +119,7 @@ export default class Relay {
               nonce++;
               throw e;
             }),
-          {
-            randomize: true,
-            forever: true,
-            minTimeout: 1000,
-            maxTimeout: 60 * 60 * 1000,
-            onFailedAttempt: error => this.logger.error(error, 'target.sendBlocksBatchTx retry error:'),
-          },
+          createRetryOptions(error => this.logger.error(error, 'target.sendBlocksBatchTx retry error:')),
         );
         nonce++;
 
@@ -147,7 +150,8 @@ export default class Relay {
     return lastProcessedBlock;
   }
 
-  private async *fetchBlocksInBatches(
+  // made it public for testing purposes
+  public async *fetchBlocksInBatches(
     httpUrl: string,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
@@ -158,14 +162,9 @@ export default class Relay {
       // TODO: Cache of mapping from block number to its hash for faster fetching
       const [blockHash, block] = await pRetry(
         () => this.httpApi.getBlockByNumber(httpUrl, nextBlockToProcess),
-        {
-          randomize: true,
-          forever: true,
-          minTimeout: 1000,
-          maxTimeout: 60 * 60 * 1000,
-          onFailedAttempt: error => this.logger.error(error, 'httpApi.getBlockByNumber retry error:'),
-        },
+        createRetryOptions(error => this.logger.error(error, 'httpApi.getBlockByNumber retry error:')),
       );
+
       const metadata = Buffer.from(
         JSON.stringify({
           hash: blockHash,
@@ -173,7 +172,9 @@ export default class Relay {
         }),
         'utf-8',
       );
+
       const extraBytes = block.byteLength + metadata.byteLength;
+
       if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, nextBlockToProcess];
@@ -231,13 +232,7 @@ export default class Relay {
                 throw e;
               });
           },
-          {
-            randomize: true,
-            forever: true,
-            minTimeout: 1000,
-            maxTimeout: 60 * 60 * 1000,
-            onFailedAttempt: error => this.logger.error(error, 'target.sendBlock[sBatch]Tx retry error:'),
-          },
+          createRetryOptions(error => this.logger.error(error, 'target.sendBlock[sBatch]Tx retry error:')),
         );
         nonce++;
 
@@ -310,13 +305,7 @@ export default class Relay {
       // TODO: This is simple, but not very efficient
       const lastFinalizedBlockNumber = await pRetry(
         () => this.httpApi.getLastFinalizedBlock(chainConfig.httpUrl),
-        {
-          randomize: true,
-          forever: true,
-          minTimeout: 1000,
-          maxTimeout: 60 * 60 * 1000,
-          onFailedAttempt: error => this.logger.error(error, 'httpApi.getLastFinalizedBlock retry error:'),
-        },
+        createRetryOptions(error => this.logger.error(error, 'httpApi.getLastFinalizedBlock retry error:')),
       );
       const result = await this.relayBlocks(
         feedId,
