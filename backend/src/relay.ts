@@ -62,7 +62,8 @@ export default class Relay {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
-    // TODO: throw error if no archive
+
+    // at this stage we can be sure archive is not undefined
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     for await (const blockData of this.archive!.getBlocks(lastProcessedBlock)) {
       const block = blockData.block;
@@ -99,6 +100,10 @@ export default class Relay {
     lastProcessedBlock: number,
     signer: SignerWithAddress,
   ): Promise<number> {
+    if (!this.archive) {
+      throw new Error('Cannot read block from archive: archive is not provided');
+    }
+
     let lastBlockProcessingReportAt = Date.now();
 
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();

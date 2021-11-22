@@ -8,8 +8,7 @@ export const createHttpApiMock = ({ blocks, finalizedBlock }: { blocks: Buffer[]
     return Promise.resolve(finalizedBlock);
   },
   getBlockByNumber(_url: string, blockNumber: number): Promise<[HexString, Buffer]> {
-    // TODO: use real hex
-    return Promise.resolve(['0xblockhex', blocks[blockNumber]]);
+    return Promise.resolve(['0xcf5fa8ef2fe76c0d6288535231d21989829933b986d32a3ba452173c5a2074f1', blocks[blockNumber]]);
   },
   getChainName(): Promise<ChainName> {
     return Promise.resolve('Random chain name' as ChainName);

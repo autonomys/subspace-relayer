@@ -48,7 +48,6 @@ tap.test('Relay module', async (t) => {
   })
   const defaultRelayParams = {
     logger: loggerMock,
-    archive: chainArchive,
     target: targetMock,
     httpApi: httpApiMock,
     batchBytesLimit,
@@ -65,6 +64,8 @@ tap.test('Relay module', async (t) => {
   const chainName = 'Cool chain' as ChainName;
 
   tap.test('relayFromDownloadedArchive method should process blocks from archive and return last block number', async (t) => {
+    const relay = new Relay({ ...defaultRelayParams, archive: chainArchive });
+
     const lastProcessedBlock = await relay.relayFromDownloadedArchive(
       feedId,
       chainName,
@@ -92,7 +93,7 @@ tap.test('Relay module', async (t) => {
     } as unknown as ApiPromise;
 
     const targetMock = new Target({ api, logger: loggerMock, targetChainUrl });
-    const relay = new Relay({ ...defaultRelayParams, target: targetMock });
+    const relay = new Relay({ ...defaultRelayParams, target: targetMock, archive: chainArchive });
 
     const resultPromise = relay.relayFromDownloadedArchive(
       feedId,
@@ -108,9 +109,18 @@ tap.test('Relay module', async (t) => {
 
   tap.test('relayFromDownloadedArchive method should increase nonce if sending transaction fails in case error is caused by nonce used by other transaction');
 
-  tap.test('relayFromDownloadedArchive should throw an error if no archive provided');
+  tap.test('relayFromDownloadedArchive should throw an error if no archive provided', async (t) => {
+    t.rejects(relay.relayFromDownloadedArchive(
+      feedId,
+      chainName,
+      initialLastProcessedBlock,
+      signer,
+    ))
+  });
 
   tap.test('readBlocksInBatches method should return AsyncGenerator with batch of TxBlock items and last block number', async (t) => {
+    const relay = new Relay({ ...defaultRelayParams, archive: chainArchive });
+
     const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
     for await (const [blocks, lastBlockNumber] of batchesGenerator) {
@@ -123,6 +133,8 @@ tap.test('Relay module', async (t) => {
   });
 
   tap.test('readBlocksInBatches should yield last block number equal to the block number of the last block in the batch', async (t) => {
+    const relay = new Relay({ ...defaultRelayParams, archive: chainArchive });
+
     const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
     {
@@ -156,6 +168,7 @@ tap.test('Relay module', async (t) => {
       const relay = new Relay({
         ...defaultRelayParams,
         batchBytesLimit,
+        archive: chainArchive,
       });
       const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
@@ -170,6 +183,7 @@ tap.test('Relay module', async (t) => {
       const relay = new Relay({
         ...defaultRelayParams,
         batchBytesLimit,
+        archive: chainArchive,
       });
       const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
@@ -245,8 +259,8 @@ tap.test('Relay module', async (t) => {
 
   tap.test('fetchBlocksInBatches should fit maximum number of blocks within size limit', async (t) => {
     {
-      // we know that blocks in mock + metadata are 132 bytes each
-      const batchBytesLimit = 140;
+      // we know that blocks in mock + metadata are 188 bytes each
+      const batchBytesLimit = 200;
       const relay = new Relay({
         ...defaultRelayParams,
         batchBytesLimit,
@@ -268,7 +282,7 @@ tap.test('Relay module', async (t) => {
     }
 
     {
-      const batchBytesLimit = 300;
+      const batchBytesLimit = 400;
       const relay = new Relay({
         ...defaultRelayParams,
         batchBytesLimit,

@@ -56,29 +56,11 @@ async function main() {
     logger,
     targetChainUrl: config.targetChainUrl,
   });
+
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
 
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
-      // TODO: there is another if below
-      const relayParams = {
-        logger,
-        target,
-        httpApi,
-        batchBytesLimit: BATCH_BYTES_LIMIT,
-        batchCountLimit: BATCH_COUNT_LIMIT
-      };
-
-      let relay
-
-      if (chainConfig.downloadedArchivePath) {
-        const db = levelup(rocksdb(`${chainConfig.downloadedArchivePath}/db`), { readOnly: true });
-        const archive = new ChainArchive({ db, logger });
-        relay = new Relay({ ...relayParams, archive });
-      } else {
-        relay = new Relay(relayParams);
-      }
-
       const chainName = await pRetry(
         () => httpApi.getChainName(chainConfig.httpUrl),
         {
@@ -101,7 +83,21 @@ async function main() {
       // We know that block number will not exceed 53-bit size integer
       let lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
 
+      const relayParams = {
+        logger,
+        target,
+        httpApi,
+        batchBytesLimit: BATCH_BYTES_LIMIT,
+        batchCountLimit: BATCH_COUNT_LIMIT,
+      };
+
+      let relay;
+
       if (chainConfig.downloadedArchivePath) {
+        const db = levelup(rocksdb(`${chainConfig.downloadedArchivePath}/db`), { readOnly: true });
+        const archive = new ChainArchive({ db, logger });
+        relay = new Relay({ ...relayParams, archive });
+
         try {
           lastProcessedBlock = await relay.relayFromDownloadedArchive(
             feedId,
@@ -113,6 +109,8 @@ async function main() {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
           logger.info('Continuing in regular mode anyway');
         }
+      } else {
+        relay = new Relay(relayParams);
       }
 
       if ('wsUrl' in chainConfig) {
