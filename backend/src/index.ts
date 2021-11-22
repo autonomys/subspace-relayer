@@ -23,7 +23,11 @@ const BATCH_BYTES_LIMIT = 3_500_000;
 /**
  * How many calls can fit into one batch (it should be possible to read this many blocks from disk within one second)
  */
-const BATCH_COUNT_LIMIT = 5_000;
+const ARCHIVE_BATCH_COUNT_LIMIT = 5_000;
+/**
+ * Similar to `ARCHIVE_BATCH_COUNT_LIMIT`, but for blocks requested over RPC
+ */
+const RPC_BATCH_COUNT_LIMIT = 1_000;
 /**
  * It is convenient in a few places to treat primary chain as parachain with ID `0`
  */
@@ -86,7 +90,7 @@ async function main() {
             lastProcessedBlock,
             signer,
             BATCH_BYTES_LIMIT,
-            BATCH_COUNT_LIMIT,
+            ARCHIVE_BATCH_COUNT_LIMIT,
           );
         } catch (e) {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
@@ -146,7 +150,6 @@ async function main() {
             }
           } catch (e) {
             logger.error(`Failed to process block from primary chain ${chainName} feedId ${feedId} ${e}`);
-            process.exit(1);
           }
         });
 
@@ -159,7 +162,7 @@ async function main() {
           chainConfig,
           lastProcessedBlock,
           BATCH_BYTES_LIMIT,
-          BATCH_COUNT_LIMIT,
+          RPC_BATCH_COUNT_LIMIT,
         );
       } else {
         const chainHeadState = new ParachainHeadState();
@@ -174,7 +177,7 @@ async function main() {
           chainConfig,
           lastProcessedBlock,
           BATCH_BYTES_LIMIT,
-          BATCH_COUNT_LIMIT,
+          RPC_BATCH_COUNT_LIMIT,
         );
       }
     });
