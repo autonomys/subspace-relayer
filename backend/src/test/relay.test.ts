@@ -111,7 +111,7 @@ tap.test('Relay module', async (t) => {
   tap.test('relayFromDownloadedArchive should throw an error if no archive provided');
 
   tap.test('readBlocksInBatches method should return AsyncGenerator with batch of TxBlock items and last block number', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
+    const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
     for await (const [blocks, lastBlockNumber] of batchesGenerator) {
       t.ok(blocks.length <= batchCountLimit);
@@ -123,7 +123,7 @@ tap.test('Relay module', async (t) => {
   });
 
   tap.test('readBlocksInBatches should yield last block number equal to the block number of the last block in the batch', async (t) => {
-    const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
+    const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
     {
       const first = await batchesGenerator.next();
@@ -157,7 +157,7 @@ tap.test('Relay module', async (t) => {
         ...defaultRelayParams,
         batchBytesLimit,
       });
-      const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
+      const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
       // only one block can fit
       for await (const [blocks] of batchesGenerator) {
@@ -171,7 +171,7 @@ tap.test('Relay module', async (t) => {
         ...defaultRelayParams,
         batchBytesLimit,
       });
-      const batchesGenerator = relay.readBlocksInBatches(initialLastProcessedBlock);
+      const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock);
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);
@@ -192,7 +192,7 @@ tap.test('Relay module', async (t) => {
     const nextBlockToProcess = 0;
     const lastFinalizedBlockNumber = () => finalizedBlockNumber;
 
-    const batchesGenerator = relay.fetchBlocksInBatches(
+    const batchesGenerator = relay['fetchBlocksInBatches'](
       httpUrl,
       nextBlockToProcess,
       lastFinalizedBlockNumber,
@@ -212,7 +212,7 @@ tap.test('Relay module', async (t) => {
     const nextBlockToProcess = 0;
     const lastFinalizedBlockNumber = () => finalizedBlockNumber;
 
-    const batchesGenerator = relay.fetchBlocksInBatches(
+    const batchesGenerator = relay['fetchBlocksInBatches'](
       httpUrl,
       nextBlockToProcess,
       lastFinalizedBlockNumber,
@@ -255,7 +255,7 @@ tap.test('Relay module', async (t) => {
       const nextBlockToProcess = 0;
       const lastFinalizedBlockNumber = () => finalizedBlockNumber;
 
-      const batchesGenerator = relay.fetchBlocksInBatches(
+      const batchesGenerator = relay['fetchBlocksInBatches'](
         httpUrl,
         nextBlockToProcess,
         lastFinalizedBlockNumber,
@@ -277,7 +277,7 @@ tap.test('Relay module', async (t) => {
       const nextBlockToProcess = 0;
       const lastFinalizedBlockNumber = () => finalizedBlockNumber;
 
-      const batchesGenerator = relay.fetchBlocksInBatches(
+      const batchesGenerator = relay['fetchBlocksInBatches'](
         httpUrl,
         nextBlockToProcess,
         lastFinalizedBlockNumber,
@@ -298,6 +298,27 @@ tap.test('Relay module', async (t) => {
   });
 
   tap.test('fetchBlocksInBatches method should retry if get block over HTTP API fails');
+
+  tap.test('relayBlocks method should return nonce and next block to process', async (t) => {
+    const httpUrl = 'random url';
+    const chainConfig = {
+      httpUrl,
+      accountSeed: 'random seed',
+      feedId: 10,
+    };
+    const nonce = BigInt(0);
+    const nextBlockToProcess = 0;
+    const lastFinalizedBlockNumber = () => finalizedBlockNumber;
+
+    const result = await relay['relayBlocks'](feedId, chainName, signer, chainConfig, nonce, nextBlockToProcess, lastFinalizedBlockNumber);
+
+    // total 3 blocks to process, batch count limit is 2, therefore we have two transactions (2 and 1 block in each batch)
+    t.same(result, { nonce: BigInt(2), nextBlockToProcess: 3 });
+  });
+
+  tap.test('relayBlocks method should retry if sending transaction fails');
+
+  tap.test('relayBlocks method should increase nonce if sending transaction fails in case error is caused by nonce used by other transaction');
 
   t.end();
 })

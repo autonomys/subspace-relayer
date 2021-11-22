@@ -58,8 +58,7 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  // made it public for testing purposes
-  public async *readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
+  private async *readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
@@ -150,8 +149,7 @@ export default class Relay {
     return lastProcessedBlock;
   }
 
-  // made it public for testing purposes
-  public async *fetchBlocksInBatches(
+  private async *fetchBlocksInBatches(
     httpUrl: string,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
