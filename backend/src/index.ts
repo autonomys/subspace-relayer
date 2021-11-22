@@ -108,6 +108,11 @@ async function main() {
         } catch (e) {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
           logger.info('Continuing in regular mode anyway');
+
+          // Re-check what are the totals since something might have been inserted
+          const totals = (await targetApi.query.feeds.totals(feedId)) as unknown as { size: U64, count: U64 };
+          // We know that block number will not exceed 53-bit size integer
+          lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
         }
       } else {
         relay = new Relay(relayParams);
