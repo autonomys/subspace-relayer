@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/relayer:lastest
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/relayer:latest
 
 jobs:
   push:
