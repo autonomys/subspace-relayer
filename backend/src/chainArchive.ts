@@ -1,12 +1,15 @@
 import { Logger } from "pino";
 import { HexString } from "@polkadot/util/types";
+// TODO: Types do not seem to match the code, hence usage of it like this
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const levelup = require("levelup");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const rocksdb = require("rocksdb");
 
 import { BlockMetadata } from "./types";
 
 interface ChainArchiveConstructorParams {
-  // There are no TS types for `db` :(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any;
+  path: string;
   logger: Logger;
 }
 
@@ -24,8 +27,10 @@ class ChainArchive {
   private readonly db: any;
   private readonly logger: Logger;
 
-  public constructor({ db, logger }: ChainArchiveConstructorParams) {
-    this.db = db;
+  public constructor({ path, logger }: ChainArchiveConstructorParams) {
+    this.db = levelup(rocksdb(`${path}/db`), {
+      readOnly: true,
+    });
     this.logger = logger;
   }
 
@@ -40,23 +45,27 @@ class ChainArchive {
   }
 
   public async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
-    this.logger.info('Start processing blocks from archive');
+    try {
+      this.logger.info('Start processing blocks from archive');
 
-    const lastFromDb = await this.getLastBlockNumberFromDb();
-    let nextBlockToProcess = lastProcessedBlock + 1;
+      const lastFromDb = await this.getLastBlockNumberFromDb();
+      let nextBlockToProcess = lastProcessedBlock + 1;
 
-    while (nextBlockToProcess <= lastFromDb) {
-      const blockData = await this.getBlockByNumber(nextBlockToProcess);
-      const blockHashLength = blockData[0];
-      const hash: HexString = `0x${blockData.slice(1, blockHashLength + 1).toString('hex')}`;
-      const blockBytes = blockData.slice(blockHashLength + 1);
+      while (nextBlockToProcess <= lastFromDb) {
+        const blockData = await this.getBlockByNumber(nextBlockToProcess);
+        const blockHashLength = blockData[0];
+        const hash: HexString = `0x${blockData.slice(1, blockHashLength + 1).toString('hex')}`;
+        const blockBytes = blockData.slice(blockHashLength + 1);
 
-      yield new ArchivedBlock(blockBytes, {
-        number: nextBlockToProcess,
-        hash,
-      });
+        yield new ArchivedBlock(blockBytes, {
+          number: nextBlockToProcess,
+          hash,
+        });
 
-      nextBlockToProcess++;
+        nextBlockToProcess++;
+      }
+    } finally {
+      this.db.close();
     }
   }
 }
