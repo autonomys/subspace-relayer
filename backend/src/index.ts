@@ -6,7 +6,7 @@ import pRetry from "p-retry";
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import { getChainName } from './httpApi';
+import HttpApi from './httpApi';
 import { PoolSigner } from "./poolSigner";
 import Relay from "./relay";
 import ChainArchive from "./chainArchive";
@@ -59,8 +59,10 @@ async function main() {
 
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
+      const httpApi = new HttpApi(chainConfig.httpUrl);
+
       const chainName = await pRetry(
-        () => getChainName(chainConfig.httpUrl),
+        () => httpApi.getChainName(),
         {
           randomize: true,
           forever: true,
@@ -69,6 +71,7 @@ async function main() {
           onFailedAttempt: error => logger.error(error, 'getChainName retry error:'),
         },
       );
+
       const signer = new PoolSigner(
         target.api.registry,
         chainConfig.accountSeed,
@@ -85,6 +88,7 @@ async function main() {
         logger,
         target,
         batchBytesLimit: BATCH_BYTES_LIMIT,
+        httpApi,
       };
 
       let relay;
@@ -169,7 +173,6 @@ async function main() {
           chainName,
           signer,
           chainHeadState,
-          chainConfig,
           lastProcessedBlock,
         );
       } else {
@@ -181,7 +184,6 @@ async function main() {
           chainName,
           signer,
           chainHeadState,
-          chainConfig,
           lastProcessedBlock,
         );
       }

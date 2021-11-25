@@ -5,8 +5,7 @@ import { Logger } from "pino";
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
 import ChainArchive from "./chainArchive";
-import { getBlockByNumber, getLastFinalizedBlock } from "./httpApi";
-import { AnyChainConfig } from "./config";
+import HttpApi from "./httpApi";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 
 function polkadotAppsUrl(targetChainUrl: string) {
@@ -20,6 +19,7 @@ interface RelayParams {
   logger: Logger;
   archive?: ChainArchive;
   target: Target;
+  httpApi: HttpApi;
   batchBytesLimit: number;
   batchCountLimit: number;
 }
@@ -43,6 +43,7 @@ export default class Relay {
   private readonly archive?: ChainArchive;
   private readonly polkadotAppsBaseUrl: string;
   private readonly target: Target;
+  private readonly httpApi: HttpApi;
   private readonly batchBytesLimit: number;
   private readonly batchCountLimit: number;
 
@@ -50,11 +51,11 @@ export default class Relay {
     this.logger = params.logger;
     this.archive = params.archive;
     this.target = params.target;
+    this.httpApi = params.httpApi;
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
     this.batchBytesLimit = params.batchBytesLimit;
     this.batchCountLimit = params.batchCountLimit;
   }
-
 
   private async * readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
@@ -153,7 +154,6 @@ export default class Relay {
   }
 
   private async * fetchBlocksInBatches(
-    httpUrl: string,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
   ): AsyncGenerator<[TxBlock[], number], void> {
@@ -163,7 +163,7 @@ export default class Relay {
     for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
       // TODO: Cache of mapping from block number to its hash for faster fetching
       const [blockHash, block] = await pRetry(
-        () => getBlockByNumber(httpUrl, nextBlockToProcess),
+        () => this.httpApi.getBlockByNumber(nextBlockToProcess),
         createRetryOptions(error => this.logger.debug(error, 'getBlockByNumber retry error:')),
       );
 
@@ -204,7 +204,6 @@ export default class Relay {
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,
-    chainConfig: AnyChainConfig,
     nonce: bigint,
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
@@ -212,7 +211,6 @@ export default class Relay {
     let lastTxPromise: Promise<void> | undefined;
 
     const blockBatches = this.fetchBlocksInBatches(
-      chainConfig.httpUrl,
       nextBlockToProcess,
       lastFinalizedBlockNumber,
     );
@@ -265,7 +263,6 @@ export default class Relay {
     chainName: ChainName,
     signer: SignerWithAddress,
     chainHeadState: PrimaryChainHeadState,
-    chainConfig: AnyChainConfig,
     lastProcessedBlock: number,
   ): Promise<void> {
     let nextBlockToProcess = lastProcessedBlock + 1;
@@ -276,7 +273,6 @@ export default class Relay {
         feedId,
         chainName,
         signer,
-        chainConfig,
         nonce,
         nextBlockToProcess,
         () => {
@@ -303,7 +299,6 @@ export default class Relay {
     chainName: ChainName,
     signer: SignerWithAddress,
     chainHeadState: ParachainHeadState,
-    chainConfig: AnyChainConfig,
     lastProcessedBlock: number,
   ): Promise<void> {
     let nextBlockToProcess = lastProcessedBlock + 1;
@@ -312,7 +307,7 @@ export default class Relay {
     for (; ;) {
       // TODO: This is simple, but not very efficient
       const lastFinalizedBlockNumber = await pRetry(
-        () => getLastFinalizedBlock(chainConfig.httpUrl),
+        () => this.httpApi.getLastFinalizedBlock(),
         createRetryOptions(error => this.logger.error(error, 'getLastFinalizedBlock retry error:')),
       );
 
@@ -320,7 +315,6 @@ export default class Relay {
         feedId,
         chainName,
         signer,
-        chainConfig,
         nonce,
         nextBlockToProcess,
         () => {
