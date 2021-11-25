@@ -8,7 +8,8 @@ import Target from "./target";
 import logger from "./logger";
 import { getChainName } from './httpApi';
 import { PoolSigner } from "./poolSigner";
-import { relayFromDownloadedArchive, relayFromParachainHeadState, relayFromPrimaryChainHeadState } from "./relay";
+import Relay from "./relay";
+import ChainArchive from "./chainArchive";
 import { ChainId, ParaHeadAndId } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from "./utils";
@@ -80,17 +81,25 @@ async function main() {
       // We know that block number will not exceed 53-bit size integer
       let lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
 
+      const relayParams = {
+        logger,
+        target,
+        batchBytesLimit: BATCH_BYTES_LIMIT,
+      };
+
+      let relay;
+
+      // Relay accepts different parameters depending on the current mode: process blocks from archive or over the network
       if (chainConfig.downloadedArchivePath) {
+        const archive = new ChainArchive({ path: chainConfig.downloadedArchivePath, logger });
+        relay = new Relay({ ...relayParams, archive, batchCountLimit: ARCHIVE_BATCH_COUNT_LIMIT });
+
         try {
-          lastProcessedBlock = await relayFromDownloadedArchive(
+          lastProcessedBlock = await relay.fromDownloadedArchive(
             feedId,
             chainName,
-            chainConfig.downloadedArchivePath,
-            target,
             lastProcessedBlock,
             signer,
-            BATCH_BYTES_LIMIT,
-            ARCHIVE_BATCH_COUNT_LIMIT,
           );
         } catch (e) {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);
@@ -101,6 +110,8 @@ async function main() {
           // We know that block number will not exceed 53-bit size integer
           lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
         }
+      } else {
+        relay = new Relay({ ...relayParams, batchCountLimit: RPC_BATCH_COUNT_LIMIT });
       }
 
       if ('wsUrl' in chainConfig) {
@@ -153,31 +164,25 @@ async function main() {
           }
         });
 
-        await relayFromPrimaryChainHeadState(
+        await relay.fromPrimaryChainHeadState(
           feedId,
           chainName,
-          target,
           signer,
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
-          BATCH_BYTES_LIMIT,
-          RPC_BATCH_COUNT_LIMIT,
         );
       } else {
         const chainHeadState = new ParachainHeadState();
         chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
 
-        await relayFromParachainHeadState(
+        await relay.fromParachainHeadState(
           feedId,
           chainName,
-          target,
           signer,
           chainHeadState,
           chainConfig,
           lastProcessedBlock,
-          BATCH_BYTES_LIMIT,
-          RPC_BATCH_COUNT_LIMIT,
         );
       }
     });
