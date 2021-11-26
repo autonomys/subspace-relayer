@@ -3,43 +3,38 @@ import * as tap from 'tap';
 import { TxBlock } from '../../types';
 import { setup } from './common';
 
-tap.test('Relay module - fetchBlocksInBatches method', async (t) => {
+tap.test('Relay module - readBlocksInBatches method', async (t) => {
   const {
+    relayWithDefaultParams,
+    initialLastProcessedBlock,
+    chainArchiveMock,
     Relay,
     defaultRelayParams,
-    finalizedBlockNumber,
-    relayWithDefaultParams,
+    batchCountLimit,
   } = await setup();
 
-  const nextBlockToProcess = 0;
-  const lastFinalizedBlockNumber = () => finalizedBlockNumber;
-
-  tap.test('should yield block number next to the block number of the block in the batch', async (t) => {
-    const batchesGenerator = relayWithDefaultParams['fetchBlocksInBatches'](
-      nextBlockToProcess,
-      lastFinalizedBlockNumber,
-    );
+  tap.test('should yield last block number equal to the block number of the last block in the batch', async (t) => {
+    const batchesGenerator = relayWithDefaultParams['readBlocksInBatches'](initialLastProcessedBlock, chainArchiveMock);
 
     {
       const first = await batchesGenerator.next();
       t.notOk(first.done);
-      const [blocks, nextBlockNumber] = (first.value as [TxBlock[], number]);
+      const [blocks, number] = (first.value as [TxBlock[], number]);
       // total number of blocks is 3, batch count limit is 2 - we expect 2 blocks
       t.equal(blocks.length, 2);
-      // TODO: clarify why is not 2
-      t.equal(nextBlockNumber, 1);
+      t.equal(number, 2);
     }
 
     {
       const second = await batchesGenerator.next();
       t.notOk(second.done);
-      const [blocks, nextBlockNumber] = (second.value as [TxBlock[], number]);
+      const [blocks, number] = (second.value as [TxBlock[], number]);
       // 1 out of 3 blocks left
       t.equal(blocks.length, 1);
-      t.equal(nextBlockNumber, 3);
+      t.equal(number, 3);
     }
 
-    // no more blocks to fetch
+    // no more blocks in chainArchive
     const third = await batchesGenerator.next();
     t.ok(third.done);
     t.notOk(third.value);
@@ -53,12 +48,10 @@ tap.test('Relay module - fetchBlocksInBatches method', async (t) => {
       const relay = new Relay({
         ...defaultRelayParams,
         batchBytesLimit,
+        batchCountLimit,
       });
 
-      const batchesGenerator = relay['fetchBlocksInBatches'](
-        nextBlockToProcess,
-        lastFinalizedBlockNumber,
-      );
+      const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock, chainArchiveMock);
 
       // only one block can fit
       for await (const [blocks] of batchesGenerator) {
@@ -68,15 +61,14 @@ tap.test('Relay module - fetchBlocksInBatches method', async (t) => {
 
     {
       const batchBytesLimit = 400;
+
       const relay = new Relay({
         ...defaultRelayParams,
         batchBytesLimit,
+        batchCountLimit,
       });
 
-      const batchesGenerator = relay['fetchBlocksInBatches'](
-        nextBlockToProcess,
-        lastFinalizedBlockNumber,
-      );
+      const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock, chainArchiveMock);
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);
@@ -91,8 +83,6 @@ tap.test('Relay module - fetchBlocksInBatches method', async (t) => {
       t.equal(secondBatch.length, 1);
     }
   });
-
-  tap.test('should retry if get block over HTTP API fails');
 
   t.end();
 })
