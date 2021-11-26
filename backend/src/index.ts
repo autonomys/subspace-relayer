@@ -87,8 +87,8 @@ async function main() {
       const relayParams = {
         logger,
         target,
-        batchBytesLimit: BATCH_BYTES_LIMIT,
         httpApi,
+        batchBytesLimit: BATCH_BYTES_LIMIT,
       };
 
       let relay;
@@ -96,7 +96,7 @@ async function main() {
       // Relay accepts different parameters depending on the current mode: process blocks from archive or over the network
       if (chainConfig.downloadedArchivePath) {
         const archive = new ChainArchive({ path: chainConfig.downloadedArchivePath, logger });
-        relay = new Relay({ ...relayParams, archive, batchCountLimit: ARCHIVE_BATCH_COUNT_LIMIT });
+        relay = new Relay({ ...relayParams, batchCountLimit: ARCHIVE_BATCH_COUNT_LIMIT });
 
         try {
           lastProcessedBlock = await relay.fromDownloadedArchive(
@@ -104,6 +104,7 @@ async function main() {
             chainName,
             lastProcessedBlock,
             signer,
+            archive,
           );
         } catch (e) {
           logger.error(`Batch transaction for feedId ${feedId} failed: ${e}`);

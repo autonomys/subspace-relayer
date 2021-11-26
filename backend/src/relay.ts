@@ -17,7 +17,6 @@ function polkadotAppsUrl(targetChainUrl: string) {
 
 interface RelayParams {
   logger: Logger;
-  archive?: ChainArchive;
   target: Target;
   httpApi: HttpApi;
   batchBytesLimit: number;
@@ -40,7 +39,6 @@ const createRetryOptions = (onFailedAttempt: ((error: FailedAttemptError) => voi
 
 export default class Relay {
   private readonly logger: Logger;
-  private readonly archive?: ChainArchive;
   private readonly polkadotAppsBaseUrl: string;
   private readonly target: Target;
   private readonly httpApi: HttpApi;
@@ -49,7 +47,6 @@ export default class Relay {
 
   public constructor(params: RelayParams) {
     this.logger = params.logger;
-    this.archive = params.archive;
     this.target = params.target;
     this.httpApi = params.httpApi;
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
@@ -57,14 +54,12 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  private async * readBlocksInBatches(lastProcessedBlock: number): AsyncGenerator<[TxBlock[], number], void> {
+  private async * readBlocksInBatches(lastProcessedBlock: number, archive: ChainArchive): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
 
-    // at this stage we can be sure archive is not undefined
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    for await (const blockData of this.archive!.getBlocks(lastProcessedBlock)) {
+    for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
       const block = blockData.block;
       const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
       const extraBytes = block.byteLength + metadata.byteLength;
@@ -98,16 +93,13 @@ export default class Relay {
     chainName: ChainName,
     lastProcessedBlock: number,
     signer: SignerWithAddress,
+    archive: ChainArchive,
   ): Promise<number> {
-    if (!this.archive) {
-      throw new Error('Cannot read block from archive: archive is not provided');
-    }
-
     let lastBlockProcessingReportAt = Date.now();
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
     let lastTxPromise: Promise<void> | undefined;
 
-    const blockBatches = this.readBlocksInBatches(lastProcessedBlock);
+    const blockBatches = this.readBlocksInBatches(lastProcessedBlock, archive);
 
     for await (const [blocksToArchive, lastBlockNumber] of blockBatches) {
       if (lastTxPromise) {

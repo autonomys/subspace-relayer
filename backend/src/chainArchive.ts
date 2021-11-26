@@ -28,9 +28,7 @@ class ChainArchive {
   private readonly logger: Logger;
 
   public constructor({ path, logger }: ChainArchiveConstructorParams) {
-    this.db = levelup(rocksdb(`${path}/db`), {
-      readOnly: true,
-    });
+    this.db = levelup(rocksdb(`${path}/db`, { readOnly: true }));
     this.logger = logger;
   }
 
@@ -46,6 +44,8 @@ class ChainArchive {
 
   public async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
     try {
+      await this.db.open({ readOnly: true });
+
       this.logger.info('Start processing blocks from archive');
 
       const lastFromDb = await this.getLastBlockNumberFromDb();
@@ -65,7 +65,7 @@ class ChainArchive {
         nextBlockToProcess++;
       }
     } finally {
-      this.db.close();
+      await this.db.close();
     }
   }
 }
