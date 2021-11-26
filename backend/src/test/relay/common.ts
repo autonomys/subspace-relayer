@@ -59,8 +59,6 @@ export const setup = async () => {
     signer,
     finalizedBlockNumber,
     initialLastProcessedBlock,
-    loggerMock,
-    targetChainUrl,
     defaultRelayParams,
     batchCountLimit,
     chainArchiveMock
