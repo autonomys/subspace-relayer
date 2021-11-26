@@ -9,6 +9,7 @@ const rocksdb = require("rocksdb");
 import pRetry from "p-retry";
 
 import HttpApi from '../httpApi';
+import { blockNumberToBuffer } from '../utils';
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
@@ -25,10 +26,6 @@ process
     console.log('Got SIGTERM, will stop as soon as possible');
     shouldStop = true;
   });
-
-function blockNumberToBuffer(blockNumber: number): Buffer {
-  return Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, db: any): Promise<void> {

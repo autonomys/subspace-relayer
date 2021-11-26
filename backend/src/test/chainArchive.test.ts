@@ -1,21 +1,55 @@
 import * as tap from 'tap';
+// TODO: Types do not seem to match the code, hence usage of it like this
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const levelup = require("levelup");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const rocksdb = require("rocksdb");
+import * as fsp from 'fs/promises';
 
 import ChainArchive, { ArchivedBlock } from "../chainArchive";
 import loggerMock from '../mocks/logger';
+import * as signedBlockMock from '../mocks/signedBlock.json';
+import { blockToBinary, blockNumberToBuffer } from '../utils';
 
-// TODO: update tests in the next PR
-tap.skip('ChainArchive module', (t) => {
-  const chainArchive = new ChainArchive({ logger: loggerMock, path: 'path/to/db' });
+const populateDb = async (path: string) => {
+  await fsp.mkdir(path);
+  const db = levelup(rocksdb(`${path}/db`));
+  await db.put(blockNumberToBuffer(1), blockToBinary(signedBlockMock));
+  await db.put(blockNumberToBuffer(2), blockToBinary(signedBlockMock));
+  await db.put(blockNumberToBuffer(3), blockToBinary(signedBlockMock));
+  await db.put('last-downloaded-block', blockNumberToBuffer(3));
+  await db.close();
+}
 
+const tearDown = async (path: string) => {
+  const db = levelup(rocksdb(`${path}/db`));
+  await db.open();
+  await db.clear();
+  await db.close();
+  await fsp.rm(path, { recursive: true });
+}
+
+tap.test('ChainArchive module', (t) => {
   tap.test('getBlocks method should return AsyncGenerator with ArchivedBlocks', async (t) => {
+    const path = 'testDb1';
+
+    await populateDb(path);
+
+    const chainArchive = new ChainArchive({ logger: loggerMock, path });
+
     for await (const blockData of chainArchive.getBlocks(0)) {
       t.type(blockData, ArchivedBlock);
     }
 
-    t.end();
+    await tearDown(path);
   })
 
   tap.test('getBlocks should maintain block numbers sequence', async (t) => {
+    const path = 'testDb2';
+
+    await populateDb(path);
+
+    const chainArchive = new ChainArchive({ logger: loggerMock, path });
     const blockGenerator = chainArchive.getBlocks(0);
 
     const firstBlock = await blockGenerator.next();
@@ -34,7 +68,7 @@ tap.skip('ChainArchive module', (t) => {
     t.ok(fourthBlock.done);
     t.notOk(fourthBlock.value);
 
-    t.end();
+    await tearDown(path);
   })
 
   t.end();
