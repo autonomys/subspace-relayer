@@ -1,22 +1,23 @@
 import { HexString } from "@polkadot/util/types";
 
 import { ChainName } from "../types";
+import HttpApiDefault from '../httpApi';
+import { blockToBinary } from '../utils';
+import * as signedBlockMock from '../mocks/signedBlock.json';
 
-export class HttpApi {
-  private readonly finalizedBlock: number = 0;
-  private readonly blocks: Buffer[];
+const blocks = [
+  blockToBinary(signedBlockMock),
+  blockToBinary(signedBlockMock),
+  blockToBinary(signedBlockMock),
+]
 
-  public constructor({ blocks, finalizedBlock }: { blocks: Buffer[], finalizedBlock: number }) {
-    this.finalizedBlock = finalizedBlock;
-    this.blocks = blocks;
-  }
-
+export class HttpApi extends HttpApiDefault {
   getLastFinalizedBlock(): Promise<number> {
-    return Promise.resolve(this.finalizedBlock);
+    return Promise.resolve(2);
   }
 
-  getBlockByNumber(_url: string, blockNumber: number): Promise<[HexString, Buffer]> {
-    return Promise.resolve(['0xcf5fa8ef2fe76c0d6288535231d21989829933b986d32a3ba452173c5a2074f1', this.blocks[blockNumber]]);
+  getBlockByNumber(blockNumber: number): Promise<[HexString, Buffer]> {
+    return Promise.resolve(['0xcf5fa8ef2fe76c0d6288535231d21989829933b986d32a3ba452173c5a2074f1', blocks[blockNumber]]);
   }
 
   getChainName(): Promise<ChainName> {
