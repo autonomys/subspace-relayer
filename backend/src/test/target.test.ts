@@ -6,6 +6,8 @@ import Target from "../target";
 import logger from '../mocks/logger';
 import { createMockPutWithResult } from '../mocks/api';
 import { ChainName, SignerWithAddress } from '../types';
+import * as signedBlockMock from '../mocks/signedBlock.json';
+import { blockToBinary } from '../utils';
 
 tap.test('Target module', (t) => {
   const targetChainUrl = 'random url';
@@ -14,8 +16,11 @@ tap.test('Target module', (t) => {
   const chainName = 'random chain' as ChainName;
   const signer = { address: 'random signer address' } as SignerWithAddress;
   const txBlock = {
-    block: Buffer.from([]),
-    metadata: Buffer.from([]),
+    block: blockToBinary(signedBlockMock),
+    metadata: Buffer.from(JSON.stringify({
+      hash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      number: 0,
+    }), 'utf-8'),
   }
   const nonce = BigInt(0);
   const txBatch = [txBlock, txBlock];
