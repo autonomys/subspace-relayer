@@ -1,17 +1,18 @@
-import { ArchivedBlock } from '../chainArchive';
+import ChainArchive, { ArchivedBlock } from '../chainArchive';
+
 import * as signedBlockMock from '../mocks/signedBlock.json';
 import { blockToBinary } from '../utils';
 
-const blocks = [
+export const blocksMock = [
   blockToBinary(signedBlockMock),
   blockToBinary(signedBlockMock),
   blockToBinary(signedBlockMock),
 ]
 
-export class ChainArchiveMock {
+class ChainArchiveMock {
   public async *getBlocks(_lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
-    for (let index = 0; index < blocks.length; index++) {
-      const blockBuffer = blocks[index];
+    for (let index = 0; index < blocksMock.length; index++) {
+      const blockBuffer = blocksMock[index];
 
       yield new ArchivedBlock(blockBuffer, {
         number: index + 1,
@@ -20,3 +21,5 @@ export class ChainArchiveMock {
     }
   }
 }
+
+export const chainArchiveMock = new ChainArchiveMock() as unknown as ChainArchive;

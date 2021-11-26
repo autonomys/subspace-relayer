@@ -5,12 +5,10 @@ import { cryptoWaitReady } from "@polkadot/util-crypto";
 import loggerMock from '../../mocks/logger';
 import { HttpApi } from '../../mocks/httpApi';
 import { createMockPutWithResult } from '../../mocks/api';
-import { ChainArchiveMock } from '../../mocks/chainArchive';
 import Relay from "../../relay";
 import Target from "../../target";
 import { ChainName } from '../../types';
 import { PoolSigner } from "../../poolSigner";
-import ChainArchive from '../../chainArchive';
 
 const initialLastProcessedBlock = 0;
 const batchBytesLimit = 3_500_000;
@@ -38,7 +36,6 @@ const defaultRelayParams = {
 const relayWithDefaultParams = new Relay(defaultRelayParams);
 const feedId = registry.createType('u64', 10);
 const chainName = 'Cool chain' as ChainName;
-const chainArchiveMock = new ChainArchiveMock() as unknown as ChainArchive;
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const setup = async () => {
@@ -59,8 +56,9 @@ export const setup = async () => {
     signer,
     finalizedBlockNumber,
     initialLastProcessedBlock,
+    loggerMock,
+    targetChainUrl,
     defaultRelayParams,
     batchCountLimit,
-    chainArchiveMock
   };
 }

@@ -2,12 +2,12 @@ import * as tap from 'tap';
 
 import { TxBlock } from '../../types';
 import { setup } from './common';
+import { chainArchiveMock } from '../../mocks/chainArchive';
 
 tap.test('Relay module - readBlocksInBatches method', async (t) => {
   const {
     relayWithDefaultParams,
     initialLastProcessedBlock,
-    chainArchiveMock,
     Relay,
     defaultRelayParams,
     batchCountLimit,
