@@ -8,7 +8,7 @@ const levelup = require("levelup");
 const rocksdb = require("rocksdb");
 import pRetry from "p-retry";
 
-import { getLastFinalizedBlock, getBlockByNumber } from '../httpApi';
+import HttpApi from '../httpApi';
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
@@ -32,8 +32,10 @@ function blockNumberToBuffer(blockNumber: number): Buffer {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, db: any): Promise<void> {
+  const httpApi = new HttpApi(sourceChainRpc);
+
   const [blockHash, blockBytes] = await pRetry(
-    () => getBlockByNumber(sourceChainRpc, blockNumber),
+    () => httpApi.getBlockByNumber(blockNumber),
   );
 
   const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
@@ -67,7 +69,9 @@ async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, d
 
   console.log("Retrieving last finalized block...");
 
-  const lastFinalizedBlockNumber = await getLastFinalizedBlock(sourceChainRpc);
+  const httpApi = new HttpApi(sourceChainRpc);
+
+  const lastFinalizedBlockNumber = await httpApi.getLastFinalizedBlock();
 
   console.info(`Last finalized block is ${lastFinalizedBlockNumber}`);
 

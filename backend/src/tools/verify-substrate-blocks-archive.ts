@@ -1,9 +1,4 @@
 // Small utility that verifies an archive of blocks of Substrate-based chain
-// TODO: Types do not seem to match the code, hence usage of it like this
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const levelup = require("levelup");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const rocksdb = require("rocksdb");
 
 import ChainArchive from "../chainArchive";
 import logger from "../logger";
@@ -16,10 +11,9 @@ if (!pathToArchive) {
 }
 
 (async () => {
-  const db = levelup(rocksdb(`${pathToArchive}/db`), { readOnly: true });
   const archive = new ChainArchive({
     logger,
-    db,
+    path: pathToArchive,
   });
 
   let lastBlock = -1;

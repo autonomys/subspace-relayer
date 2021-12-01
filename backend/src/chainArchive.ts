@@ -1,12 +1,15 @@
 import { Logger } from "pino";
 import { HexString } from "@polkadot/util/types";
+// TODO: Types do not seem to match the code, hence usage of it like this
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const levelup = require("levelup");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const rocksdb = require("rocksdb");
 
 import { BlockMetadata } from "./types";
 
 interface ChainArchiveConstructorParams {
-  // There are no TS types for `db` :(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any;
+  path: string;
   logger: Logger;
 }
 
@@ -21,11 +24,12 @@ export class ArchivedBlock {
 class ChainArchive {
   // There are no TS types for `db` :(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly db: any;
+  private db: any;
   private readonly logger: Logger;
+  private readonly path: string;
 
-  public constructor({ db, logger }: ChainArchiveConstructorParams) {
-    this.db = db;
+  public constructor({ path, logger }: ChainArchiveConstructorParams) {
+    this.path = path;
     this.logger = logger;
   }
 
@@ -40,23 +44,29 @@ class ChainArchive {
   }
 
   public async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
-    this.logger.info('Start processing blocks from archive');
+    try {
+      this.db = levelup(rocksdb(`${this.path}/db`), { readOnly: true });
 
-    const lastFromDb = await this.getLastBlockNumberFromDb();
-    let nextBlockToProcess = lastProcessedBlock + 1;
+      this.logger.info('Start processing blocks from archive');
 
-    while (nextBlockToProcess <= lastFromDb) {
-      const blockData = await this.getBlockByNumber(nextBlockToProcess);
-      const blockHashLength = blockData[0];
-      const hash: HexString = `0x${blockData.slice(1, blockHashLength + 1).toString('hex')}`;
-      const blockBytes = blockData.slice(blockHashLength + 1);
+      const lastFromDb = await this.getLastBlockNumberFromDb();
+      let nextBlockToProcess = lastProcessedBlock + 1;
 
-      yield new ArchivedBlock(blockBytes, {
-        number: nextBlockToProcess,
-        hash,
-      });
+      while (nextBlockToProcess <= lastFromDb) {
+        const blockData = await this.getBlockByNumber(nextBlockToProcess);
+        const blockHashLength = blockData[0];
+        const hash: HexString = `0x${blockData.slice(1, blockHashLength + 1).toString('hex')}`;
+        const blockBytes = blockData.slice(blockHashLength + 1);
 
-      nextBlockToProcess++;
+        yield new ArchivedBlock(blockBytes, {
+          number: nextBlockToProcess,
+          hash,
+        });
+
+        nextBlockToProcess++;
+      }
+    } finally {
+      await this.db.close();
     }
   }
 }
