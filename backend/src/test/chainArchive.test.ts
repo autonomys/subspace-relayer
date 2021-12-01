@@ -72,4 +72,5 @@ tap.test('ChainArchive module', (t) => {
   })
 
   t.end();
-})
+});
+

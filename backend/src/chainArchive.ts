@@ -24,11 +24,12 @@ export class ArchivedBlock {
 class ChainArchive {
   // There are no TS types for `db` :(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly db: any;
+  private db: any;
   private readonly logger: Logger;
+  private readonly path: string;
 
   public constructor({ path, logger }: ChainArchiveConstructorParams) {
-    this.db = levelup(rocksdb(`${path}/db`, { readOnly: true }));
+    this.path = path;
     this.logger = logger;
   }
 
@@ -44,7 +45,7 @@ class ChainArchive {
 
   public async *getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
     try {
-      await this.db.open({ readOnly: true });
+      this.db = levelup(rocksdb(`${this.path}/db`), { readOnly: true });
 
       this.logger.info('Start processing blocks from archive');
 
