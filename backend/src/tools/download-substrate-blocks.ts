@@ -7,7 +7,7 @@ const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
 
-import { blockToBinary, createApi } from '../utils';
+import { blockToBinary, createApi, blockNumberToBuffer } from '../utils';
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
@@ -25,10 +25,6 @@ process
     shouldStop = true;
   });
 
-function blockNumberToBuffer(blockNumber: number): Buffer {
-  return Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, db: any): Promise<void> {
   const api = await createApi(sourceChainRpc);
@@ -38,6 +34,7 @@ async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, d
 
   const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
   const blockHashAsBuffer = Buffer.from(blockHash.slice(2), 'hex');
+
   await db.put(
     blockNumberAsBuffer,
     Buffer.concat([

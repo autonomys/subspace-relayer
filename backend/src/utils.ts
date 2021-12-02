@@ -85,3 +85,7 @@ export function createApi(url: string): Promise<ApiPromise> {
         provider,
     });
 }
+
+export function blockNumberToBuffer(blockNumber: number): Buffer {
+    return Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
+}

@@ -5,9 +5,9 @@ import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
-import ChainArchive from "./chainArchive";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { blockToBinary } from './utils';
+import { IChainArchive } from './chainArchive';
 
 function polkadotAppsUrl(targetChainUrl: string) {
   const url = new URL('https://polkadot.js.org/apps/');
@@ -55,7 +55,7 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  private async * readBlocksInBatches(lastProcessedBlock: number, archive: ChainArchive): AsyncGenerator<[TxBlock[], number], void> {
+  private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
@@ -94,7 +94,7 @@ export default class Relay {
     chainName: ChainName,
     lastProcessedBlock: number,
     signer: SignerWithAddress,
-    archive: ChainArchive,
+    archive: IChainArchive,
   ): Promise<number> {
     let lastBlockProcessingReportAt = Date.now();
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
