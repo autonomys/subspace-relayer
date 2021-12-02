@@ -6,9 +6,8 @@
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import pRetry from "p-retry";
 
-import HttpApi from '../httpApi';
+import { blockToBinary, createApi } from '../utils';
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
@@ -32,11 +31,10 @@ function blockNumberToBuffer(blockNumber: number): Buffer {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, db: any): Promise<void> {
-  const httpApi = new HttpApi(sourceChainRpc);
+  const api = await createApi(sourceChainRpc);
 
-  const [blockHash, blockBytes] = await pRetry(
-    () => httpApi.getBlockByNumber(blockNumber),
-  );
+  const blockHash = (await api.rpc.chain.getBlockHash(blockNumber)).toString();
+  const blockBytes = blockToBinary(await api.rpc.chain.getBlock.raw(blockHash));
 
   const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
   const blockHashAsBuffer = Buffer.from(blockHash.slice(2), 'hex');
@@ -56,8 +54,8 @@ async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, d
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
-  if (!(sourceChainRpc && sourceChainRpc.startsWith('http'))) {
-    console.error("SOURCE_CHAIN_RPC environment variable must be set with HTTP RPC URL");
+  if (!(sourceChainRpc && sourceChainRpc.startsWith('ws'))) {
+    console.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
     process.exit(1);
   }
 
@@ -69,9 +67,10 @@ async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, d
 
   console.log("Retrieving last finalized block...");
 
-  const httpApi = new HttpApi(sourceChainRpc);
+  const api = await createApi(sourceChainRpc);
 
-  const lastFinalizedBlockNumber = await httpApi.getLastFinalizedBlock();
+  const lastFinalizedHash = await api.rpc.chain.getFinalizedHead();
+  const lastFinalizedBlockNumber = (await api.rpc.chain.getHeader(lastFinalizedHash)).number.toNumber();
 
   console.info(`Last finalized block is ${lastFinalizedBlockNumber}`);
 

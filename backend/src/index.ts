@@ -1,5 +1,4 @@
 import * as dotenv from "dotenv";
-import { ApiPromise, WsProvider } from "@polkadot/api";
 import { U64 } from "@polkadot/types";
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
@@ -10,7 +9,7 @@ import Relay from "./relay";
 import ChainArchive from "./chainArchive";
 import { ChainId, ParaHeadAndId, ChainName } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from "./utils";
+import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, createApi } from "./utils";
 
 dotenv.config();
 
@@ -37,13 +36,6 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 }
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
-
-function createApi(url: string): Promise<ApiPromise> {
-  const provider = new WsProvider(url);
-  return ApiPromise.create({
-    provider,
-  });
-}
 
 async function main() {
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();

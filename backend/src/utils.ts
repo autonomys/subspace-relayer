@@ -1,6 +1,7 @@
 import { compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { PolkadotPrimitivesV1CandidateReceipt } from "@polkadot/types/lookup";
+import { ApiPromise, WsProvider } from "@polkadot/api";
 
 import { ParaHeadAndId, SignedBlockJsonRpc, ChainId } from "./types";
 
@@ -76,4 +77,11 @@ export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlo
         typeof object.block.header.extrinsicsRoot === 'string' &&
         typeof object.block.header.parentHash === 'string'
     );
+}
+
+export function createApi(url: string): Promise<ApiPromise> {
+    const provider = new WsProvider(url);
+    return ApiPromise.create({
+        provider,
+    });
 }
