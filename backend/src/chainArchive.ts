@@ -8,7 +8,7 @@ const rocksdb = require("rocksdb");
 
 import { BlockMetadata } from "./types";
 
-interface ChainArchiveConstructorParams {
+export interface ChainArchiveConstructorParams {
   path: string;
   logger: Logger;
 }
@@ -21,7 +21,11 @@ export class ArchivedBlock {
   }
 }
 
-class ChainArchive {
+export interface IChainArchive {
+  getBlocks(lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void>
+}
+
+class ChainArchive implements IChainArchive {
   // There are no TS types for `db` :(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private db: any;

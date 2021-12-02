@@ -19,7 +19,7 @@ tap.test('Relay module - fromDownloadedArchive method', async (t) => {
   } = await setup();
 
   tap.test('should process blocks from archive and return last block number', async (t) => {
-    const chainArchiveMock = new ChainArchiveMock({ path: 'random path', logger: loggerMock });
+    const chainArchiveMock = new ChainArchiveMock();
     const lastProcessedBlock = await relayWithDefaultParams.fromDownloadedArchive(
       feedId,
       chainName,
@@ -32,7 +32,7 @@ tap.test('Relay module - fromDownloadedArchive method', async (t) => {
   });
 
   tap.test('should reject if API fails to get nonce', async (t) => {
-    const chainArchiveMock = new ChainArchiveMock({ path: 'random path', logger: loggerMock });
+    const chainArchiveMock = new ChainArchiveMock();
     const error = new Error('Failed to get nonce');
     const api = {
       rpc: {

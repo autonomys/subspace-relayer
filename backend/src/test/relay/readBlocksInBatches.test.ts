@@ -11,11 +11,10 @@ tap.test('Relay module - readBlocksInBatches method', async (t) => {
     Relay,
     defaultRelayParams,
     batchCountLimit,
-    loggerMock,
   } = await setup();
 
   tap.test('should yield last block number equal to the block number of the last block in the batch', async (t) => {
-    const chainArchiveMock = new ChainArchiveMock({ path: 'random path', logger: loggerMock });
+    const chainArchiveMock = new ChainArchiveMock();
     const batchesGenerator = relayWithDefaultParams['readBlocksInBatches'](initialLastProcessedBlock, chainArchiveMock);
 
     {
@@ -53,7 +52,7 @@ tap.test('Relay module - readBlocksInBatches method', async (t) => {
         batchCountLimit,
       });
 
-      const chainArchiveMock = new ChainArchiveMock({ path: 'random path', logger: loggerMock });
+      const chainArchiveMock = new ChainArchiveMock();
       const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock, chainArchiveMock);
 
       // only one block can fit
@@ -71,7 +70,7 @@ tap.test('Relay module - readBlocksInBatches method', async (t) => {
         batchCountLimit,
       });
 
-      const chainArchiveMock = new ChainArchiveMock({ path: 'random path', logger: loggerMock });
+      const chainArchiveMock = new ChainArchiveMock();
       const batchesGenerator = relay['readBlocksInBatches'](initialLastProcessedBlock, chainArchiveMock);
 
       const first = await batchesGenerator.next();

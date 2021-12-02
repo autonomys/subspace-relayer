@@ -1,9 +1,6 @@
-// import { Logger } from "pino";
-
-import ChainArchive, { ArchivedBlock } from '../chainArchive';
+import { IChainArchive, ArchivedBlock } from '../chainArchive';
 import * as signedBlockMock from '../mocks/signedBlock.json';
 import { blockToBinary } from '../utils';
-// import loggerMock from './logger';
 
 export const blocksMock = [
   blockToBinary(signedBlockMock),
@@ -11,7 +8,8 @@ export const blocksMock = [
   blockToBinary(signedBlockMock),
 ]
 
-class ChainArchiveMock extends ChainArchive {
+class ChainArchiveMock implements IChainArchive {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async *getBlocks(_lastProcessedBlock: number): AsyncGenerator<ArchivedBlock, void> {
     for (let index = 0; index < blocksMock.length; index++) {
       const blockBuffer = blocksMock[index];
