@@ -1,18 +1,15 @@
 import * as dotenv from "dotenv";
-import { ApiPromise, WsProvider } from "@polkadot/api";
 import { U64 } from "@polkadot/types";
-import pRetry from "p-retry";
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
 import logger from "./logger";
-import HttpApi from './httpApi';
 import { PoolSigner } from "./poolSigner";
 import Relay from "./relay";
 import ChainArchive from "./chainArchive";
-import { ChainId, ParaHeadAndId } from "./types";
+import { ChainId, ParaHeadAndId, ChainName } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { getParaHeadAndIdFromEvent, isIncludedParablockRecord } from "./utils";
+import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, createApi } from "./utils";
 
 dotenv.config();
 
@@ -40,19 +37,12 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
-function createApi(url: string): Promise<ApiPromise> {
-  const provider = new WsProvider(url);
-  return ApiPromise.create({
-    provider,
-  });
-}
-
 async function main() {
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
-      const httpApi = new HttpApi(chainConfig.httpUrl);
       const targetApi = await createApi(config.targetChainUrl);
+      const sourceApi = await createApi(chainConfig.wsUrl);
 
       const target = new Target({
         api: targetApi,
@@ -60,16 +50,7 @@ async function main() {
         targetChainUrl: config.targetChainUrl,
       });
 
-      const chainName = await pRetry(
-        () => httpApi.getChainName(),
-        {
-          randomize: true,
-          forever: true,
-          minTimeout: 1000,
-          maxTimeout: 60 * 60 * 1000,
-          onFailedAttempt: error => logger.error(error, 'getChainName retry error:'),
-        },
-      );
+      const chainName = (await sourceApi.rpc.system.chain()).toHuman() as ChainName;
 
       const signer = new PoolSigner(
         target.api.registry,
@@ -86,7 +67,7 @@ async function main() {
       const relayParams = {
         logger,
         target,
-        httpApi,
+        sourceApi,
         batchBytesLimit: BATCH_BYTES_LIMIT,
       };
 
@@ -118,11 +99,21 @@ async function main() {
         relay = new Relay({ ...relayParams, batchCountLimit: RPC_BATCH_COUNT_LIMIT });
       }
 
-      if ('wsUrl' in chainConfig) {
+      if ('paraId' in chainConfig) {
+        const chainHeadState = new ParachainHeadState();
+        chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
+
+        await relay.fromParachainHeadState(
+          feedId,
+          chainName,
+          signer,
+          chainHeadState,
+          lastProcessedBlock,
+        );
+      } else {
         const chainHeadState = new PrimaryChainHeadState(0);
         chainHeadStateMap.set(PRIMARY_CHAIN_ID, chainHeadState);
 
-        const sourceApi = await createApi(chainConfig.wsUrl);
         await sourceApi.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
           try {
             // TODO: Cache this, will be useful for relaying to not download twice
@@ -169,17 +160,6 @@ async function main() {
         });
 
         await relay.fromPrimaryChainHeadState(
-          feedId,
-          chainName,
-          signer,
-          chainHeadState,
-          lastProcessedBlock,
-        );
-      } else {
-        const chainHeadState = new ParachainHeadState();
-        chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
-
-        await relay.fromParachainHeadState(
           feedId,
           chainName,
           signer,

@@ -1,12 +1,13 @@
 import { U64 } from "@polkadot/types";
 import pRetry, { FailedAttemptError } from "p-retry";
 import { Logger } from "pino";
+import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
-import { IChainArchive } from "./chainArchive";
-import HttpApi from "./httpApi";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
+import { blockToBinary } from './utils';
+import { IChainArchive } from './chainArchive';
 
 function polkadotAppsUrl(targetChainUrl: string) {
   const url = new URL('https://polkadot.js.org/apps/');
@@ -18,7 +19,7 @@ function polkadotAppsUrl(targetChainUrl: string) {
 interface RelayParams {
   logger: Logger;
   target: Target;
-  httpApi: HttpApi;
+  sourceApi: ApiPromise;
   batchBytesLimit: number;
   batchCountLimit: number;
 }
@@ -41,14 +42,14 @@ export default class Relay {
   private readonly logger: Logger;
   private readonly polkadotAppsBaseUrl: string;
   private readonly target: Target;
-  private readonly httpApi: HttpApi;
+  private readonly sourceApi: ApiPromise;
   private readonly batchBytesLimit: number;
   private readonly batchCountLimit: number;
 
   public constructor(params: RelayParams) {
     this.logger = params.logger;
     this.target = params.target;
-    this.httpApi = params.httpApi;
+    this.sourceApi = params.sourceApi;
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
     this.batchBytesLimit = params.batchBytesLimit;
     this.batchCountLimit = params.batchCountLimit;
@@ -154,10 +155,8 @@ export default class Relay {
 
     for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
       // TODO: Cache of mapping from block number to its hash for faster fetching
-      const [blockHash, block] = await pRetry(
-        () => this.httpApi.getBlockByNumber(nextBlockToProcess),
-        createRetryOptions(error => this.logger.debug(error, 'getBlockByNumber retry error:')),
-      );
+      const blockHash = await this.sourceApi.rpc.chain.getBlockHash(nextBlockToProcess);
+      const block = blockToBinary(await this.sourceApi.rpc.chain.getBlock.raw(blockHash));
 
       const metadata = Buffer.from(
         JSON.stringify({
@@ -297,11 +296,8 @@ export default class Relay {
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
 
     for (; ;) {
-      // TODO: This is simple, but not very efficient
-      const lastFinalizedBlockNumber = await pRetry(
-        () => this.httpApi.getLastFinalizedBlock(),
-        createRetryOptions(error => this.logger.error(error, 'getLastFinalizedBlock retry error:')),
-      );
+      const lastFinalizedHash = await this.sourceApi.rpc.chain.getFinalizedHead();
+      const lastFinalizedBlockNumber = (await this.sourceApi.rpc.chain.getHeader(lastFinalizedHash)).number.toNumber();
 
       const result = await this.relayBlocks(
         feedId,

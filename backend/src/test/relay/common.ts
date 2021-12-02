@@ -3,7 +3,6 @@ import { ISubmittableResult } from '@polkadot/types/types';
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 
 import loggerMock from '../../mocks/logger';
-import { HttpApi } from '../../mocks/httpApi';
 import { createMockPutWithResult } from '../../mocks/api';
 import Relay from "../../relay";
 import Target from "../../target";
@@ -25,11 +24,11 @@ const putSuccessResult = {
 const apiSuccess = createMockPutWithResult(putSuccessResult);
 const targetMock = new Target({ api: apiSuccess, logger: loggerMock, targetChainUrl });
 const finalizedBlockNumber = 2;
-const httpApiMock = new HttpApi('random url');
+
 const defaultRelayParams = {
   logger: loggerMock,
   target: targetMock,
-  httpApi: httpApiMock,
+  sourceApi: apiSuccess,
   batchBytesLimit,
   batchCountLimit,
 };
