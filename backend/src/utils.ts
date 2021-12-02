@@ -77,3 +77,7 @@ export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlo
         typeof object.block.header.parentHash === 'string'
     );
 }
+
+export function blockNumberToBuffer(blockNumber: number): Buffer {
+    return Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
+}

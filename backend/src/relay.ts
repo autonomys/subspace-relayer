@@ -4,7 +4,7 @@ import { Logger } from "pino";
 
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress } from "./types";
-import ChainArchive from "./chainArchive";
+import { IChainArchive } from "./chainArchive";
 import HttpApi from "./httpApi";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 
@@ -54,7 +54,7 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  private async * readBlocksInBatches(lastProcessedBlock: number, archive: ChainArchive): AsyncGenerator<[TxBlock[], number], void> {
+  private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
@@ -93,7 +93,7 @@ export default class Relay {
     chainName: ChainName,
     lastProcessedBlock: number,
     signer: SignerWithAddress,
-    archive: ChainArchive,
+    archive: IChainArchive,
   ): Promise<number> {
     let lastBlockProcessingReportAt = Date.now();
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
