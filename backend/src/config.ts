@@ -4,7 +4,6 @@ import { ChainId } from "./types";
 
 const PrimaryChainConfig = z.object({
   downloadedArchivePath: z.string().optional(),
-  httpUrl: z.string(),
   accountSeed: z.string(),
   feedId: z.number().refine((number) => {
     return number >= 0;

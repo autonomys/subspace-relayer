@@ -114,7 +114,6 @@ async function main() {
         const chainHeadState = new PrimaryChainHeadState(0);
         chainHeadStateMap.set(PRIMARY_CHAIN_ID, chainHeadState);
 
-        const sourceApi = await createApi(chainConfig.wsUrl);
         await sourceApi.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
           try {
             // TODO: Cache this, will be useful for relaying to not download twice

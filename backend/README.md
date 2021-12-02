@@ -15,85 +15,108 @@ CHAIN_CONFIG_PATH=config.json
 {
     "targetChainUrl": "ws://127.0.0.1:9944",
     "primaryChain": {
-        "downloadedArchivePath": "/path/to/kusama-archive-2021-oct-23",
-        "httpUrl": "https://kusama-rpc.polkadot.io",
         "wsUrl": "wss://kusama-rpc.polkadot.io",
+        "downloadedArchivePath": "/path/to/kusama-archive-2021-oct-23",
         "accountSeed": "//Alice//0",
         "feedId": 0
     },
     "parachains": [
         {
+            "wsUrl": "wss://statemine-rpc.polkadot.io",
             "downloadedArchivePath": "/path/to/statemine-archive-2021-oct-23",
-            "httpUrl": "https://kusama-statemine-rpc.paritytech.net",
             "paraId": 1000,
             "accountSeed": "//Alice//1000",
             "feedId": 1
         },
         {
-            "httpUrl": "https://karura.api.onfinality.io/public",
+            "wsUrl": "wss://karura-rpc-0.aca-api.network",
             "paraId": 2000,
             "accountSeed": "//Alice//2000",
             "feedId": 2
         },
         {
-            "httpUrl": "https://bifrost-parachain.api.onfinality.io/public",
+            "wsUrl": "wss://bifrost-rpc.liebi.com/ws",
             "paraId": 2001,
             "accountSeed": "//Alice//2001",
             "feedId": 3
         },
         {
-            "httpUrl": "https://khala.api.onfinality.io/public",
+            "wsUrl": "wss://khala-api.phala.network/ws",
             "paraId": 2004,
             "accountSeed": "//Alice//2004",
             "feedId": 4
         },
         {
-            "httpUrl": "https://shiden.api.onfinality.io/public",
+            "wsUrl": "wss://rpc.shiden.astar.network",
             "paraId": 2007,
             "accountSeed": "//Alice//2007",
             "feedId": 5
         },
         {
-            "httpUrl": "https://moonriver.api.onfinality.io/public",
+            "wsUrl": "wss://wss.moonriver.moonbeam.network",
             "paraId": 2023,
             "accountSeed": "//Alice//2023",
             "feedId": 6
         },
         {
-            "httpUrl": "https://calamari.api.onfinality.io/public",
+            "wsUrl": "wss://falafel.calamari.systems/",
             "paraId": 2084,
             "accountSeed": "//Alice//2084",
             "feedId": 7
         },
         {
-            "httpUrl": "https://spiritnet.api.onfinality.io/public",
+            "wsUrl": "wss://spiritnet.kilt.io/",
             "paraId": 2086,
             "accountSeed": "//Alice//2086",
             "feedId": 8
         },
         {
-            "httpUrl": "https://basilisk.api.onfinality.io/public",
+            "wsUrl": "wss://rpc-01.basilisk.hydradx.io",
             "paraId": 2090,
             "accountSeed": "//Alice//2090",
             "feedId": 9
         },
         {
-            "httpUrl": "https://altair.api.onfinality.io/public",
+            "wsUrl": "wss://fullnode.altair.centrifuge.io",
             "paraId": 2088,
             "accountSeed": "//Alice//2088",
             "feedId": 10
         },
         {
-            "httpUrl": "https://parallel-heiko.api.onfinality.io/public",
+            "wsUrl": "wss://heiko-rpc.parallel.fi",
             "paraId": 2085,
             "accountSeed": "//Alice//2085",
             "feedId": 11
         },
         {
-            "httpUrl": "https://kintsugi.api.onfinality.io/public",
+            "wsUrl": "wss://api-kusama.interlay.io/parachain",
             "paraId": 2092,
             "accountSeed": "//Alice//2092",
             "feedId": 12
+        },
+        {
+            "wsUrl": "wss://pioneer.api.onfinality.io/public-ws",
+            "paraId": 2096,
+            "accountSeed": "//Alice//2096",
+            "feedId": 13
+        },
+        {
+            "wsUrl": "wss://node.genshiro.io",
+            "paraId": 2024,
+            "accountSeed": "//Alice//2024",
+            "feedId": 14
+        },
+        {
+            "wsUrl": "wss://us-ws-quartz.unique.network",
+            "paraId": 2095,
+            "accountSeed": "//Alice//2095",
+            "feedId": 15
+        },
+        {
+            "wsUrl": "wss://picasso-rpc.composable.finance",
+            "paraId": 2087,
+            "accountSeed": "//Alice//2087",
+            "feedId": 16
         }
     ]
 }
