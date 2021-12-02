@@ -2,28 +2,24 @@ import * as fs from "fs";
 import { z } from "zod";
 import { ChainId } from "./types";
 
-const PrimaryChainConfig = z.object({
+const AnyChainConfig = z.object({
   downloadedArchivePath: z.string().optional(),
   accountSeed: z.string(),
-  feedId: z.number().refine((number) => {
-    return number >= 0;
-  }),
+  feedId: z.number().refine((number) => number >= 0),
   wsUrl: z.string(),
 });
 
-export type PrimaryChainConfig = z.infer<typeof PrimaryChainConfig>;
+export type PrimaryChainConfig = z.infer<typeof AnyChainConfig>;
 
-const ParachainConfig = PrimaryChainConfig.extend({
-  paraId: z.number().refine((number): number is ChainId => {
-    return number > 0;
-  }),
+const ParachainConfig = AnyChainConfig.extend({
+  paraId: z.number().refine((number): number is ChainId => number > 0),
 });
 
 export type ParachainConfig = z.infer<typeof ParachainConfig>;
 
 const ChainFile = z.object({
   targetChainUrl: z.string(),
-  primaryChain: PrimaryChainConfig,
+  primaryChain: AnyChainConfig,
   parachains: z.array(ParachainConfig),
 });
 
