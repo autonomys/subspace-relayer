@@ -6,7 +6,7 @@ const AnyChainConfig = z.object({
   downloadedArchivePath: z.string().optional(),
   accountSeed: z.string(),
   feedId: z.number().refine((number) => number >= 0),
-  wsUrl: z.string(),
+  wsUrls: z.array(z.string()),
 });
 
 export type PrimaryChainConfig = z.infer<typeof AnyChainConfig>;
