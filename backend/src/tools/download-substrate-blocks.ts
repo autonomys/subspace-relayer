@@ -6,6 +6,7 @@
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
+import { ApiPromise } from "@polkadot/api";
 
 import { blockToBinary, createApi, blockNumberToBuffer } from '../utils';
 
@@ -26,9 +27,7 @@ process
   });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, db: any): Promise<void> {
-  const api = await createApi(sourceChainRpc);
-
+async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, db: any,): Promise<void> {
   const blockHash = (await api.rpc.chain.getBlockHash(blockNumber)).toString();
   const blockBytes = blockToBinary(await api.rpc.chain.getBlock.raw(blockHash));
 
@@ -95,7 +94,7 @@ async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, d
       break;
     }
 
-    await fetchAndStoreBlock(sourceChainRpc, blockNumber, db);
+    await fetchAndStoreBlock(api, blockNumber, db);
 
     if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
       const now = Date.now();
@@ -126,7 +125,7 @@ async function fetchAndStoreBlock(sourceChainRpc: string, blockNumber: number, d
         await db.get(blockNumberAsBuffer);
       } catch (e) {
         console.log(`Found problematic block ${blockNumber} during archive verification, fixing it`);
-        await fetchAndStoreBlock(sourceChainRpc, blockNumber, db);
+        await fetchAndStoreBlock(api, blockNumber, db);
       }
 
       if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
