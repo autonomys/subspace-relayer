@@ -15,105 +15,165 @@ CHAIN_CONFIG_PATH=config.json
 {
     "targetChainUrl": "ws://127.0.0.1:9944",
     "primaryChain": {
-        "wsUrl": "wss://kusama-rpc.polkadot.io",
         "downloadedArchivePath": "/path/to/kusama-archive-2021-oct-23",
+        "wsUrls": [
+            "wss://kusama-rpc.polkadot.io",
+            "wss://kusama.api.onfinality.io/public-ws",
+            "wss://pub.elara.patract.io/kusama",
+            "wss://kusama.geometry.io/websockets"
+        ],
         "accountSeed": "//Alice//0",
         "feedId": 0
     },
     "parachains": [
         {
-            "wsUrl": "wss://statemine-rpc.polkadot.io",
             "downloadedArchivePath": "/path/to/statemine-archive-2021-oct-23",
+            "wsUrls": [
+                "wss://statemine-rpc.polkadot.io",
+                "wss://statemine.api.onfinality.io/public-ws"
+            ],
             "paraId": 1000,
             "accountSeed": "//Alice//1000",
             "feedId": 1
         },
         {
-            "wsUrl": "wss://karura-rpc-0.aca-api.network",
+            "wsUrls": [
+                "wss://karura-rpc-0.aca-api.network",
+                "wss://karura-rpc-1.aca-api.network",
+                "wss://karura-rpc-2.aca-api.network/ws",
+                "wss://karura-rpc-3.aca-api.network/ws",
+                "wss://karura.polkawallet.io",
+                "wss://karura.api.onfinality.io/public-ws",
+                "wss://pub.elara.patract.io/karura"
+            ],
             "paraId": 2000,
             "accountSeed": "//Alice//2000",
             "feedId": 2
         },
         {
-            "wsUrl": "wss://bifrost-rpc.liebi.com/ws",
+            "wsUrls": [
+                "wss://bifrost-rpc.liebi.com/ws",
+                "wss://bifrost-parachain.api.onfinality.io/public-ws",
+                "wss://pub.elara.patract.io/bifrost"
+            ],
             "paraId": 2001,
             "accountSeed": "//Alice//2001",
             "feedId": 3
         },
         {
-            "wsUrl": "wss://khala-api.phala.network/ws",
+            "wsUrls": [
+                "wss://khala-api.phala.network/ws",
+                "wss://khala.api.onfinality.io/public-ws"
+            ],
             "paraId": 2004,
             "accountSeed": "//Alice//2004",
             "feedId": 4
         },
         {
-            "wsUrl": "wss://rpc.shiden.astar.network",
+            "wsUrls": [
+                "wss://rpc.shiden.astar.network",
+                "wss://rpc.pinknode.io/shiden/explorer"
+            ],
             "paraId": 2007,
             "accountSeed": "//Alice//2007",
             "feedId": 5
         },
         {
-            "wsUrl": "wss://wss.moonriver.moonbeam.network",
+            "wsUrls": [
+                "wss://wss.moonriver.moonbeam.network",
+                "wss://moonriver.api.onfinality.io/public-ws",
+                "wss://rpc.pinknode.io/moonriver/explorer",
+                "wss://pub.elara.patract.io/moonriver"
+            ],
             "paraId": 2023,
             "accountSeed": "//Alice//2023",
             "feedId": 6
         },
         {
-            "wsUrl": "wss://falafel.calamari.systems/",
+            "wsUrls": [
+                "wss://falafel.calamari.systems/",
+                "wss://fritti.calamari.systems/",
+                "wss://smoothie.calamari.systems/",
+                "wss://calamari.api.onfinality.io/public-ws"
+            ],
             "paraId": 2084,
             "accountSeed": "//Alice//2084",
             "feedId": 7
         },
         {
-            "wsUrl": "wss://spiritnet.kilt.io/",
+            "wsUrls": [
+                "wss://spiritnet.kilt.io/",
+                "wss://spiritnet.api.onfinality.io/public-ws"
+            ],
             "paraId": 2086,
             "accountSeed": "//Alice//2086",
             "feedId": 8
         },
         {
-            "wsUrl": "wss://rpc-01.basilisk.hydradx.io",
+            "wsUrls": [
+                "wss://rpc-01.basilisk.hydradx.io",
+                "wss://basilisk.api.onfinality.io/public-ws"
+            ],
             "paraId": 2090,
             "accountSeed": "//Alice//2090",
             "feedId": 9
         },
         {
-            "wsUrl": "wss://fullnode.altair.centrifuge.io",
+            "wsUrls": [
+                "wss://fullnode.altair.centrifuge.io",
+                "wss://altair.api.onfinality.io/public-ws"
+            ],
             "paraId": 2088,
             "accountSeed": "//Alice//2088",
             "feedId": 10
         },
         {
-            "wsUrl": "wss://heiko-rpc.parallel.fi",
+            "wsUrls": [
+                "wss://heiko-rpc.parallel.fi",
+                "wss://parallel-heiko.api.onfinality.io/public-ws"
+            ],
             "paraId": 2085,
             "accountSeed": "//Alice//2085",
             "feedId": 11
         },
         {
-            "wsUrl": "wss://api-kusama.interlay.io/parachain",
+            "wsUrls": [
+                "wss://api-kusama.interlay.io/parachain",
+                "wss://kintsugi.api.onfinality.io/public-ws"
+            ],
             "paraId": 2092,
             "accountSeed": "//Alice//2092",
             "feedId": 12
         },
         {
-            "wsUrl": "wss://pioneer.api.onfinality.io/public-ws",
+            "wsUrls": [
+                "wss://pioneer.api.onfinality.io/public-ws",
+                "wss://pioneer-1-rpc.bit.country"
+            ],
             "paraId": 2096,
             "accountSeed": "//Alice//2096",
             "feedId": 13
         },
         {
-            "wsUrl": "wss://node.genshiro.io",
+            "wsUrls": [
+                "wss://node.genshiro.io"
+            ],
             "paraId": 2024,
             "accountSeed": "//Alice//2024",
             "feedId": 14
         },
         {
-            "wsUrl": "wss://us-ws-quartz.unique.network",
+            "wsUrls": [
+                "wss://us-ws-quartz.unique.network"
+            ],
             "paraId": 2095,
             "accountSeed": "//Alice//2095",
             "feedId": 15
         },
         {
-            "wsUrl": "wss://picasso-rpc.composable.finance",
+            "wsUrls": [
+                "wss://picasso-rpc.composable.finance"
+            ],
             "paraId": 2087,
             "accountSeed": "//Alice//2087",
             "feedId": 16
@@ -140,7 +200,7 @@ Where:
 
 ## Creating chain history archive
 
-In order to create chain archive, it is required to download source chain blocks from locally running archive node. Once you have archive node running, you need to set values for `SOURCE_CHAIN_RPC` and 
+In order to create chain archive, it is required to download source chain blocks from locally running archive node. Once you have archive node running, you need to set values for `SOURCE_CHAIN_RPC` and
 `TARGET_DIR` env variables and run `tools/download-substrate-blocks` script, for example:
 ```
 SOURCE_CHAIN_RPC="ws://localhost:9944" TARGET_DIR="path/to/archive" node dist/tools/download-substrate-blocks.js

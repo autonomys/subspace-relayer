@@ -79,7 +79,7 @@ export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlo
     );
 }
 
-export function createApi(url: string): Promise<ApiPromise> {
+export function createApi(url: string | string[]): Promise<ApiPromise> {
     const provider = new WsProvider(url);
     return ApiPromise.create({
         provider,

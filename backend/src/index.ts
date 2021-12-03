@@ -42,7 +42,7 @@ async function main() {
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
       const targetApi = await createApi(config.targetChainUrl);
-      const sourceApi = await createApi(chainConfig.wsUrl);
+      const sourceApi = await createApi(chainConfig.wsUrls);
 
       const target = new Target({
         api: targetApi,
