@@ -179,7 +179,7 @@ CHAIN_CONFIG_PATH=config.json
             "feedId": 16
         }
     ]
-}  
+}
 ```
 
 Where:
@@ -200,7 +200,7 @@ Where:
 
 ## Creating chain history archive
 
-In order to create chain archive, it is required to download source chain blocks from locally running archive node. Once you have archive node running, you need to set values for `SOURCE_CHAIN_RPC` and 
+In order to create chain archive, it is required to download source chain blocks from locally running archive node. Once you have archive node running, you need to set values for `SOURCE_CHAIN_RPC` and
 `TARGET_DIR` env variables and run `tools/download-substrate-blocks` script, for example:
 ```
 SOURCE_CHAIN_RPC="ws://localhost:9944" TARGET_DIR="path/to/archive" node dist/tools/download-substrate-blocks.js
