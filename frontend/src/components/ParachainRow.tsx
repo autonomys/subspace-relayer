@@ -1,44 +1,44 @@
 import { useContext, useEffect, useState } from "react";
 import { Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistanceToNow } from "date-fns";
-import { Feed, ParachainProps } from "config/interfaces/Parachain";
-import { bytesToSize, prettyHash } from "components/utils";
-import { ApiPromiseContext, RelayerContext } from "context";
+import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
+import { bytesToSize, explorerLink, prettyHash } from "components/utils";
+import { RelayerContext } from "context";
 import { useWindowSize } from "hooks/WindowsSize";
 
 const ParachainRow = ({
+  wss,
   feedId,
   chain,
   chainName,
   web,
-  explorer,
+  subspaceWss,
+  ecosystem,
+  filter,
 }: ParachainProps) => {
-  const { api, isApiReady } = useContext(ApiPromiseContext);
-  const [count, setCount] = useState<number>(0);
-  const [lastFeed, setLastFeed] = useState<Feed>();
-  const [lastUpdate, setLastUpdate] = useState<any>(0);
-  const { feedsTotals } = useContext(RelayerContext);
   const { width } = useWindowSize();
+  const [count, setCount] = useState<number>(0);
+  const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [lastFeed, setlastFeed] = useState<ParachainFeed | null>(null);
+  const { parachainFeeds } = useContext(RelayerContext);
 
   useEffect(() => {
-    if (!isApiReady) return;
-    api.query.feeds.metadata(feedId, (metadata: any) => {
-      if (!metadata.isEmpty) {
-        const feed = JSON.parse(metadata.toHuman()?.toString() || "");
-        setLastFeed(feed);
-        setLastUpdate(Date.now);
-      }
-    });
-  }, [isApiReady, api, feedId]);
+    if (!parachainFeeds[feedId]) return;
+
+    if (!lastFeed || parachainFeeds[feedId].number > lastFeed.number) {
+      setlastFeed(parachainFeeds[feedId]);
+      setLastUpdate(Date.now);
+      setCount(0);
+    }
+  }, [parachainFeeds, lastFeed, feedId]);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
     return () => clearInterval(timer);
   }, [count]);
 
-  useEffect(() => {
-    setCount(0);
-  }, [lastFeed]);
+  if (filter && filter === 1 && ecosystem !== "kusama") return <></>;
+  else if (filter && filter === 2 && ecosystem !== "polkadot") return <></>;
 
   return (
     <tr>
@@ -47,7 +47,7 @@ const ParachainRow = ({
           <UncontrolledTooltip
             delay={0}
             placement="top"
-            target={chain + feedId.toString()}
+            target={chain + "logo"}
           >
             {chainName}
           </UncontrolledTooltip>
@@ -59,7 +59,7 @@ const ParachainRow = ({
             href={web}
             target="_blank"
           >
-            <span data-placement="top" id={chain + feedId.toString()}>
+            <span data-placement="top" id={chain + "logo"}>
               <img
                 alt="parachain logo"
                 src={
@@ -76,7 +76,7 @@ const ParachainRow = ({
         </Media>
       </th>
       <td className="col-md-2 text-md">
-        {lastFeed ? (
+        {lastFeed && lastFeed.number && lastFeed.hash ? (
           <>
             <Spinner
               className={
@@ -100,19 +100,23 @@ const ParachainRow = ({
         )}
       </td>
       <td className="col-md-3 text-lg text-left">
-        {lastFeed && (
+        {lastFeed && lastFeed.hash && (
           <>
-            <UncontrolledTooltip delay={0} placement="top" target={chain}>
+            <UncontrolledTooltip
+              delay={0}
+              placement="top"
+              target={chain + "hash"}
+            >
               {lastFeed.hash}
             </UncontrolledTooltip>
-            <span data-placement="top" id={chain}>
+            <span data-placement="top" id={chain + "hash"}>
               <a
                 rel="noreferrer"
                 target="_blank"
-                href={explorer + "/" + lastFeed.hash}
+                href={explorerLink(lastFeed.hash, wss)}
               >
                 {width > 920
-                  ? prettyHash(lastFeed.hash, 16, 10)
+                  ? prettyHash(lastFeed.hash, 12, 8)
                   : prettyHash(lastFeed.hash, 6, 4)}
               </a>
             </span>
@@ -120,11 +124,11 @@ const ParachainRow = ({
         )}
       </td>
       <td className="col-md-2 text-lg">
-        {lastFeed && (
+        {lastFeed && lastFeed.number && (
           <a
             rel="noreferrer"
             target="_blank"
-            href={explorer + "/" + lastFeed.number}
+            href={explorerLink(lastFeed.number, wss)}
           >
             <span>
               {"# "}
@@ -133,14 +137,46 @@ const ParachainRow = ({
           </a>
         )}
       </td>
-      <td className="col-md-1 text-lg text-left">
-        {lastFeed && feedsTotals[feedId] && (
-          <span>{bytesToSize(feedsTotals[feedId].size_.toNumber())}</span>
+      <td className="col-md-1 text-left">
+        {lastFeed && lastFeed.size > 0 && (
+          <h2>{bytesToSize(lastFeed.size)}</h2>
         )}
       </td>
-      <td className="col-md-1 text-lg text-left">
-        {lastFeed && feedsTotals[feedId] && (
-          <span>{feedsTotals[feedId].count.toNumber().toLocaleString()}</span>
+      <td className="col-md-2 text-lg text-right">
+        {lastFeed && lastFeed.subspaceHash ? (
+          <>
+            <UncontrolledTooltip
+              delay={0}
+              placement="top"
+              target={chain + "subspaceHash"}
+            >
+              {lastFeed.subspaceHash}
+            </UncontrolledTooltip>
+            <span data-placement="top" id={chain + "subspaceHash"}>
+              <a
+                rel="noreferrer"
+                target="_blank"
+                href={explorerLink(lastFeed.subspaceHash, subspaceWss)}
+              >
+                {width > 920
+                  ? prettyHash(lastFeed.subspaceHash, 12, 8)
+                  : prettyHash(lastFeed.subspaceHash, 6, 4)}
+              </a>
+            </span>
+          </>
+        ) : (
+          <>
+            <UncontrolledTooltip
+              delay={0}
+              placement="top"
+              target={chain + "awaitNextArchive"}
+            >
+              {"Awaiting for the next blocks archived for this chain ..."}
+            </UncontrolledTooltip>
+            <span data-placement="top" id={chain + "awaitNextArchive"}>
+              <Spinner className="ml-2" size={"sm"}></Spinner>
+            </span>
+          </>
         )}
       </td>
     </tr>

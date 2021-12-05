@@ -9,31 +9,25 @@ import {
   Col,
   Spinner,
 } from "reactstrap";
-import { parachains } from "config/AvailableParachain";
+import { allChains } from "config/AvailableParachain";
 import { bytesToSize } from "./utils";
 
 const Header = () => {
   const { version } = useContext(SystemContext);
-  const { feedsTotals } = useContext(RelayerContext);
-  const [acumulatedSizes, setAcumulatedSizes] = useState<number>();
-  const [acumulatedObjects, setAcumulatedObjects] = useState<number>();
+  const { parachainFeeds } = useContext(RelayerContext);
+  const [acumulatedSizes, setAcumulatedSizes] = useState<number>(0);
+  const [acumulatedObjects, setAcumulatedObjects] = useState<number>(0);
 
   useEffect(() => {
-    if (feedsTotals) {
-      const acumulatedSizes = feedsTotals.reduce(
-        (accumulator, currentValue) =>
-          accumulator + currentValue?.size_.toNumber() || 0,
-        0
-      );
-      const acumulatedObjects = feedsTotals.reduce(
-        (accumulator, currentValue) =>
-          accumulator + currentValue?.count.toNumber() || 0,
-        0
-      );
-      setAcumulatedSizes(acumulatedSizes);
-      setAcumulatedObjects(acumulatedObjects);
+    let newSize = 0;
+    let newCount = 0;
+    for (const feedTotal of parachainFeeds) {
+      newSize += feedTotal.size;
+      newCount += feedTotal.count;
     }
-  }, [feedsTotals]);
+    setAcumulatedSizes(newSize);
+    setAcumulatedObjects(newCount);
+  }, [parachainFeeds]);
 
   // TODO: Card to component.
   return (
@@ -48,7 +42,7 @@ const Header = () => {
                     <CardTitle className="text-uppercase mb-0">
                       <h2 className="text-truncate">Chains</h2>
                       <h2 className="font-weight-bold text-primary">
-                        {parachains.length}
+                        {allChains.length}
                       </h2>
                     </CardTitle>
                   </div>

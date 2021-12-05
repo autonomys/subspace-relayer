@@ -2,7 +2,7 @@ import { ApiPromise } from "@polkadot/api";
 import { ApiOptions } from "@polkadot/api/types";
 import { WsProvider } from "@polkadot/rpc-provider";
 import { Text } from "@polkadot/types";
-import { Totals } from "config/interfaces/Parachain";
+import { ParachainFeed } from "config/interfaces/Parachain";
 import {
   BlockHash,
   ChainProperties,
@@ -42,7 +42,7 @@ export interface ApiPromiseContextType {
 }
 
 export interface RelayerContextType {
-  feedsTotals: Array<Totals>;
+  parachainFeeds: ParachainFeed[];
 }
 
 export interface SystemContextType {

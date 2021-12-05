@@ -15,3 +15,12 @@ export const prettyHash = (
     hash.length - lastsSlice
   )}`;
 };
+
+export const explorerLink = (
+  hashOrNumber: string | number,
+  wss: string
+): string => {
+  return `https://polkadot.js.org/apps/?rpc=${wss}#/explorer/query/${hashOrNumber}`;
+};
+
+ 
