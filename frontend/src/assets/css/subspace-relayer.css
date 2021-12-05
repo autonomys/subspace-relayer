@@ -8710,6 +8710,13 @@ a.text-lighter:hover, a.text-lighter:focus {
 .btn .badge:not(:last-child) {
   margin-right: .5rem; }
 
+.badge-cursor {
+  cursor: pointer;
+  margin-right: 1em; }
+
+.badge-pink {
+  background-color: #e6007a; }
+
 .badge-circle {
   text-align: center;
   display: inline-flex;

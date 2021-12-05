@@ -6,50 +6,60 @@
 // General styles
 
 .badge {
-    text-transform: $badge-text-transfom;
+  text-transform: $badge-text-transfom;
 
-    a {
-        color: $white;
-    }
+  a {
+      color: $white;
+  }
 }
 
 
 // Size variations
 
 .badge-md {
-    padding: .65em 1em;
+  padding: .65em 1em;
 }
 
 .badge-lg {
-    padding: .85em 1.375em;
+  padding: .85em 1.375em;
 }
 
 
 // Multiple inline badges
 
 .badge-inline {
-    margin-right: .625rem;
+  margin-right: .625rem;
 
-    + span {
-        top: 2px;
-        position: relative;
+  + span {
+      top: 2px;
+      position: relative;
 
-        > a {
-            text-decoration: underline;
-        }
-    }
+      > a {
+          text-decoration: underline;
+      }
+  }
 }
 
 
 // Badge spacing inside a btn with some text
 
 .btn {
-    .badge {
-        &:not(:first-child) {
-            margin-left: .5rem;
-        }
-        &:not(:last-child) {
-            margin-right: .5rem;
-        }
-    }
+  .badge {
+      &:not(:first-child) {
+          margin-left: .5rem;
+      }
+      &:not(:last-child) {
+          margin-right: .5rem;
+      }
+  }
+}
+
+// Custom badge for filters
+.badge-cursor {
+  cursor: pointer;
+  margin-right: 1em;
+}
+
+.badge-pink {
+  background-color: #e6007a;
 }
