@@ -1,12 +1,15 @@
 import { WsProvider } from "@polkadot/rpc-provider";
 import { useState } from "react";
 import { getApiUrl } from "config/RpcSettings";
+import NavBar from "components/NavBar";
+import ParachainTable from "components/ParachainTable";
+import Footer from "components/Footer";
 import {
-  HealthContextProvider,
+  RelayerContextProvider,
+  ApiPromiseContextProvider,
   ProviderContextProvider,
   SystemContextProvider,
 } from "context";
-import MainLayout from "layout/MainLayout";
 
 const App = () => {
   const [provider] = useState<WsProvider>(new WsProvider(getApiUrl()));
@@ -14,9 +17,15 @@ const App = () => {
   return (
     <ProviderContextProvider provider={provider}>
       <SystemContextProvider>
-        <HealthContextProvider>
-          <MainLayout />
-        </HealthContextProvider>
+        <ApiPromiseContextProvider>
+          <RelayerContextProvider>
+            <>
+              <NavBar />
+              <ParachainTable />
+              <Footer />
+            </>
+          </RelayerContextProvider>
+        </ApiPromiseContextProvider>
       </SystemContextProvider>
     </ProviderContextProvider>
   );
