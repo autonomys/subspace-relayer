@@ -32,10 +32,6 @@ export interface SystemContextProviderProps {
   children?: React.ReactElement;
 }
 
-export interface HealthContextProviderProps {
-  children?: React.ReactElement;
-}
-
 export interface RelayerContextProviderProps {
   children?: React.ReactElement;
 }
@@ -43,13 +39,6 @@ export interface RelayerContextProviderProps {
 export interface ApiPromiseContextType {
   api: ApiPromise;
   isApiReady: boolean;
-}
-
-export interface HealthContextType {
-  best: number;
-  hasPeers: boolean;
-  isNodeConnected: boolean;
-  isSyncing: boolean;
 }
 
 export interface RelayerContextType {

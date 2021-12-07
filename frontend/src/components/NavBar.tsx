@@ -1,10 +1,10 @@
 import { useContext } from "react";
-import { HealthContext } from "context";
+import { SystemContext } from "context";
 import { Navbar, Nav, NavbarBrand, NavItem, Badge } from "reactstrap";
 import { useWindowSize } from "hooks/WindowsSize";
 
 const NavBar = () => {
-  const { isSyncing } = useContext(HealthContext);
+  const { isSystemReady } = useContext(SystemContext);
   const { width } = useWindowSize();
   return (
     <Navbar
@@ -33,10 +33,10 @@ const NavBar = () => {
         {width > 920 && (
           <NavItem>
             <Badge className="ml-4 badge-dot">
-              <i className={!isSyncing ? "bg-success" : "bg-warning"} />
+              <i className={isSystemReady ? "bg-success" : "bg-warning"} />
             </Badge>
             <span className="h5 text-gray">
-              {!isSyncing ? "Connected" : "Connecting..."}
+              {isSystemReady ? "Connected" : "Connecting..."}
             </span>
           </NavItem>
         )}
