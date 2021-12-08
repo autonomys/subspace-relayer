@@ -3,12 +3,6 @@ import { ApiOptions } from "@polkadot/api/types";
 import { WsProvider } from "@polkadot/rpc-provider";
 import { Text } from "@polkadot/types";
 import { ParachainFeed } from "config/interfaces/Parachain";
-import {
-  BlockHash,
-  ChainProperties,
-  Header,
-  Health,
-} from "@polkadot/types/interfaces";
 
 export interface ProviderContextType {
   provider: WsProvider;
@@ -47,11 +41,6 @@ export interface RelayerContextType {
 
 export interface SystemContextType {
   chain?: Text;
-  genesisHash?: BlockHash;
-  header?: Header;
-  health?: Health;
   isSystemReady: boolean;
-  name?: Text;
-  properties?: ChainProperties;
   version?: Text;
 }

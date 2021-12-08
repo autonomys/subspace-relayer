@@ -6,20 +6,11 @@ import { bytesToSize, explorerLink, prettyHash } from "components/utils";
 import { RelayerContext } from "context";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const ParachainRow = ({
-  wss,
-  feedId,
-  chain,
-  chainName,
-  web,
-  subspaceWss,
-  ecosystem,
-  filter,
-}: ParachainProps) => {
+const ParachainRow = ({ wss, feedId, chain, chainName, web, subspaceWss, ecosystem, filter }: ParachainProps) => {
   const { width } = useWindowSize();
   const [count, setCount] = useState<number>(0);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
-  const [lastFeed, setlastFeed] = useState<ParachainFeed | null>(null);
+  const [lastFeed, setlastFeed] = useState<ParachainFeed>();
   const { parachainFeeds } = useContext(RelayerContext);
 
   useEffect(() => {
@@ -30,7 +21,7 @@ const ParachainRow = ({
       setLastUpdate(Date.now);
       setCount(0);
     }
-  }, [parachainFeeds, lastFeed, feedId]);
+  }, [parachainFeeds]);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
@@ -44,28 +35,14 @@ const ParachainRow = ({
     <tr>
       <th scope="row" className="col-md-2">
         {width < 920 && (
-          <UncontrolledTooltip
-            delay={0}
-            placement="top"
-            target={chain + "logo"}
-          >
+          <UncontrolledTooltip delay={0} placement="top" target={chain + "logo"}>
             {chainName}
           </UncontrolledTooltip>
         )}
         <Media className="align-items-center">
-          <a
-            rel="noreferrer"
-            className="avatar rounded-circle"
-            href={web}
-            target="_blank"
-          >
+          <a rel="noreferrer" className="avatar rounded-circle" href={web} target="_blank">
             <span data-placement="top" id={chain + "logo"}>
-              <img
-                alt="parachain logo"
-                src={
-                  require("../assets/img/parachains/" + chain + ".png").default
-                }
-              />
+              <img alt="parachain logo" src={require("../assets/img/parachains/" + chain + ".png").default} />
             </span>
           </a>
           {width > 920 && (
@@ -78,18 +55,7 @@ const ParachainRow = ({
       <td className="col-md-2 text-md">
         {lastFeed && lastFeed.number && lastFeed.hash ? (
           <>
-            <Spinner
-              className={
-                "mr-2 " +
-                (count < 60
-                  ? "bg-success"
-                  : count >= 60 && count < 120
-                  ? "bg-yellow"
-                  : "bg-red")
-              }
-              type="grow"
-              size={"sm"}
-            />
+            <Spinner className={"mr-2 " + (count < 60 ? "bg-success" : count >= 60 && count < 120 ? "bg-yellow" : "bg-red")} type="grow" size={"sm"} />
             <span>{formatDistanceToNow(lastUpdate)}</span>
           </>
         ) : (
@@ -102,22 +68,12 @@ const ParachainRow = ({
       <td className="col-md-3 text-lg text-left">
         {lastFeed && lastFeed.hash && (
           <>
-            <UncontrolledTooltip
-              delay={0}
-              placement="top"
-              target={chain + "hash"}
-            >
+            <UncontrolledTooltip delay={0} placement="top" target={chain + "hash"}>
               {lastFeed.hash}
             </UncontrolledTooltip>
             <span data-placement="top" id={chain + "hash"}>
-              <a
-                rel="noreferrer"
-                target="_blank"
-                href={explorerLink(lastFeed.hash, wss)}
-              >
-                {width > 920
-                  ? prettyHash(lastFeed.hash, 12, 8)
-                  : prettyHash(lastFeed.hash, 6, 4)}
+              <a rel="noreferrer" target="_blank" href={explorerLink(lastFeed.hash, wss)}>
+                {width > 920 ? prettyHash(lastFeed.hash, 12, 8) : prettyHash(lastFeed.hash, 6, 4)}
               </a>
             </span>
           </>
@@ -125,11 +81,7 @@ const ParachainRow = ({
       </td>
       <td className="col-md-2 text-lg">
         {lastFeed && lastFeed.number && (
-          <a
-            rel="noreferrer"
-            target="_blank"
-            href={explorerLink(lastFeed.number, wss)}
-          >
+          <a rel="noreferrer" target="_blank" href={explorerLink(lastFeed.number, wss)}>
             <span>
               {"# "}
               {lastFeed.number.toLocaleString()}
@@ -137,40 +89,22 @@ const ParachainRow = ({
           </a>
         )}
       </td>
-      <td className="col-md-1 text-left">
-        {lastFeed && lastFeed.size > 0 && (
-          <h2>{bytesToSize(lastFeed.size)}</h2>
-        )}
-      </td>
+      <td className="col-md-1 text-left">{lastFeed && lastFeed.size > 0 && <h2>{bytesToSize(lastFeed.size)}</h2>}</td>
       <td className="col-md-2 text-lg text-right">
         {lastFeed && lastFeed.subspaceHash ? (
           <>
-            <UncontrolledTooltip
-              delay={0}
-              placement="top"
-              target={chain + "subspaceHash"}
-            >
+            <UncontrolledTooltip delay={0} placement="top" target={chain + "subspaceHash"}>
               {lastFeed.subspaceHash}
             </UncontrolledTooltip>
             <span data-placement="top" id={chain + "subspaceHash"}>
-              <a
-                rel="noreferrer"
-                target="_blank"
-                href={explorerLink(lastFeed.subspaceHash, subspaceWss)}
-              >
-                {width > 920
-                  ? prettyHash(lastFeed.subspaceHash, 12, 8)
-                  : prettyHash(lastFeed.subspaceHash, 6, 4)}
+              <a rel="noreferrer" target="_blank" href={explorerLink(lastFeed.subspaceHash, subspaceWss)}>
+                {width > 920 ? prettyHash(lastFeed.subspaceHash, 12, 8) : prettyHash(lastFeed.subspaceHash, 6, 4)}
               </a>
             </span>
           </>
         ) : (
           <>
-            <UncontrolledTooltip
-              delay={0}
-              placement="top"
-              target={chain + "awaitNextArchive"}
-            >
+            <UncontrolledTooltip delay={0} placement="top" target={chain + "awaitNextArchive"}>
               {"Awaiting for the next blocks archived for this chain ..."}
             </UncontrolledTooltip>
             <span data-placement="top" id={chain + "awaitNextArchive"}>

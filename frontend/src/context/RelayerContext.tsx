@@ -1,25 +1,19 @@
 import React, { useContext, useEffect, useState } from "react";
 import { ApiPromise } from "@polkadot/api";
+import { logger } from "@polkadot/util";
 import { Header } from "@polkadot/types/interfaces";
 import { from } from "rxjs";
 import { allChains } from "config/AvailableParachain";
 import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
-import {
-  RelayerContextProviderProps,
-  RelayerContextType,
-  SystemContext,
-  ApiPromiseContext,
-} from "context";
+import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
+
+const l = logger("relayer-context");
 
 function allChainFeeds(): number[] {
   return allChains.map((chain) => chain.feedId);
 }
 
-function extractFeed(
-  api: ApiPromise,
-  args: Array<any>,
-  subspaceHash: string
-): ParachainFeed {
+function extractFeed(api: ApiPromise, args: any[]): ParachainFeed {
   const id: number = api.registry.createType("u64", args[0]).toNumber();
   const metadata = api.registry.createType("Bytes", args[2]).toHuman();
   const { hash, number } = JSON.parse(metadata?.toString() || "{}");
@@ -29,7 +23,7 @@ function extractFeed(
     number: number || "",
     size: 0,
     count: 0,
-    subspaceHash,
+    subspaceHash: "",
   };
 }
 
@@ -47,14 +41,10 @@ async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   return feedsTotals;
 }
 
-async function loadFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
+async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   const feeds: ParachainFeed[] = [];
-
-  const [feedsMetadata, totals] = await Promise.all([
-    api.query.feeds.metadata.multi(allChainFeeds()),
-    getFeedTotals(api),
-  ]);
-  if (feedsMetadata.length === 0 && totals.length === 0) {
+  const [feedsMetadata, totals] = await Promise.all([api.query.feeds.metadata.multi(allChainFeeds()), getFeedTotals(api)]);
+  if (feedsMetadata.length === totals.length) {
     for (let i = 0; i < feedsMetadata.length; i++) {
       const feedMetadata = feedsMetadata[i].toHuman()?.toString();
       feeds.push({
@@ -68,87 +58,80 @@ async function loadFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   return feeds;
 }
 
-async function getFeeds(
-  api: ApiPromise,
-  { hash }: Header,
-  oldFeeds: ParachainFeed[]
-): Promise<ParachainFeed[]> {
-  const [{ block }, totals] = await Promise.all([
-    api.rpc.chain.getBlock(hash),
-    getFeedTotals(api),
-  ]);
-  const subspaceHash = block.hash.toString();
+async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
+  const subspaceHash = hash.toString();
+  const [{ block }, totals] = await Promise.all([api.rpc.chain.getBlock(subspaceHash), getFeedTotals(api)]);
   let newFeeds: ParachainFeed[] = [...oldFeeds];
 
   block.extrinsics.forEach(({ method: { method, section, args } }) => {
     let newFeed: ParachainFeed | undefined;
     if (section === "utility" && method === "batchAll") {
-      // This works but could be improved using correct types
-      // It assumes that a batchAll contains a Vec of put calls
+      // It assumes that a batchAll contains a Vec of put calls, for one feedId.
+      // This way it is possible to get the feedId from the first argument of the put call
       const batchCalls: any = args[0];
       for (const { args } of batchCalls) {
         // Using 3 args feedId, data, metadata.
         if (args?.length === 3) {
-          newFeed = extractFeed(api, args, subspaceHash);
+          l.log(`New FEED FOUND! ON - ${section}.${method} `, args[0]);
+          newFeed = extractFeed(api, args);
           break;
         }
       }
     } else if (section === "feeds" && method === "put" && args.length === 3) {
-      newFeed = extractFeed(api, args, subspaceHash);
+      l.log(`New FEED FOUND! ON - ${section}.${method} `, args[0]);
+      newFeed = extractFeed(api, args);
     }
 
     if (newFeed) {
       const { feedId } = newFeed;
+      l.log(`New FEED ADDED! - extracted `, feedId);
       newFeeds[feedId] = {
         ...newFeed,
         ...totals[feedId],
+        subspaceHash,
       };
     }
   });
   return newFeeds;
 }
 
-export const RelayerContext: React.Context<RelayerContextType> =
-  React.createContext({} as RelayerContextType);
+export const RelayerContext: React.Context<RelayerContextType> = React.createContext({} as RelayerContextType);
 
-export function RelayerContextProvider(
-  props: RelayerContextProviderProps
-): React.ReactElement {
+export function RelayerContextProvider(props: RelayerContextProviderProps): React.ReactElement {
   const { children = null } = props;
-  const { header } = useContext(SystemContext);
   const { api, isApiReady } = useContext(ApiPromiseContext);
+  const [header, setHeader] = useState<Header>();
   const [parachainFeeds, setParachainFeeds] = useState<ParachainFeed[]>([]);
   const [firstLoad, setFirstLoad] = useState<boolean>(true);
 
+  // Get feeds for the first load.
   useEffect(() => {
     if (!isApiReady || !api || !firstLoad) return;
-    const subscription = from(loadFeeds(api)).subscribe((initFeeds) => {
-      setFirstLoad(false);
+    const sub = from(getInitFeeds(api)).subscribe((initFeeds) => {
       setParachainFeeds(initFeeds);
+      setFirstLoad(false);
     });
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [isApiReady, api, firstLoad, header]);
+    return (): void => sub.unsubscribe();
+  }, [isApiReady, api, firstLoad]);
 
+  // Get new header using a subscription, to avoid missing blocks.
   useEffect(() => {
     if (!isApiReady || !api || firstLoad) return;
+    api.rpc.chain.subscribeNewHeads((header) => {
+      setHeader(header);
+    });
+  }, [isApiReady, api, firstLoad]);
 
+  // If we get a new header, get new feeds.
+  useEffect(() => {
+    if (!isApiReady || !api || !header) return;
     if (header) {
-      const subscription = from(
-        getFeeds(api, header, parachainFeeds)
-      ).subscribe((newFeeds) => {
+      const sub = from(getNewFeeds(api, header, parachainFeeds)).subscribe((newFeeds) => {
         setParachainFeeds(newFeeds);
       });
-      return () => {
-        subscription.unsubscribe();
-      };
+      return (): void => sub.unsubscribe();
     }
-  }, [isApiReady, api, firstLoad, header]);
+  }, [isApiReady, api, header]);
 
-  return (
-    <RelayerContext.Provider value={{ parachainFeeds }}>
-      {children}
-    </RelayerContext.Provider>
-  );
+  return <RelayerContext.Provider value={{ parachainFeeds }}>{children}</RelayerContext.Provider>;
 }

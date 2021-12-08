@@ -15,18 +15,21 @@ import { bytesToSize } from "./utils";
 const Header = () => {
   const { version } = useContext(SystemContext);
   const { parachainFeeds } = useContext(RelayerContext);
-  const [acumulatedSizes, setAcumulatedSizes] = useState<number>(0);
-  const [acumulatedObjects, setAcumulatedObjects] = useState<number>(0);
+  const [accumulatedSizes, setAccumulatedSizes] = useState<number>(0);
+  const [accumulatedObjects, setAccumulatedObjects] = useState<number>(0);
 
   useEffect(() => {
+    if (parachainFeeds.length === 0) return;
     let newSize = 0;
     let newCount = 0;
     for (const feedTotal of parachainFeeds) {
-      newSize += feedTotal.size;
-      newCount += feedTotal.count;
+      if (feedTotal) {
+        newSize += feedTotal.size;
+        newCount += feedTotal.count;
+      }
     }
-    setAcumulatedSizes(newSize);
-    setAcumulatedObjects(newCount);
+    setAccumulatedSizes(newSize);
+    setAccumulatedObjects(newCount);
   }, [parachainFeeds]);
 
   // TODO: Card to component.
@@ -58,8 +61,8 @@ const Header = () => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2 className="text-truncate">Storage</h2>
                       <h2 className="font-weight-bold text-primary">
-                        {acumulatedSizes ? (
-                          bytesToSize(acumulatedSizes)
+                        {accumulatedSizes ? (
+                          bytesToSize(accumulatedSizes)
                         ) : (
                           <Spinner
                             className="ml-2"
@@ -82,8 +85,8 @@ const Header = () => {
                     <CardTitle className="text-uppercase text-muted mb-0">
                       <h2 className="text-truncate">Blocks Archived</h2>
                       <h2 className="font-weight-bold text-primary">
-                        {acumulatedObjects ? (
-                          acumulatedObjects.toLocaleString()
+                        {accumulatedObjects ? (
+                          accumulatedObjects.toLocaleString()
                         ) : (
                           <Spinner
                             className="ml-2"
