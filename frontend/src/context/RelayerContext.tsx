@@ -1,13 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import { ApiPromise } from "@polkadot/api";
-import { logger } from "@polkadot/util";
 import { Header } from "@polkadot/types/interfaces";
 import { from } from "rxjs";
 import { allChains } from "config/AvailableParachain";
 import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
 import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
-
-const l = logger("relayer-context");
 
 function allChainFeeds(): number[] {
   return allChains.map((chain) => chain.feedId);
@@ -72,19 +69,16 @@ async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: Parachai
       for (const { args } of batchCalls) {
         // Using 3 args feedId, data, metadata.
         if (args?.length === 3) {
-          l.log(`New FEED FOUND! ON - ${section}.${method} `, args[0]);
           newFeed = extractFeed(api, args);
           break;
         }
       }
     } else if (section === "feeds" && method === "put" && args.length === 3) {
-      l.log(`New FEED FOUND! ON - ${section}.${method} `, args[0]);
       newFeed = extractFeed(api, args);
     }
 
     if (newFeed) {
       const { feedId } = newFeed;
-      l.log(`New FEED ADDED! - extracted `, feedId);
       newFeeds[feedId] = {
         ...newFeed,
         ...totals[feedId],
