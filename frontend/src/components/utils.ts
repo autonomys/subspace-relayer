@@ -22,5 +22,4 @@ export const explorerLink = (
 ): string => {
   return `https://polkadot.js.org/apps/?rpc=${wss}#/explorer/query/${hashOrNumber}`;
 };
-
  
