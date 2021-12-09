@@ -30,6 +30,10 @@ const RPC_BATCH_COUNT_LIMIT = 1_000;
  * It is convenient in a few places to treat primary chain as parachain with ID `0`
  */
 const PRIMARY_CHAIN_ID = 0 as ChainId;
+/**
+ * Interval (in ms) for checking if API connection has stalled and reconnection should be triggered.
+ */
+const CHECK_STALL_INTERVAL = 60_000;
 
 if (!process.env.CHAIN_CONFIG_PATH) {
   throw new Error(`"CHAIN_CONFIG_PATH" environment variable is required, set it to path to JSON file with configuration of chain(s)`);
@@ -103,6 +107,26 @@ async function main() {
         const chainHeadState = new ParachainHeadState();
         chainHeadStateMap.set(chainConfig.paraId, chainHeadState);
 
+        let lastHead = 0;
+        setInterval(
+          () => {
+            if (lastHead === 0) {
+              // Trigger reconnect in case connection stalled (no heads seen for a long time).
+              sourceApi
+                .disconnect()
+                .finally(() => sourceApi.connect())
+                .catch((error) => {
+                  logger.warn(error, 'Failed to reconnect primary chain');
+                });
+            }
+          },
+          CHECK_STALL_INTERVAL,
+        );
+
+        await sourceApi.rpc.chain.subscribeNewHeads((blockHeader) => {
+          lastHead = blockHeader.number.toNumber();
+        });
+
         await relay.fromParachainHeadState(
           feedId,
           chainName,
@@ -114,7 +138,24 @@ async function main() {
         const chainHeadState = new PrimaryChainHeadState(0);
         chainHeadStateMap.set(PRIMARY_CHAIN_ID, chainHeadState);
 
+        let lastFinalizedHead = 0;
+        setInterval(
+          () => {
+            if (lastFinalizedHead === 0) {
+              // Trigger reconnect in case connection stalled (no heads seen for a long time).
+              sourceApi
+                .disconnect()
+                .finally(() => sourceApi.connect())
+                .catch((error) => {
+                  logger.warn(error, 'Failed to reconnect primary chain');
+                });
+            }
+          },
+          CHECK_STALL_INTERVAL,
+        );
+
         await sourceApi.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
+          lastFinalizedHead = blockHeader.number.toNumber();
           try {
             // TODO: Cache this, will be useful for relaying to not download twice
             const { block } = await sourceApi.rpc.chain.getBlock(blockHeader.hash);
