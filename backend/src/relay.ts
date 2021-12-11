@@ -155,8 +155,14 @@ export default class Relay {
 
     for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
       // TODO: Cache of mapping from block number to its hash for faster fetching
-      const blockHash = await this.sourceApi.rpc.chain.getBlockHash(nextBlockToProcess);
-      const block = blockToBinary(await this.sourceApi.rpc.chain.getBlock.raw(blockHash));
+      const blockHash = await pRetry(
+        () => this.sourceApi.rpc.chain.getBlockHash(nextBlockToProcess),
+        createRetryOptions(error => this.logger.error(error, 'getBlockHash retry error:')),
+      );
+      const block = blockToBinary(await pRetry(
+        () => this.sourceApi.rpc.chain.getBlock.raw(blockHash),
+        createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
+      ));
 
       const metadata = Buffer.from(
         JSON.stringify({
@@ -296,8 +302,14 @@ export default class Relay {
     let nonce = (await this.target.api.rpc.system.accountNextIndex(signer.address)).toBigInt();
 
     for (; ;) {
-      const lastFinalizedHash = await this.sourceApi.rpc.chain.getFinalizedHead();
-      const lastFinalizedBlockNumber = (await this.sourceApi.rpc.chain.getHeader(lastFinalizedHash)).number.toNumber();
+      const lastFinalizedHash = await pRetry(
+        () => this.sourceApi.rpc.chain.getFinalizedHead(),
+        createRetryOptions(error => this.logger.error(error, 'getFinalizedHead retry error:')),
+      );
+      const lastFinalizedBlockNumber = (await pRetry(
+        () => this.sourceApi.rpc.chain.getHeader(lastFinalizedHash),
+        createRetryOptions(error => this.logger.error(error, 'getHeader retry error:')),
+      )).number.toNumber();
 
       const result = await this.relayBlocks(
         feedId,
