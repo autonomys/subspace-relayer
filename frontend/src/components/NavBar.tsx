@@ -24,12 +24,24 @@ const NavBar = () => {
           <span className="h1 nav-link-inner--text">Subspace Relayer</span>
         </NavItem>
       </Nav>
-      <Nav className="ml-auto">
-        <NavItem>
-          <span className="h5 text-gray nav-link-inner--text">
-            {"A permanent archival storage service for Polkadot and Kusama."}
-          </span>
-        </NavItem>
+      <Nav className="mx-auto">
+        {width > 920 && (
+          <NavItem>
+            <span className="h5 text-gray nav-link-inner--text">
+              {"A permanent archival storage service for Polkadot and Kusama."}
+            </span>
+            <a
+              rel="noreferrer"
+              href="https://www.parity.io/blog/subspace-archiving-kusama-with-onfinality"
+              target="_blank"
+              className="h5 text-primary nav-link-inner--text"
+            >
+              {"Learn more ..."}
+            </a>
+          </NavItem>
+        )}
+      </Nav>
+      <Nav className="mr-2 ml-4">
         {width > 920 && (
           <NavItem>
             <Badge className="ml-4 badge-dot">
