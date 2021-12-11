@@ -6,9 +6,7 @@ import { allChains } from "config/AvailableParachain";
 import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
 import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
 
-function allChainFeeds(): number[] {
-  return allChains.map((chain) => chain.feedId);
-}
+const feedIds: number[] = allChains.map((chain) => chain.feedId)
 
 function extractFeed(api: ApiPromise, args: any[]): ParachainFeed {
   const id: number = api.registry.createType("u64", args[0]).toNumber();
@@ -26,29 +24,33 @@ function extractFeed(api: ApiPromise, args: any[]): ParachainFeed {
 
 async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   const feedsTotals: FeedTotals[] = [];
-  const totals = await api.query.feeds.totals.multi(allChainFeeds());
-  for (let i = 0; i < totals.length; i++) {
+  const totals = await api.query.feeds.totals.multi(feedIds);
+  for (let i = 0; i < feedIds.length; i++) {
+    const feedId = feedIds[i];
     const feedTotal: Totals = api.registry.createType("Totals", totals[i]);
-    feedsTotals.push({
-      feedId: i,
-      size: feedTotal.size_.toNumber(),
-      count: feedTotal.count.toNumber(),
-    });
+    if (!feedTotal.isEmpty)
+      feedsTotals.push({
+        feedId,
+        size: feedTotal.size_.toNumber(),
+        count: feedTotal.count.toNumber(),
+      });
   }
   return feedsTotals;
 }
 
 async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   const feeds: ParachainFeed[] = [];
-  const [feedsMetadata, totals] = await Promise.all([api.query.feeds.metadata.multi(allChainFeeds()), getFeedTotals(api)]);
-  if (feedsMetadata.length === totals.length) {
-    for (let i = 0; i < feedsMetadata.length; i++) {
-      const feedMetadata = feedsMetadata[i].toHuman()?.toString();
+  const [feedsMetadata, totals] = await Promise.all([api.query.feeds.metadata.multi(feedIds), getFeedTotals(api)]);
+  for (let i = 0; i < feedIds.length; i++) {
+    const feedId = feedIds[i];
+    const feedMetadata = feedsMetadata[i];
+    const total = totals.find((t) => t.feedId === feedId);
+    if (!feedMetadata.isEmpty && total) {
       feeds.push({
-        feedId: i,
-        ...JSON.parse(feedMetadata || "{}"),
-        size: totals[i].size,
-        count: totals[i].count,
+        feedId: feedId,
+        ...JSON.parse(feedMetadata.toHuman()?.toString() || "{}"),
+        size: total.size,
+        count: total.count,
       });
     }
   }
@@ -79,9 +81,11 @@ async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: Parachai
 
     if (newFeed) {
       const { feedId } = newFeed;
-      newFeeds[feedId] = {
+      const feedIndex = newFeeds.findIndex((f) => f.feedId === feedId);
+      const total = totals.find((total) => total.feedId === feedId);
+      newFeeds[feedIndex] = {
         ...newFeed,
-        ...totals[feedId],
+        ...total,
         subspaceHash,
       };
     }
