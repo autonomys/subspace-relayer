@@ -1,71 +1,43 @@
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistanceToNow } from "date-fns";
-import { Feed, ParachainProps } from "config/interfaces/Parachain";
-import { bytesToSize, prettyHash } from "components/utils";
-import { ApiPromiseContext, RelayerContext } from "context";
+import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
+import { bytesToSize, explorerLink, prettyHash } from "components/utils";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const ParachainRow = ({
-  feedId,
-  chain,
-  chainName,
-  web,
-  explorer,
-}: ParachainProps) => {
-  const { api, isApiReady } = useContext(ApiPromiseContext);
-  const [count, setCount] = useState<number>(0);
-  const [lastFeed, setLastFeed] = useState<Feed>();
-  const [lastUpdate, setLastUpdate] = useState<any>(0);
-  const { feedsTotals } = useContext(RelayerContext);
+const ParachainRow = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }: ParachainProps & ParachainFeed) => {
   const { width } = useWindowSize();
+  const [count, setCount] = useState<number>(0);
+  const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [lastFeedNumber, setlastFeedNumber] = useState<number>();
 
   useEffect(() => {
-    if (!isApiReady) return;
-    api.query.feeds.metadata(feedId, (metadata: any) => {
-      if (!metadata.isEmpty) {
-        const feed = JSON.parse(metadata.toHuman()?.toString() || "");
-        setLastFeed(feed);
-        setLastUpdate(Date.now);
-      }
-    });
-  }, [isApiReady, api, feedId]);
+    if (!lastFeedNumber || number > lastFeedNumber) {
+      setlastFeedNumber(number);
+      setLastUpdate(Date.now);
+      setCount(0);
+    }
+  }, [number]);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
     return () => clearInterval(timer);
   }, [count]);
 
-  useEffect(() => {
-    setCount(0);
-  }, [lastFeed]);
-
+  if (filter && filter === 1 && ecosystem !== "kusama") return null;
+  else if (filter && filter === 2 && ecosystem !== "polkadot") return null;
   return (
     <tr>
       <th scope="row" className="col-md-2">
         {width < 920 && (
-          <UncontrolledTooltip
-            delay={0}
-            placement="top"
-            target={chain + feedId.toString()}
-          >
+          <UncontrolledTooltip delay={0} placement="top" target={chain + "logo"}>
             {chainName}
           </UncontrolledTooltip>
         )}
         <Media className="align-items-center">
-          <a
-            rel="noreferrer"
-            className="avatar rounded-circle"
-            href={web}
-            target="_blank"
-          >
-            <span data-placement="top" id={chain + feedId.toString()}>
-              <img
-                alt="parachain logo"
-                src={
-                  require("../assets/img/parachains/" + chain + ".png").default
-                }
-              />
+          <a rel="noreferrer" className="avatar rounded-circle" href={web} target="_blank">
+            <span data-placement="top" id={chain + "logo"}>
+              <img alt="parachain logo" src={require("../assets/img/parachains/" + chain + ".png").default} />
             </span>
           </a>
           {width > 920 && (
@@ -76,17 +48,10 @@ const ParachainRow = ({
         </Media>
       </th>
       <td className="col-md-2 text-md">
-        {lastFeed ? (
+        {lastFeedNumber && number ? (
           <>
             <Spinner
-              className={
-                "mr-2 " +
-                (count < 60
-                  ? "bg-success"
-                  : count >= 60 && count < 120
-                  ? "bg-yellow"
-                  : "bg-red")
-              }
+              className={"mr-2 " + (count < 60 ? "bg-success" : count >= 60 && count < 120 ? "bg-yellow" : "bg-red")}
               type="grow"
               size={"sm"}
             />
@@ -100,47 +65,45 @@ const ParachainRow = ({
         )}
       </td>
       <td className="col-md-3 text-lg text-left">
-        {lastFeed && (
+        <UncontrolledTooltip delay={0} placement="top" target={chain + "hash"}>
+          {hash}
+        </UncontrolledTooltip>
+        <span data-placement="top" id={chain + "hash"}>
+          <a rel="noreferrer" target="_blank" href={explorerLink(hash, wss)}>
+            {width > 920 ? prettyHash(hash, 12, 8) : prettyHash(hash, 6, 4)}
+          </a>
+        </span>
+      </td>
+      <td className="col-md-2 text-lg">
+        <a rel="noreferrer" target="_blank" href={explorerLink(number, wss)}>
+          <span>
+            {"# "}
+            {number.toLocaleString()}
+          </span>
+        </a>
+      </td>
+      <td className="col-md-1 text-left">{size > 0 && <h2>{bytesToSize(size)}</h2>}</td>
+      <td className="col-md-2 text-lg text-right">
+        {subspaceHash ? (
           <>
-            <UncontrolledTooltip delay={0} placement="top" target={chain}>
-              {lastFeed.hash}
+            <UncontrolledTooltip delay={0} placement="top" target={chain + "subspaceHash"}>
+              {subspaceHash}
             </UncontrolledTooltip>
-            <span data-placement="top" id={chain}>
-              <a
-                rel="noreferrer"
-                target="_blank"
-                href={explorer + "/" + lastFeed.hash}
-              >
-                {width > 920
-                  ? prettyHash(lastFeed.hash, 16, 10)
-                  : prettyHash(lastFeed.hash, 6, 4)}
+            <span data-placement="top" id={chain + "subspaceHash"}>
+              <a rel="noreferrer" target="_blank" href={explorerLink(subspaceHash, subspaceWss)}>
+                {width > 920 ? prettyHash(subspaceHash, 12, 8) : prettyHash(subspaceHash, 6, 4)}
               </a>
             </span>
           </>
-        )}
-      </td>
-      <td className="col-md-2 text-lg">
-        {lastFeed && (
-          <a
-            rel="noreferrer"
-            target="_blank"
-            href={explorer + "/" + lastFeed.number}
-          >
-            <span>
-              {"# "}
-              {lastFeed.number.toLocaleString()}
+        ) : (
+          <>
+            <UncontrolledTooltip delay={0} placement="top" target={chain + "awaitNextArchive"}>
+              {"Awaiting for the next blocks archived for this chain ..."}
+            </UncontrolledTooltip>
+            <span data-placement="top" id={chain + "awaitNextArchive"}>
+              <Spinner className="ml-2" size={"sm"}></Spinner>
             </span>
-          </a>
-        )}
-      </td>
-      <td className="col-md-1 text-lg text-left">
-        {lastFeed && feedsTotals[feedId] && (
-          <span>{bytesToSize(feedsTotals[feedId].size_.toNumber())}</span>
-        )}
-      </td>
-      <td className="col-md-1 text-lg text-left">
-        {lastFeed && feedsTotals[feedId] && (
-          <span>{feedsTotals[feedId].count.toNumber().toLocaleString()}</span>
+          </>
         )}
       </td>
     </tr>
