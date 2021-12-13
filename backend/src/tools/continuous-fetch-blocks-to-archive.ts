@@ -5,16 +5,10 @@
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import pRetry from "p-retry";
+
 import { createApi } from '../utils';
 import { fetchAndStoreBlock } from './common';
-
-const retryOptions = {
-  randomize: true,
-  forever: true,
-  minTimeout: 1000,
-  maxTimeout: 60 * 60 * 1000,
-};
+import { PrimaryChainHeadState } from "../chainHeadState";
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
@@ -32,6 +26,16 @@ const retryOptions = {
   console.log("Retrieving last finalized block...");
 
   const api = await createApi(sourceChainRpc);
+
+  const chainHeadState = new PrimaryChainHeadState(0);
+
+  await api.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
+    chainHeadState.lastFinalizedBlockNumber = blockHeader.number.toNumber();
+    if (chainHeadState.newHeadCallback) {
+      chainHeadState.newHeadCallback();
+      chainHeadState.newHeadCallback = undefined;
+    }
+  })
 
   console.log(`Downloading blocks into ${targetDir}`);
 
@@ -52,22 +56,20 @@ const retryOptions = {
   let blockNumber = lastDownloadedBlock + 1;
 
   for (; ;) {
-    const lastFinalizedHash = await pRetry(
-      () => api.rpc.chain.getFinalizedHead(),
-      retryOptions,
-    );
-
-    const lastFinalizedBlockNumber = (await pRetry(
-      () => api.rpc.chain.getHeader(lastFinalizedHash),
-      retryOptions,
-    )).number.toNumber();
-
-    if (blockNumber <= lastFinalizedBlockNumber) {
+    if (blockNumber <= chainHeadState.lastFinalizedBlockNumber) {
       await fetchAndStoreBlock(api, blockNumber, db);
 
-      console.info(`Downloaded block ${blockNumber}/${lastFinalizedBlockNumber}`);
+      console.info(`Downloaded block ${blockNumber}/${chainHeadState.lastFinalizedBlockNumber}`);
 
       blockNumber++;
     }
+
+    await new Promise<void>((resolve) => {
+      if (blockNumber <= chainHeadState.lastFinalizedBlockNumber) {
+        resolve();
+      } else {
+        chainHeadState.newHeadCallback = resolve;
+      }
+    });
   }
 })();
