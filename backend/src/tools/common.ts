@@ -3,7 +3,7 @@ import { ApiPromise } from "@polkadot/api";
 import { blockToBinary, blockNumberToBuffer } from '../utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, db: any,): Promise<void> {
+export async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, db: any): Promise<void> {
     const blockHash = (await api.rpc.chain.getBlockHash(blockNumber)).toString();
     const blockBytes = blockToBinary(await api.rpc.chain.getBlock.raw(blockHash));
   
