@@ -24,9 +24,8 @@ const ParachainRow = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, w
     return () => clearInterval(timer);
   }, [count]);
 
-  if (filter && filter === 1 && ecosystem !== "kusama") return <></>;
-  else if (filter && filter === 2 && ecosystem !== "polkadot") return <></>;
-
+  if (filter && filter === 1 && ecosystem !== "kusama") return null;
+  else if (filter && filter === 2 && ecosystem !== "polkadot") return null;
   return (
     <tr>
       <th scope="row" className="col-md-2">
