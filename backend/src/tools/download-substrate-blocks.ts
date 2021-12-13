@@ -1,14 +1,14 @@
 // Small utility that can download blocks from Substrate-based chain starting from genesis and store them by block
-// number in a directory
+// number in a directory. Terminates after reaching last finalized block number
 
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-import { ApiPromise } from "@polkadot/api";
 
-import { blockToBinary, createApi, blockNumberToBuffer } from '../utils';
+import { createApi, blockNumberToBuffer } from '../utils';
+import { fetchAndStoreBlock } from './common';
 
 const REPORT_PROGRESS_INTERVAL = process.env.REPORT_PROGRESS_INTERVAL
   ? parseInt(process.env.REPORT_PROGRESS_INTERVAL, 10)
@@ -25,28 +25,6 @@ process
     console.log('Got SIGTERM, will stop as soon as possible');
     shouldStop = true;
   });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, db: any,): Promise<void> {
-  const blockHash = (await api.rpc.chain.getBlockHash(blockNumber)).toString();
-  const blockBytes = blockToBinary(await api.rpc.chain.getBlock.raw(blockHash));
-
-  const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
-  const blockHashAsBuffer = Buffer.from(blockHash.slice(2), 'hex');
-
-  await db.put(
-    blockNumberAsBuffer,
-    Buffer.concat([
-      // Block hash length in bytes
-      Buffer.from(Uint8Array.of(blockHashAsBuffer.byteLength)),
-      // Block hash itself
-      blockHashAsBuffer,
-      // Block bytes in full
-      blockBytes,
-    ]),
-  );
-  await db.put('last-downloaded-block', blockNumberAsBuffer);
-}
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
