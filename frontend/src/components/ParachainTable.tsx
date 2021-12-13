@@ -1,13 +1,32 @@
-import { useState } from "react";
-import { Badge, Card, Container, Table } from "reactstrap";
+import { useContext, useEffect, useState } from "react";
+import { Badge, Card, Container, Table, Spinner } from "reactstrap";
 import { allChains } from "config/AvailableParachain";
 import Header from "./Header";
 import ParachainRow from "./ParachainRow";
-import { ParachainProps } from "config/interfaces/Parachain";
+import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
+import { RelayerContext } from "context";
 
 const ParachainTable = () => {
   const [parachainProps] = useState<ParachainProps[]>([...allChains]);
   const [filter, setFilter] = useState<number>(0);
+  const [sortByBlock, setSortByBlock] = useState<boolean>(true);
+  const [sortedFeeds, setSortedFeeds] = useState<ParachainFeed[]>([]);
+  const { parachainFeeds } = useContext(RelayerContext);
+
+  useEffect(() => {
+    const sortedFeeds = parachainFeeds.sort((a, b) => {
+      if (sortByBlock) {
+        return b.number - a.number;
+      } else {
+        return a.number - b.number;
+      }
+    });
+    setSortedFeeds(sortedFeeds);
+  }, [parachainFeeds, sortByBlock]);
+
+  const updateSortByBlock = () => {
+    setSortByBlock(!sortByBlock);
+  };
 
   const getFilterColor = (filterIndex: number): string => {
     if (filterIndex === filter) return "badge-lg badge-cursor text-white";
@@ -48,15 +67,32 @@ const ParachainTable = () => {
                 <th>{"Chains"}</th>
                 <th>{"Last Updated"}</th>
                 <th className="text-left">{"Last Block Hash"}</th>
-                <th className="text-left">{"Last Block Height"}</th>
+                <th className="badge-cursor text-left" onClick={() => updateSortByBlock()}>
+                  {"Last Block Height "}
+                  <i className={!sortByBlock ? "fas fa-arrow-down" : "fas fa-arrow-up"}></i>
+                </th>
                 <th>{"Storage"}</th>
                 <th className="text-right">{"Subspace Hash"}</th>
               </tr>
             </thead>
             <tbody>
-              {parachainProps.map((chain) => (
-                <ParachainRow key={chain.feedId} {...chain} filter={filter} />
-              ))}
+              {sortedFeeds.map((feed) => {
+                const prop = parachainProps.find((p) => p.feedId === feed.feedId);
+                if (prop) return <ParachainRow key={feed.feedId} filter={filter} {...prop} {...feed} />;
+              })}
+              {sortedFeeds.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="text-center pb-2 pt-3">
+                      <h3>Connecting and loading archives <Spinner
+                        className="ml-2"
+                        color="text-primary"
+                        size={"sm"}
+                      ></Spinner></h3>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </Table>
         </Card>

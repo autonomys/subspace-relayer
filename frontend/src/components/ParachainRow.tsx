@@ -1,27 +1,23 @@
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistanceToNow } from "date-fns";
 import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
 import { bytesToSize, explorerLink, prettyHash } from "components/utils";
-import { RelayerContext } from "context";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const ParachainRow = ({ wss, feedId, chain, chainName, web, subspaceWss, ecosystem, filter }: ParachainProps) => {
+const ParachainRow = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }: ParachainProps & ParachainFeed) => {
   const { width } = useWindowSize();
   const [count, setCount] = useState<number>(0);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
-  const [lastFeed, setlastFeed] = useState<ParachainFeed>();
-  const { parachainFeeds } = useContext(RelayerContext);
+  const [lastFeedNumber, setlastFeedNumber] = useState<number>();
 
   useEffect(() => {
-    if (!parachainFeeds[feedId]) return;
-
-    if (!lastFeed || parachainFeeds[feedId].number > lastFeed.number) {
-      setlastFeed(parachainFeeds[feedId]);
+    if (!lastFeedNumber || number > lastFeedNumber) {
+      setlastFeedNumber(number);
       setLastUpdate(Date.now);
       setCount(0);
     }
-  }, [parachainFeeds]);
+  }, [number]);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
@@ -53,9 +49,13 @@ const ParachainRow = ({ wss, feedId, chain, chainName, web, subspaceWss, ecosyst
         </Media>
       </th>
       <td className="col-md-2 text-md">
-        {lastFeed && lastFeed.number && lastFeed.hash ? (
+        {lastFeedNumber && number ? (
           <>
-            <Spinner className={"mr-2 " + (count < 60 ? "bg-success" : count >= 60 && count < 120 ? "bg-yellow" : "bg-red")} type="grow" size={"sm"} />
+            <Spinner
+              className={"mr-2 " + (count < 60 ? "bg-success" : count >= 60 && count < 120 ? "bg-yellow" : "bg-red")}
+              type="grow"
+              size={"sm"}
+            />
             <span>{formatDistanceToNow(lastUpdate)}</span>
           </>
         ) : (
@@ -66,39 +66,33 @@ const ParachainRow = ({ wss, feedId, chain, chainName, web, subspaceWss, ecosyst
         )}
       </td>
       <td className="col-md-3 text-lg text-left">
-        {lastFeed && lastFeed.hash && (
-          <>
-            <UncontrolledTooltip delay={0} placement="top" target={chain + "hash"}>
-              {lastFeed.hash}
-            </UncontrolledTooltip>
-            <span data-placement="top" id={chain + "hash"}>
-              <a rel="noreferrer" target="_blank" href={explorerLink(lastFeed.hash, wss)}>
-                {width > 920 ? prettyHash(lastFeed.hash, 12, 8) : prettyHash(lastFeed.hash, 6, 4)}
-              </a>
-            </span>
-          </>
-        )}
+        <UncontrolledTooltip delay={0} placement="top" target={chain + "hash"}>
+          {hash}
+        </UncontrolledTooltip>
+        <span data-placement="top" id={chain + "hash"}>
+          <a rel="noreferrer" target="_blank" href={explorerLink(hash, wss)}>
+            {width > 920 ? prettyHash(hash, 12, 8) : prettyHash(hash, 6, 4)}
+          </a>
+        </span>
       </td>
       <td className="col-md-2 text-lg">
-        {lastFeed && lastFeed.number && (
-          <a rel="noreferrer" target="_blank" href={explorerLink(lastFeed.number, wss)}>
-            <span>
-              {"# "}
-              {lastFeed.number.toLocaleString()}
-            </span>
-          </a>
-        )}
+        <a rel="noreferrer" target="_blank" href={explorerLink(number, wss)}>
+          <span>
+            {"# "}
+            {number.toLocaleString()}
+          </span>
+        </a>
       </td>
-      <td className="col-md-1 text-left">{lastFeed && lastFeed.size > 0 && <h2>{bytesToSize(lastFeed.size)}</h2>}</td>
+      <td className="col-md-1 text-left">{size > 0 && <h2>{bytesToSize(size)}</h2>}</td>
       <td className="col-md-2 text-lg text-right">
-        {lastFeed && lastFeed.subspaceHash ? (
+        {subspaceHash ? (
           <>
             <UncontrolledTooltip delay={0} placement="top" target={chain + "subspaceHash"}>
-              {lastFeed.subspaceHash}
+              {subspaceHash}
             </UncontrolledTooltip>
             <span data-placement="top" id={chain + "subspaceHash"}>
-              <a rel="noreferrer" target="_blank" href={explorerLink(lastFeed.subspaceHash, subspaceWss)}>
-                {width > 920 ? prettyHash(lastFeed.subspaceHash, 12, 8) : prettyHash(lastFeed.subspaceHash, 6, 4)}
+              <a rel="noreferrer" target="_blank" href={explorerLink(subspaceHash, subspaceWss)}>
+                {width > 920 ? prettyHash(subspaceHash, 12, 8) : prettyHash(subspaceHash, 6, 4)}
               </a>
             </span>
           </>
