@@ -9,21 +9,22 @@ const rocksdb = require("rocksdb");
 import { createApi } from '../utils';
 import { fetchAndStoreBlock } from './common';
 import { PrimaryChainHeadState } from "../chainHeadState";
+import logger from "../logger";
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
   if (!(sourceChainRpc && sourceChainRpc.startsWith('ws'))) {
-    console.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
+    logger.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
     process.exit(1);
   }
 
   const targetDir = process.env.TARGET_DIR;
   if (!sourceChainRpc) {
-    console.error("TARGET_DIR environment variable must be set with directory where downloaded blocks must be stored");
+    logger.error("TARGET_DIR environment variable must be set with directory where downloaded blocks must be stored");
     process.exit(1);
   }
 
-  console.log("Retrieving last finalized block...");
+  logger.info("Retrieving last finalized block...");
 
   const api = await createApi(sourceChainRpc);
 
@@ -35,9 +36,9 @@ import { PrimaryChainHeadState } from "../chainHeadState";
       chainHeadState.newHeadCallback();
       chainHeadState.newHeadCallback = undefined;
     }
-  })
+  });
 
-  console.log(`Downloading blocks into ${targetDir}`);
+  logger.info(`Downloading blocks into ${targetDir}`);
 
   const db = levelup(rocksdb(`${targetDir}/db`));
 
@@ -50,7 +51,7 @@ import { PrimaryChainHeadState } from "../chainHeadState";
   }
 
   if (lastDownloadedBlock > -1) {
-    console.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
+    logger.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
   }
 
   let blockNumber = lastDownloadedBlock + 1;
@@ -59,7 +60,7 @@ import { PrimaryChainHeadState } from "../chainHeadState";
     if (blockNumber <= chainHeadState.lastFinalizedBlockNumber) {
       await fetchAndStoreBlock(api, blockNumber, db);
 
-      console.info(`Downloaded block ${blockNumber}/${chainHeadState.lastFinalizedBlockNumber}`);
+      logger.debug(`Downloaded block ${blockNumber}/${chainHeadState.lastFinalizedBlockNumber}`);
 
       blockNumber++;
     }
