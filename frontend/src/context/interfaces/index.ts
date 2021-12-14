@@ -2,13 +2,7 @@ import { ApiPromise } from "@polkadot/api";
 import { ApiOptions } from "@polkadot/api/types";
 import { WsProvider } from "@polkadot/rpc-provider";
 import { Text } from "@polkadot/types";
-import { Totals } from "config/interfaces/Parachain";
-import {
-  BlockHash,
-  ChainProperties,
-  Header,
-  Health,
-} from "@polkadot/types/interfaces";
+import { ParachainFeed } from "config/interfaces/Parachain";
 
 export interface ProviderContextType {
   provider: WsProvider;
@@ -42,16 +36,11 @@ export interface ApiPromiseContextType {
 }
 
 export interface RelayerContextType {
-  feedsTotals: Array<Totals>;
+  parachainFeeds: ParachainFeed[];
 }
 
 export interface SystemContextType {
   chain?: Text;
-  genesisHash?: BlockHash;
-  header?: Header;
-  health?: Health;
   isSystemReady: boolean;
-  name?: Text;
-  properties?: ChainProperties;
   version?: Text;
 }

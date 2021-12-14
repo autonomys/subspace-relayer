@@ -1,54 +1,135 @@
 import React, { useContext, useEffect, useState } from "react";
-import { from } from "rxjs";
-import {
-  RelayerContextProviderProps,
-  RelayerContextType,
-} from "context/interfaces";
-import { Totals } from "config/interfaces/Parachain";
-import { parachains } from "config/AvailableParachain";
-import { ApiPromiseContext, SystemContext } from "context";
 import { ApiPromise } from "@polkadot/api";
-import { useProvider } from "./ProviderContext";
+import { Header } from "@polkadot/types/interfaces";
+import { from } from "rxjs";
+import { allChains } from "config/AvailableParachain";
+import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
+import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
 
-async function getFeedTotals(api: ApiPromise): Promise<Totals[]> {
-  const feedsTotals: Array<Totals> = Array<Totals>();
-  for (const { feedId } of parachains) {
-    const totals = await api.query.feeds.totals(feedId);
-    feedsTotals.push(api.registry.createType("Totals", totals));
+const feedIds: number[] = allChains.map((chain) => chain.feedId)
+
+function extractFeed(api: ApiPromise, args: any[]): ParachainFeed {
+  const id: number = api.registry.createType("u64", args[0]).toNumber();
+  const metadata = api.registry.createType("Bytes", args[2]).toHuman();
+  const { hash, number } = JSON.parse(metadata?.toString() || "{}");
+  return {
+    feedId: id,
+    hash: hash || "",
+    number: number || "",
+    size: 0,
+    count: 0,
+    subspaceHash: "",
+  };
+}
+
+async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
+  const feedsTotals: FeedTotals[] = [];
+  const totals = await api.query.feeds.totals.multi(feedIds);
+  for (let i = 0; i < feedIds.length; i++) {
+    const feedId = feedIds[i];
+    const feedTotal: Totals = api.registry.createType("Totals", totals[i]);
+    if (!feedTotal.isEmpty)
+      feedsTotals.push({
+        feedId,
+        size: feedTotal.size_.toNumber(),
+        count: feedTotal.count.toNumber(),
+      });
   }
   return feedsTotals;
 }
 
-export const RelayerContext: React.Context<RelayerContextType> =
-  React.createContext({} as RelayerContextType);
-
-export function RelayerContextProvider(
-  props: RelayerContextProviderProps
-): React.ReactElement {
-  const { children = null } = props;
-  const provider = useProvider();
-  const { api, isApiReady } = useContext(ApiPromiseContext);
-  const { header } = useContext(SystemContext);
-
-  const [feedsTotals, setFeedsTotals] = useState<Totals[]>(
-    Array<Totals>(parachains.length)
-  );
-
-  useEffect(() => {
-    if (!provider || !isApiReady || !api) {
-      return;
+async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
+  const feeds: ParachainFeed[] = [];
+  const [feedsMetadata, totals] = await Promise.all([api.query.feeds.metadata.multi(feedIds), getFeedTotals(api)]);
+  for (let i = 0; i < feedIds.length; i++) {
+    const feedId = feedIds[i];
+    const feedMetadata = feedsMetadata[i];
+    const total = totals.find((t) => t.feedId === feedId);
+    if (!feedMetadata.isEmpty && total) {
+      feeds.push({
+        feedId: feedId,
+        ...JSON.parse(feedMetadata.toHuman()?.toString() || "{}"),
+        size: total.size,
+        count: total.count,
+      });
     }
-    const subscription = from(getFeedTotals(api)).subscribe((totals) => {
-      setFeedsTotals(totals);
-    });
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [provider, api, isApiReady, header]);
+  }
+  return feeds;
+}
 
-  return (
-    <RelayerContext.Provider value={{ feedsTotals }}>
-      {children}
-    </RelayerContext.Provider>
-  );
+async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
+  const subspaceHash = hash.toString();
+  const [{ block }, totals] = await Promise.all([api.rpc.chain.getBlock(subspaceHash), getFeedTotals(api)]);
+  let newFeeds: ParachainFeed[] = [...oldFeeds];
+
+  block.extrinsics.forEach(({ method: { method, section, args } }) => {
+    let newFeed: ParachainFeed | undefined;
+    if (section === "utility" && method === "batchAll") {
+      // It assumes that a batchAll contains a Vec of put calls, for one feedId.
+      // This way it is possible to get the feedId from the first argument of the put call
+      const batchCalls: any = args[0];
+      for (const { args } of batchCalls) {
+        // Using 3 args feedId, data, metadata.
+        if (args?.length === 3) {
+          newFeed = extractFeed(api, args);
+          break;
+        }
+      }
+    } else if (section === "feeds" && method === "put" && args.length === 3) {
+      newFeed = extractFeed(api, args);
+    }
+
+    if (newFeed) {
+      const { feedId } = newFeed;
+      const feedIndex = newFeeds.findIndex((f) => f.feedId === feedId);
+      const total = totals.find((total) => total.feedId === feedId);
+      newFeeds[feedIndex] = {
+        ...newFeed,
+        ...total,
+        subspaceHash,
+      };
+    }
+  });
+  return newFeeds;
+}
+
+export const RelayerContext: React.Context<RelayerContextType> = React.createContext({} as RelayerContextType);
+
+export function RelayerContextProvider(props: RelayerContextProviderProps): React.ReactElement {
+  const { children = null } = props;
+  const { api, isApiReady } = useContext(ApiPromiseContext);
+  const [header, setHeader] = useState<Header>();
+  const [parachainFeeds, setParachainFeeds] = useState<ParachainFeed[]>([]);
+  const [firstLoad, setFirstLoad] = useState<boolean>(true);
+
+  // Get feeds for the first load.
+  useEffect(() => {
+    if (!isApiReady || !api || !firstLoad) return;
+    const sub = from(getInitFeeds(api)).subscribe((initFeeds) => {
+      setParachainFeeds(initFeeds);
+      setFirstLoad(false);
+    });
+    return (): void => sub.unsubscribe();
+  }, [isApiReady, api, firstLoad]);
+
+  // Get new header using a subscription, to avoid missing blocks.
+  useEffect(() => {
+    if (!isApiReady || !api || firstLoad) return;
+    api.rpc.chain.subscribeNewHeads((header) => {
+      setHeader(header);
+    });
+  }, [isApiReady, api, firstLoad]);
+
+  // If we get a new header, get new feeds.
+  useEffect(() => {
+    if (!isApiReady || !api || !header) return;
+    if (header) {
+      const sub = from(getNewFeeds(api, header, parachainFeeds)).subscribe((newFeeds) => {
+        setParachainFeeds(newFeeds);
+      });
+      return (): void => sub.unsubscribe();
+    }
+  }, [isApiReady, api, header]);
+
+  return <RelayerContext.Provider value={{ parachainFeeds }}>{children}</RelayerContext.Provider>;
 }
