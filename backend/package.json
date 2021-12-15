@@ -20,11 +20,11 @@
   "author": "",
   "license": "Apache 2.0",
   "dependencies": {
-    "@polkadot/api": "^6.7.1",
-    "@polkadot/keyring": "^7.8.2",
-    "@polkadot/types": "^6.7.1",
-    "@polkadot/util": "^7.8.2",
-    "@polkadot/util-crypto": "^7.8.2",
+    "@polkadot/api": "^6.12.1",
+    "@polkadot/keyring": "^8.1.2",
+    "@polkadot/types": "^6.12.1",
+    "@polkadot/util": "^8.1.2",
+    "@polkadot/util-crypto": "^8.1.2",
     "dotenv": "^10.0.0",
     "levelup": "^5.1.1",
     "p-retry": "^4.6.1",
@@ -41,6 +41,7 @@
     "eslint": "^7.32.0",
     "eslint-plugin-eslint-plugin": "^3.5.3",
     "tap": "^15.0.10",
+    "ts-node": "^10.4.0",
     "typescript": "^4.4.2"
   }
 }
