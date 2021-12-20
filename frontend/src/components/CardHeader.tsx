@@ -1,14 +1,10 @@
+import React, { ReactElement } from 'react';
 import { Card, CardBody, CardTitle, Row, Col, Spinner } from "reactstrap";
 
-const CardHeader = ({
-  title,
+const CardHeader: React.FC<{ title: string; content: string, md: string }> = ({ title,
   content,
   md,
-}: {
-  title: string;
-  content: string;
-  md: string;
-}) => {
+}): ReactElement => {
   return (
     <Col md={md}>
       <Card className="card-stats mb-4 mb-xl-0">

@@ -1,5 +1,5 @@
+import React, { useState, ReactElement } from "react";
 import { WsProvider } from "@polkadot/rpc-provider";
-import { useState } from "react";
 import { getApiUrl } from "config/RpcSettings";
 import NavBar from "components/NavBar";
 import ParachainTable from "components/ParachainTable";
@@ -11,7 +11,7 @@ import {
   SystemContextProvider,
 } from "context";
 
-const App = () => {
+const App: React.FC = (): ReactElement => {
   const [provider] = useState<WsProvider>(new WsProvider(getApiUrl()));
 
   return (

@@ -3,4 +3,3 @@
 # wrangler files
 /dist
 /workers-site
-wrangler.toml

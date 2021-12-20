@@ -251,7 +251,7 @@ export default class Relay {
                 throw e;
               });
           },
-          createRetryOptions(error => this.logger.error(error, 'sendBlock[sBatch]Tx retry error:')),
+          createRetryOptions(error => this.logger.error(error, `sendBlock[sBatch]Tx retry error (chain: ${chainName}, signer: ${signer.address}):`)),
         );
         nonce++;
 

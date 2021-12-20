@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import React, { ReactElement, useContext, useEffect, useState } from "react";
 import { Badge, Card, Container, Table, Spinner } from "reactstrap";
 import { allChains } from "config/AvailableParachain";
 import Header from "./Header";
@@ -6,7 +6,7 @@ import ParachainRow from "./ParachainRow";
 import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
 import { RelayerContext } from "context";
 
-const ParachainTable = () => {
+const ParachainTable: React.FC = (): ReactElement => {
   const [parachainProps] = useState<ParachainProps[]>([...allChains]);
   const [filter, setFilter] = useState<number>(0);
   const [sortByBlock, setSortByBlock] = useState<boolean>(true);
