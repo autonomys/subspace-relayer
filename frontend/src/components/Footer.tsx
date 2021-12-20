@@ -1,6 +1,7 @@
+import React from 'react';
 import { Container, Row, Col } from "reactstrap";
 
-const Footer = () => {
+const Footer: React.FunctionComponent<Record<string, never>> = () => {
   return (
     <footer className="pt-5 pb-5">
       <Container>

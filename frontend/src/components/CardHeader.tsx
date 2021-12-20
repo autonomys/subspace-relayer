@@ -1,13 +1,9 @@
+import React from 'react';
 import { Card, CardBody, CardTitle, Row, Col, Spinner } from "reactstrap";
 
-const CardHeader = ({
-  title,
+const CardHeader: React.FunctionComponent<{ title: string; content: string, md: string }> = ({ title,
   content,
   md,
-}: {
-  title: string;
-  content: string;
-  md: string;
 }) => {
   return (
     <Col md={md}>

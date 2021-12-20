@@ -60,7 +60,7 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
 async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
   const subspaceHash = hash.toString();
   const [{ block }, totals] = await Promise.all([api.rpc.chain.getBlock(subspaceHash), getFeedTotals(api)]);
-  let newFeeds: ParachainFeed[] = [...oldFeeds];
+  const newFeeds: ParachainFeed[] = [...oldFeeds];
 
   block.extrinsics.forEach(({ method: { method, section, args } }) => {
     let newFeed: ParachainFeed | undefined;

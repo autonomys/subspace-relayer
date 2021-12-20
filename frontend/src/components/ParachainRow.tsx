@@ -1,15 +1,23 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Media, Spinner, UncontrolledTooltip } from "reactstrap";
 import { formatDistanceToNow } from "date-fns";
 import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
 import { bytesToSize, explorerLink, prettyHash } from "components/utils";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const ParachainRow = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }: ParachainProps & ParachainFeed) => {
+const ParachainRow: React.FunctionComponent<ParachainProps & ParachainFeed> = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }) => {
   const { width } = useWindowSize();
   const [count, setCount] = useState<number>(0);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const [lastFeedNumber, setlastFeedNumber] = useState<number>();
+  const [imageSrc, setImageSrc] = useState<string>("");
+
+  const loadImage = () => {
+    if (chain)
+      import(`../assets/img/parachains/${chain}.png`).then(image => {
+        setImageSrc(image.default);
+      });
+  };
 
   useEffect(() => {
     if (!lastFeedNumber || number > lastFeedNumber) {
@@ -24,6 +32,10 @@ const ParachainRow = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, w
     return () => clearInterval(timer);
   }, [count]);
 
+  useEffect(() => {
+    loadImage();
+  }, []);
+
   if (filter && filter === 1 && ecosystem !== "kusama") return null;
   else if (filter && filter === 2 && ecosystem !== "polkadot") return null;
   return (
@@ -37,7 +49,7 @@ const ParachainRow = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, w
         <Media className="align-items-center">
           <a rel="noreferrer" className="avatar rounded-circle" href={web} target="_blank">
             <span data-placement="top" id={chain + "logo"}>
-              <img alt="parachain logo" src={require("../assets/img/parachains/" + chain + ".png").default} />
+              <img alt="parachain logo" src={imageSrc} />
             </span>
           </a>
           {width > 920 && (

@@ -1,9 +1,9 @@
-import { useContext } from "react";
+import React, { useContext } from "react";
 import { SystemContext } from "context";
 import { Navbar, Nav, NavbarBrand, NavItem, Badge } from "reactstrap";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const NavBar = () => {
+const NavBar: React.FunctionComponent<Record<string, never>> = () => {
   const { isSystemReady } = useContext(SystemContext);
   const { width } = useWindowSize();
   return (
