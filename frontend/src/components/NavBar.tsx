@@ -36,7 +36,7 @@ const NavBar = () => {
               target="_blank"
               className="h5 text-primary nav-link-inner--text"
             >
-              {"Learn more ..."}
+              {" Learn more ..."}
             </a>
           </NavItem>
         )}
