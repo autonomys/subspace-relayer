@@ -95,9 +95,9 @@ async function main() {
           // We know that block number will not exceed 53-bit size integer
           lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
         }
-      } else {
-        relay = new Relay({ ...relayParams, batchCountLimit: RPC_BATCH_COUNT_LIMIT });
       }
+
+      relay = new Relay({ ...relayParams, batchCountLimit: RPC_BATCH_COUNT_LIMIT });
 
       if ('paraId' in chainConfig) {
         const chainHeadState = new ParachainHeadState();
