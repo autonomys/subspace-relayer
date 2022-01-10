@@ -18,11 +18,7 @@
   },
   "plugins": ["react", "react-hooks", "@typescript-eslint"],
   "rules": {
-    "react-hooks/exhaustive-deps": "warn",
-    "@typescript-eslint/no-explicit-any": 0,
-    "@typescript-eslint/no-var-requires": 0,
-    "no-debugger": "warn",
-    "prefer-const": "warn"
+    "@typescript-eslint/no-explicit-any": 0
   },
   "settings": {
     "react": {
