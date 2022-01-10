@@ -12,12 +12,7 @@ const ParachainRow: React.FunctionComponent<ParachainProps & ParachainFeed> = ({
   const [lastFeedNumber, setlastFeedNumber] = useState<number>();
   const [imageSrc, setImageSrc] = useState<string>("");
 
-  const loadImage = () => {
-    if (chain)
-      import(`../assets/img/parachains/${chain}.png`).then(image => {
-        setImageSrc(image.default);
-      });
-  };
+
 
   useEffect(() => {
     if (!lastFeedNumber || number > lastFeedNumber) {
@@ -25,7 +20,7 @@ const ParachainRow: React.FunctionComponent<ParachainProps & ParachainFeed> = ({
       setLastUpdate(Date.now);
       setCount(0);
     }
-  }, [number]);
+  }, [number, lastFeedNumber]);
 
   useEffect(() => {
     const timer = setInterval(() => setCount(count + 1), 1000);
@@ -33,8 +28,10 @@ const ParachainRow: React.FunctionComponent<ParachainProps & ParachainFeed> = ({
   }, [count]);
 
   useEffect(() => {
-    loadImage();
-  }, []);
+    import(`../assets/img/parachains/${chain}.png`).then(image => {
+      setImageSrc(image.default);
+    });
+  }, [chain]);
 
   if (filter && filter === 1 && ecosystem !== "kusama") return null;
   else if (filter && filter === 2 && ecosystem !== "polkadot") return null;

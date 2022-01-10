@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { SystemContext } from "context";
 import { Navbar, Nav, NavbarBrand, NavItem, Badge } from "reactstrap";
 import { useWindowSize } from "hooks/WindowsSize";
@@ -6,6 +6,14 @@ import { useWindowSize } from "hooks/WindowsSize";
 const NavBar: React.FunctionComponent<Record<string, never>> = () => {
   const { isSystemReady } = useContext(SystemContext);
   const { width } = useWindowSize();
+  const [logoSrc, setLogoSrc] = useState<string>("");
+
+  useEffect(() => {
+    import(`../assets/img/logo_50x50px.svg`).then(image => {
+      setLogoSrc(image.default);
+    });
+  }, []);
+
   return (
     <Navbar
       className="navbar-top navbar-dark p-2 pl-4"
@@ -16,7 +24,7 @@ const NavBar: React.FunctionComponent<Record<string, never>> = () => {
         <img
           width="48"
           alt="..."
-          src={require("../assets/img/logo_50x50px.svg").default}
+          src={logoSrc}
         />
       </NavbarBrand>
       <Nav navbar>
