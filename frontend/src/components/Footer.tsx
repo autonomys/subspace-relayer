@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { ReactElement } from 'react';
 import { Container, Row, Col } from "reactstrap";
 
-const Footer: React.FunctionComponent<Record<string, never>> = () => {
+const Footer: React.FC = (): ReactElement => {
   return (
     <footer className="pt-5 pb-5">
       <Container>
@@ -17,7 +17,7 @@ const Footer: React.FunctionComponent<Record<string, never>> = () => {
                 {
                   `© ${new Date().getFullYear()} Powered by the Subspace Network`
                 }
-                
+
               </a>
             </div>
           </Col>

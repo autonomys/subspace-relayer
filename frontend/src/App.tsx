@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, ReactElement } from "react";
 import { WsProvider } from "@polkadot/rpc-provider";
 import { getApiUrl } from "config/RpcSettings";
 import NavBar from "components/NavBar";
@@ -11,7 +11,7 @@ import {
   SystemContextProvider,
 } from "context";
 
-const App: React.FunctionComponent<Record<string, never>> = () => {
+const App: React.FC = (): ReactElement => {
   const [provider] = useState<WsProvider>(new WsProvider(getApiUrl()));
 
   return (

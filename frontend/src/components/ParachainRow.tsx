@@ -5,14 +5,12 @@ import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
 import { bytesToSize, explorerLink, prettyHash } from "components/utils";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const ParachainRow: React.FunctionComponent<ParachainProps & ParachainFeed> = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }) => {
+const ParachainRow: React.FC<ParachainProps & ParachainFeed> = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }) => {
   const { width } = useWindowSize();
   const [count, setCount] = useState<number>(0);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const [lastFeedNumber, setlastFeedNumber] = useState<number>();
   const [imageSrc, setImageSrc] = useState<string>("");
-
-
 
   useEffect(() => {
     if (!lastFeedNumber || number > lastFeedNumber) {
