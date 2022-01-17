@@ -1,4 +1,5 @@
 import * as tap from 'tap';
+import '@polkadot/api-augment';
 // TODO: Types do not seem to match the code, hence usage of it like this
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const levelup = require("levelup");
