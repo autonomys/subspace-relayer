@@ -1,4 +1,5 @@
 import * as tap from 'tap';
+import '@polkadot/api-augment';
 import { TypeRegistry } from '@polkadot/types';
 import { ISubmittableResult } from '@polkadot/types/types';
 
