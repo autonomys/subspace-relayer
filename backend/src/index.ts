@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 import '@polkadot/api-augment';
 import { U64 } from "@polkadot/types";
+import * as promClient from 'prom-client';
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
 import Target from "./target";
@@ -11,6 +12,7 @@ import ChainArchive from "./chainArchive";
 import { ChainId, ParaHeadAndId, ChainName } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, createApi } from "./utils";
+import { startServer } from './server';
 
 dotenv.config();
 
@@ -176,6 +178,8 @@ async function main() {
 // TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
   try {
+    promClient.collectDefaultMetrics();
+    startServer(8000, promClient.register);
     await main();
   } catch (error) {
     if (error instanceof Error) {
