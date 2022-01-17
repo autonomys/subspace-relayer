@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import '@polkadot/api-augment';
 import { U64 } from "@polkadot/types";
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
