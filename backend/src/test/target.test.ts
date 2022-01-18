@@ -5,6 +5,7 @@ import { ISubmittableResult } from '@polkadot/types/types';
 
 import Target from "../target";
 import logger from '../mocks/logger';
+import metricsMock from '../mocks/metrics';
 import { createMockPutWithResult } from '../mocks/api';
 import { ChainName, SignerWithAddress } from '../types';
 import * as signedBlockMock from '../mocks/signedBlock.json';
@@ -45,7 +46,12 @@ tap.test('Target module', (t) => {
   const apiFailure = createMockPutWithResult(putFailureResult);
 
   tap.test('sendBlockTx should successfully send block transaction and resolve hash', async (t) => {
-    const target = new Target({ api: apiSuccess, logger, targetChainUrl });
+    const target = new Target({
+      api: apiSuccess,
+      logger,
+      targetChainUrl,
+      metrics: metricsMock,
+    });
 
     const hash = await target.sendBlockTx(feedId, chainName, signer, txBlock, nonce);
 
@@ -53,13 +59,22 @@ tap.test('Target module', (t) => {
   });
 
   tap.test('sendBlockTx should reject if polkadot.js API throws error', async (t) => {
-    const target = new Target({ api: apiFailure, logger, targetChainUrl });
+    const target = new Target({
+      api: apiFailure,
+      logger, targetChainUrl,
+      metrics: metricsMock,
+    });
 
     t.rejects(target.sendBlockTx(feedId, chainName, signer, txBlock, nonce));
   });
 
   tap.test('sendBlocksBatchTx should successfully send batch of transactions and resolve hash', async (t) => {
-    const target = new Target({ api: apiSuccess, logger, targetChainUrl });
+    const target = new Target({
+      api: apiSuccess,
+      logger,
+      targetChainUrl,
+      metrics: metricsMock,
+    });
 
     const hash = await target.sendBlocksBatchTx(feedId, chainName, signer, txBatch, nonce);
 
@@ -67,7 +82,12 @@ tap.test('Target module', (t) => {
   });
 
   tap.test('sendBlocksBatchTx should reject if polkadot.js API throws error', async (t) => {
-    const target = new Target({ api: apiFailure, logger, targetChainUrl });
+    const target = new Target({
+      api: apiFailure,
+      logger,
+      targetChainUrl,
+      metrics: metricsMock,
+    });
 
     t.rejects(target.sendBlocksBatchTx(feedId, chainName, signer, txBatch, nonce));
   });

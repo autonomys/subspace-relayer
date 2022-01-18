@@ -4,22 +4,26 @@ import { Hash } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 
 import { SignerWithAddress, TxBlock, ChainName } from "./types";
+import { IMetrics } from './metrics';
 
 interface TargetConstructorParams {
   api: ApiPromise;
   logger: Logger;
   targetChainUrl: string;
+  metrics: IMetrics;
 }
 
 class Target {
   public readonly api: ApiPromise;
   public readonly targetChainUrl: string;
   private readonly logger: Logger;
+  private readonly metrics: IMetrics;
 
-  constructor({ api, logger, targetChainUrl }: TargetConstructorParams) {
+  constructor({ api, logger, targetChainUrl, metrics }: TargetConstructorParams) {
     this.api = api;
     this.logger = logger;
     this.targetChainUrl = targetChainUrl;
+    this.metrics = metrics;
   }
 
   public sendBlockTx(
@@ -45,6 +49,8 @@ class Target {
             reject(new Error(result.status.toString()));
             unsub();
           } else if (result.status.isInBlock) {
+            // update metrics block counter
+            this.metrics.incBlocks(chainName);
             resolve(result.status.asInBlock);
             unsub();
           }
@@ -85,6 +91,9 @@ class Target {
             reject(new Error(result.status.toString()));
             unsub();
           } else if (result.status.isInBlock) {
+            // update metric counters
+            this.metrics.incBatches(chainName);
+            this.metrics.incBlocks(chainName, txData.length);
             resolve(result.status.asInBlock);
             unsub();
           }
