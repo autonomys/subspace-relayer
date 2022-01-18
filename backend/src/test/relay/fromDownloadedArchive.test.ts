@@ -3,6 +3,7 @@ import { ApiPromise } from "@polkadot/api";
 
 import { setup } from './common';
 import ChainArchiveMock, { blocksMock } from '../../mocks/chainArchive';
+import metricsMock from '../../mocks/metrics';
 
 tap.test('Relay module - fromDownloadedArchive method', async (t) => {
   const {
@@ -48,7 +49,12 @@ tap.test('Relay module - fromDownloadedArchive method', async (t) => {
       }
     } as unknown as ApiPromise;
 
-    const targetMock = new Target({ api, logger: loggerMock, targetChainUrl });
+    const targetMock = new Target({
+      api, logger: loggerMock,
+      targetChainUrl,
+      metrics: metricsMock,
+    });
+
     const relay = new Relay({ ...defaultRelayParams, target: targetMock });
 
     const resultPromise = relay.fromDownloadedArchive(
