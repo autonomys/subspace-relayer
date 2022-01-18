@@ -1,9 +1,10 @@
 import * as prom from 'prom-client';
+import { ChainName } from './types';
 
 export interface IMetrics {
   contentType: string;
-  incBatches(): void;
-  incBlocks(value?: number): void;
+  incBatches(chain: ChainName): void;
+  incBlocks(chain: ChainName, value?: number): void;
   getMetrics(): Promise<string>;
 }
 
@@ -24,21 +25,23 @@ class Metrics implements IMetrics {
 
     this.blockCounter = new prom.Counter({
       name: 'blocks_total',
-      help: 'The total number of processed blocks'
+      help: 'The total number of processed blocks',
+      labelNames: ['chain'] as const,
     });
 
     this.batchCounter = new prom.Counter({
       name: 'batches_total',
-      help: 'The total number of submitted batches'
+      help: 'The total number of submitted batches',
+      labelNames: ['chain'] as const,
     });
   }
 
-  public incBatches(): void {
-    this.batchCounter.inc();
+  public incBatches(chain: ChainName): void {
+    this.batchCounter.inc({ chain });
   }
 
-  public incBlocks(value?: number): void {
-    this.blockCounter.inc(value);
+  public incBlocks(chain: ChainName, value?: number): void {
+    this.blockCounter.inc({ chain }, value);
   }
 
   public getMetrics(): Promise<string> {

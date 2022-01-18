@@ -50,7 +50,7 @@ class Target {
             unsub();
           } else if (result.status.isInBlock) {
             // update metrics block counter
-            this.metrics.incBlocks();
+            this.metrics.incBlocks(chainName);
             resolve(result.status.asInBlock);
             unsub();
           }
@@ -92,8 +92,8 @@ class Target {
             unsub();
           } else if (result.status.isInBlock) {
             // update metric counters
-            this.metrics.incBatches();
-            this.metrics.incBlocks(txData.length);
+            this.metrics.incBatches(chainName);
+            this.metrics.incBlocks(chainName, txData.length);
             resolve(result.status.asInBlock);
             unsub();
           }
