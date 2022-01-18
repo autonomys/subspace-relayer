@@ -1,13 +1,13 @@
 import * as http from 'http';
-import { Registry } from 'prom-client';
+import Metrics from './metrics';
 
 // exposes endpoint for Prometheus metrics
-export function startServer(port: number, register: Registry): void {
+export function startServer(port: number, metrics: Metrics): void {
   http.createServer(async (req, res) => {
     if (req.url === '/metrics') {
-      const metrics = await register.metrics();
-      res.setHeader('Content-Type', register.contentType);
-      res.end(metrics);
+      const data = await metrics.getMetrics();
+      res.setHeader('Content-Type', metrics.contentType);
+      res.end(data);
     } else {
       res.statusCode = 404;
       res.end('Not found');
