@@ -29,34 +29,31 @@ if (!paraId) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
+const chainConfig = config.parachains.find((chain) => chain.paraId === paraId);
+
+if (!chainConfig) {
+  throw new Error(`No chain with paraId ${paraId}`);
+}
+
 (async () => {
   const provider = new WsProvider(config.targetChainUrl);
-  const api = await ApiPromise.create({
-    provider,
-  });
+  const api = await ApiPromise.create({ provider });
   const fundsAccount = getAccount(fundsAccountSeed);
-
-  const chainConfig = config.parachains.find((chain) => chain.paraId === paraId);
-
-  if (!chainConfig) {
-    throw new Error(`No chain with paraId ${paraId}`);
-  }
-
-  const account = getAccount(chainConfig.accountSeed);
+  const chainAccount = getAccount(chainConfig.accountSeed);
   
   // Send 1 SSC and create feed
-  console.log(`Funding account ${account.address}...`);
+  console.log(`Funding account ${chainAccount.address}...`);
 
   const unsub = await api.tx.balances
-    .transfer(account.address, 10n ** 18n)
+    .transfer(chainAccount.address, 10n ** 18n)
     .signAndSend(fundsAccount, { nonce: -1 }, async (result) => {
       if (result.isError) {
-        console.error(`Failed creating feed for paraId ${paraId}!`);
+        console.error(`Failed funding account for paraId ${paraId}!`);
         unsub();
         api.disconnect();
       } else if (result.status.isInBlock) {
-        console.log(`Creating feed for account ${account.address}...`);
-        const feedId = await createFeed(api, account);
+        console.log(`Creating feed for account ${chainAccount.address}...`);
+        const feedId = await createFeed(api, chainAccount);
         if (feedId !== chainConfig.feedId) {
           console.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
         }
