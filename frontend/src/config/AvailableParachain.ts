@@ -203,6 +203,16 @@ const kusamaParachains: ParachainProps[] = [
     ecosystem: "kusama",
     subspaceWss,
   },
+  {
+    wss: "wss://para.subsocial.network",
+    paraId: 2100,
+    chainName: "Subsocial",
+    chain: "subsocial",
+    feedId: 27,
+    web: "https://subsocial.network/",
+    ecosystem: "kusama",
+    subspaceWss,
+  },
 ];
 
 const polkadotParachains: ParachainProps[] = [
