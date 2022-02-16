@@ -1,3 +1,4 @@
+import logger from "../logger";
 import { ApiPromise } from "@polkadot/api";
 import { EventRecord } from "@polkadot/types/interfaces";
 import { KeyringPair } from "@polkadot/keyring/types";
@@ -32,10 +33,10 @@ export function createFeed(api: ApiPromise, account: KeyringPair): Promise<numbe
     api.tx.feeds
       .create()
       .signAndSend(account, { nonce: -1 }, (result) => {
-        if (result.isError) {
-          reject(result.status.toString());
-          unsub();
-        } else {
+        if (result.status.isInBlock) {
+          const success = result.dispatchError ? false : true;
+          logger.info(`📀 Transaction included at blockHash ${result.status.asInBlock} [success = ${success}]`);
+          
           const feedCreatedEvent = result.events.find(
             ({ event }: EventRecord) => api.events.feeds.FeedCreated.is(event)
           );
@@ -47,6 +48,14 @@ export function createFeed(api: ApiPromise, account: KeyringPair): Promise<numbe
             resolve(feedId);
             unsub();
           }
+        } else if (result.status.isBroadcast) {
+          logger.info(`🚀 Transaction broadcasted`);
+        } else if (result.isError) {
+          logger.error('Transaction submission failed');
+          reject(result.status.toString());
+          unsub();
+        } else {
+          logger.info(`🤷 Other status ${result.status}`);
         }
       })
       .then((unsubLocal) => {
