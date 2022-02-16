@@ -213,6 +213,26 @@ const kusamaParachains: ParachainProps[] = [
     ecosystem: "kusama",
     subspaceWss,
   },
+  {
+    wss: "wss://rpc.sakura.clover.finance",
+    paraId: 2016,
+    chainName: "Sakura",
+    chain: "sakura",
+    feedId: 28,
+    web: "https://sakurafinance.io/",
+    ecosystem: "kusama",
+    subspaceWss,
+  },
+  {
+    wss: "wss://rpc-shadow.crust.network/",
+    paraId: 2016,
+    chainName: "Crust Shadow",
+    chain: "crust-shadow",
+    feedId: 29,
+    web: "https://crust.network/",
+    ecosystem: "kusama",
+    subspaceWss,
+  }
 ];
 
 const polkadotParachains: ParachainProps[] = [
