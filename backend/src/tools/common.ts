@@ -32,10 +32,10 @@ export function createFeed(api: ApiPromise, account: KeyringPair): Promise<numbe
     api.tx.feeds
       .create()
       .signAndSend(account, { nonce: -1 }, (result) => {
-        if (result.isError) {
-          reject(result.status.toString());
-          unsub();
-        } else {
+        if (result.status.isInBlock) {
+          const success = result.dispatchError ? false : true;
+          console.log(`📀 Transaction included at blockHash ${result.status.asInBlock} [success = ${success}]`);
+          
           const feedCreatedEvent = result.events.find(
             ({ event }: EventRecord) => api.events.feeds.FeedCreated.is(event)
           );
@@ -47,6 +47,14 @@ export function createFeed(api: ApiPromise, account: KeyringPair): Promise<numbe
             resolve(feedId);
             unsub();
           }
+        } else if (result.status.isBroadcast) {
+          console.log(`🚀 Transaction broadcasted`);
+        } else if (result.isError) {
+          console.error('Transaction submission failed');
+          reject(result.status.toString());
+          unsub();
+        } else {
+          console.log(`🤷 Other status ${result.status}`);
         }
       })
       .then((unsubLocal) => {

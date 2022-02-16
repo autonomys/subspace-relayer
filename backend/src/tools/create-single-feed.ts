@@ -36,6 +36,7 @@ if (!chainConfig) {
 }
 
 (async () => {
+  console.log(`Connecting to ${config.targetChainUrl}...`);
   const provider = new WsProvider(config.targetChainUrl);
   const api = await ApiPromise.create({ provider });
   const fundsAccount = getAccount(fundsAccountSeed);

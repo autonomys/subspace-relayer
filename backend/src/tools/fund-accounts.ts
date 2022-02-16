@@ -22,6 +22,7 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
 (async () => {
+  console.log(`Connecting to ${config.targetChainUrl}...`);
   const provider = new WsProvider(config.targetChainUrl);
   const api = await ApiPromise.create({
     provider,
@@ -38,12 +39,19 @@ const config = new Config(process.env.CHAIN_CONFIG_PATH);
       })
   )
     .signAndSend(fundsAccount, { nonce: -1 }, (result) => {
-      if (result.isError) {
+      if (result.status.isInBlock) {
+        const success = result.dispatchError ? false : true;
+        console.log(`📀 Transaction included at blockHash ${result.status.asInBlock} [success = ${success}]`);
         unsub();
         api.disconnect();
-      } else if (result.status.isInBlock) {
+      } else if (result.status.isBroadcast) {
+        console.log(`🚀 Transaction broadcasted`);
+      } else if (result.isError) {
+        console.error('Transaction submission failed');
         unsub();
         api.disconnect();
+      } else {
+        console.log(`🤷 Other status ${result.status}`);
       }
     });
 })();

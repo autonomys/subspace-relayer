@@ -16,6 +16,7 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
 (async () => {
+  console.log(`Connecting to ${config.targetChainUrl}...`);
   const provider = new WsProvider(config.targetChainUrl);
   const api = await ApiPromise.create({
     provider,
