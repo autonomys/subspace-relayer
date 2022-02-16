@@ -1,12 +1,11 @@
 // Small utility that verifies an archive of blocks of Substrate-based chain
-
 import ChainArchive from "../chainArchive";
 import logger from "../logger";
 
 const pathToArchive = process.argv[2];
 
 if (!pathToArchive) {
-  console.error('You should specify path to archive as an argument');
+  logger.error('You should specify path to archive as an argument');
   process.exit(1);
 }
 
@@ -23,10 +22,10 @@ if (!pathToArchive) {
       lastBlock++;
 
       if (lastBlock % 1000 === 0) {
-        console.log(`Verified block ${lastBlock}`);
+        logger.info(`Verified block ${lastBlock}`);
       }
     }
   } catch (e) {
-    console.error(`Failed to get block ${lastBlock + 1}:`, e);
+    logger.error(`Failed to get block ${lastBlock + 1}:`, e);
   }
 })();

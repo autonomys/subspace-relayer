@@ -5,7 +5,6 @@
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-
 import { createApi } from '../utils';
 import { fetchAndStoreBlock } from './common';
 import { PrimaryChainHeadState } from "../chainHeadState";

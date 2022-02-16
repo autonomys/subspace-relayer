@@ -1,5 +1,5 @@
 // Small utility that will read relayer configuration and creates feeds for all accounts
-
+import logger from "../logger";
 import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 
@@ -16,6 +16,7 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
 (async () => {
+  logger.info(`Connecting to ${config.targetChainUrl}...`);
   const provider = new WsProvider(config.targetChainUrl);
   const api = await ApiPromise.create({
     provider,
@@ -23,10 +24,10 @@ const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
   for (const chainConfig of [config.primaryChain, ...config.parachains]) {
     const account = getAccount(chainConfig.accountSeed);
-    console.log(`Creating feed for account ${account.address}...`);
+    logger.info(`Creating feed for account ${account.address}...`);
     const feedId = await createFeed(api, account);
     if (feedId !== chainConfig.feedId) {
-      console.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
+      logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
     }
   }
 
