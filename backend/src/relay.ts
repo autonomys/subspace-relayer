@@ -4,9 +4,9 @@ import { Logger } from "pino";
 import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
-import { TxBlock, ChainName, SignerWithAddress } from "./types";
+import { TxBlock, ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { blockToBinary } from './utils';
+import { blockToBinary, hexToUint8Array } from './utils';
 import { IChainArchive } from './chainArchive';
 
 function polkadotAppsUrl(targetChainUrl: string) {
@@ -149,6 +149,7 @@ export default class Relay {
   private async * fetchBlocksInBatches(
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
+    isRelayChain?: boolean,
   ): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
@@ -159,10 +160,13 @@ export default class Relay {
         () => this.sourceApi.rpc.chain.getBlockHash(nextBlockToProcess),
         createRetryOptions(error => this.logger.error(error, 'getBlockHash retry error:')),
       );
-      const block = blockToBinary(await pRetry(
+
+      const rawBlock = await pRetry(
         () => this.sourceApi.rpc.chain.getBlock.raw(blockHash),
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
-      ));
+      );
+
+      const block = blockToBinary(rawBlock as SignedBlockJsonRpc);
 
       const metadata = Buffer.from(
         JSON.stringify({
@@ -172,7 +176,20 @@ export default class Relay {
         'utf-8',
       );
 
-      const extraBytes = block.byteLength + metadata.byteLength;
+      let extraBytes;
+      let proof;
+
+      // get proof for relay chain block and add it to bytes
+      if (isRelayChain) {
+        proof = hexToUint8Array((await pRetry(
+          () => this.sourceApi.rpc.grandpa.proveFinality(11445772),
+          createRetryOptions(error => this.logger.error(error, 'get block justifications retry error:')),
+        )).toHex());
+
+        extraBytes = block.byteLength + metadata.byteLength + proof.byteLength;
+      } else {
+        extraBytes = block.byteLength + metadata.byteLength;
+      }
 
       if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
@@ -181,7 +198,7 @@ export default class Relay {
         accumulatedBytes = 0;
       }
 
-      blocksToArchive.push({ block, metadata });
+      blocksToArchive.push({ block, metadata, proof });
       accumulatedBytes += extraBytes;
 
       if (blocksToArchive.length === this.batchCountLimit) {
@@ -207,9 +224,13 @@ export default class Relay {
   ): Promise<RelayBlocksResult> {
     let lastTxPromise: Promise<void> | undefined;
 
+    // TODO: implement better way to determine if chain is a relay chain
+    const isRelayChain = chainName === 'Kusama' || chainName === 'Polkadot';
+
     const blockBatches = this.fetchBlocksInBatches(
       nextBlockToProcess,
       lastFinalizedBlockNumber,
+      isRelayChain,
     );
 
     for await (const [blocksToArchive, newNextBlockToProcess] of blockBatches) {

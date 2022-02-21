@@ -30,7 +30,7 @@ export const isIncludedParablockRecord =
             );
         };
 
-function hexToUint8Array(hex: string): Uint8Array {
+export function hexToUint8Array(hex: string): Buffer {
     return Buffer.from(hex.slice(2), 'hex');
 }
 

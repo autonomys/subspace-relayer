@@ -1,6 +1,6 @@
 import '@polkadot/api-augment';
 import { TypeRegistry } from '@polkadot/types';
-import { ISubmittableResult } from '@polkadot/types/types';
+import { ISubmittableResult, Registry } from '@polkadot/types/types';
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 
 import loggerMock from '../../mocks/logger';
@@ -48,7 +48,7 @@ export const setup = async () => {
   await cryptoWaitReady();
 
   const signer = new PoolSigner(
-    registry,
+    registry as unknown as Registry,
     'random account seed',
     1,
   );
