@@ -41,9 +41,14 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
     const extrinsicsRoot = hexToUint8Array(block.block.header.extrinsicsRoot);
     const digest = block.block.header.digest.logs.map(hexToUint8Array);
     const extrinsics = block.block.extrinsics.map(hexToUint8Array);
-    const justifications = block.justifications
-        ? block.justifications.map(hexToUint8Array)
+    const blockJustifications = block.justifications
+        // converting number[][] to Uint8Array[][]
+        ? block.justifications.map(js => js.map(j => new Uint8Array(j)))
         : null;
+
+    const justifications = blockJustifications
+        ? [Uint8Array.of(1), compactToU8a(blockJustifications[0].length), ...blockJustifications[0]]
+        : [Uint8Array.of(0)]
 
     return Buffer.concat([
         parentHash,
@@ -54,11 +59,7 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
         ...digest,
         compactToU8a(extrinsics.length),
         ...extrinsics,
-        ...(
-            justifications
-                ? [Uint8Array.of(1), compactToU8a(justifications.length), ...justifications]
-                : [Uint8Array.of(0)]
-        )
+        ...justifications,
     ]);
 }
 
@@ -84,13 +85,13 @@ export function createApi(url: string | string[]): Promise<ApiPromise> {
     const originalSend = provider.send;
 
     // TODO: This is an ugly workaround for https://github.com/polkadot-js/api/issues/4414
-    provider.send = function(
-      method: string,
-      params: unknown[],
-      _isCachable?: boolean,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      subscription?: any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    provider.send = function (
+        method: string,
+        params: unknown[],
+        _isCachable?: boolean,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        subscription?: any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<any> {
         return originalSend.call(this, method, params, false, subscription);
     };

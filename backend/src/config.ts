@@ -9,17 +9,20 @@ const AnyChainConfig = z.object({
   wsUrls: z.array(z.string()),
 });
 
-export type PrimaryChainConfig = z.infer<typeof AnyChainConfig>;
+const PrimaryChainConfig = AnyChainConfig.extend({
+  headerToSyncFrom: z.number().optional(),
+});
 
 const ParachainConfig = AnyChainConfig.extend({
   paraId: z.number().refine((number): number is ChainId => number > 0),
 });
 
+export type PrimaryChainConfig = z.infer<typeof PrimaryChainConfig>;
 export type ParachainConfig = z.infer<typeof ParachainConfig>;
 
 const ChainFile = z.object({
   targetChainUrl: z.string(),
-  primaryChain: AnyChainConfig,
+  primaryChain: PrimaryChainConfig,
   parachains: z.array(ParachainConfig),
 });
 

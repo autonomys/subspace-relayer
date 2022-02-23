@@ -23,7 +23,7 @@ export interface BlockMetadata {
 export interface TxBlock {
   block: Buffer;
   metadata: Buffer;
-  proof?: Buffer;
+  proof?: Uint8Array;
 }
 
 export interface ParaHeadAndId {
@@ -51,5 +51,5 @@ interface BlockJsonRpc {
 
 export interface SignedBlockJsonRpc {
   block: BlockJsonRpc,
-  justifications: null | string[],
+  justifications: null | number[][][],
 }

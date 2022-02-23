@@ -6,7 +6,7 @@ import { ApiPromise } from "@polkadot/api";
 import Target from "./target";
 import { TxBlock, ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { blockToBinary, hexToUint8Array } from './utils';
+import { blockToBinary } from './utils';
 import { IChainArchive } from './chainArchive';
 
 function polkadotAppsUrl(targetChainUrl: string) {
@@ -176,15 +176,14 @@ export default class Relay {
         'utf-8',
       );
 
-      let extraBytes;
       let proof;
-
+      let extraBytes;
       // get proof for relay chain block and add it to bytes
       if (isRelayChain) {
-        proof = hexToUint8Array((await pRetry(
-          () => this.sourceApi.rpc.grandpa.proveFinality(11445772),
-          createRetryOptions(error => this.logger.error(error, 'get block justifications retry error:')),
-        )).toHex());
+        proof = (await pRetry(
+          () => this.sourceApi.rpc.grandpa.proveFinality(nextBlockToProcess),
+          createRetryOptions(error => this.logger.error(error, `get block justifications for #${nextBlockToProcess} retry error:`)),
+        )).toU8a();
 
         extraBytes = block.byteLength + metadata.byteLength + proof.byteLength;
       } else {

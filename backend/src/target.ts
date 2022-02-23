@@ -43,7 +43,7 @@ class Target {
           feedId,
           `0x${block.toString('hex')}`,
           `0x${metadata.toString('hex')}`,
-          proof && `0x${proof.toString('hex')}`,
+          proof,
         )
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
@@ -80,7 +80,7 @@ class Target {
         feedId,
         `0x${block.toString('hex')}`,
         `0x${metadata.toString('hex')}`,
-        proof && `0x${proof.toString('hex')}`,
+        proof,
       );
     });
 
