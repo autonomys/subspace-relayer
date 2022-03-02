@@ -1,6 +1,6 @@
 // Small utility that will read relayer configuration and fund accounts using account whose seed is specified in
 // `FUNDS_ACCOUNT_SEED` environment variable
-
+import logger from "../logger";
 import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 
@@ -22,6 +22,7 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
 (async () => {
+  logger.info(`Connecting to ${config.targetChainUrl}...`);
   const provider = new WsProvider(config.targetChainUrl);
   const api = await ApiPromise.create({
     provider,
@@ -33,17 +34,24 @@ const config = new Config(process.env.CHAIN_CONFIG_PATH);
       .map((chainConfig) => {
         const account = getAccount(chainConfig.accountSeed).address;
         // Send 1 SSC
-        console.log(`Funding account ${account}...`);
+        logger.info(`Funding account ${account}...`);
         return api.tx.balances.transfer(account, 10n ** 18n);
       })
   )
     .signAndSend(fundsAccount, { nonce: -1 }, (result) => {
-      if (result.isError) {
+      if (result.status.isInBlock) {
+        const success = result.dispatchError ? false : true;
+        logger.info(`📀 Transaction included at blockHash ${result.status.asInBlock} [success = ${success}]`);
         unsub();
         api.disconnect();
-      } else if (result.status.isInBlock) {
+      } else if (result.status.isBroadcast) {
+        logger.info(`🚀 Transaction broadcasted`);
+      } else if (result.isError) {
+        logger.error('Transaction submission failed');
         unsub();
         api.disconnect();
+      } else {
+        logger.info(`🤷 Other status ${result.status}`);
       }
     });
 })();

@@ -15,6 +15,13 @@ const ParachainTable: React.FC = (): ReactElement => {
 
   useEffect(() => {
     const sortedFeeds = parachainFeeds.sort((a, b) => {
+      // Set Polkadot to the top position on table
+      if (a.feedId === 17 ) return -1;
+      if (b.feedId === 17 ) return 1;
+      // Set Kusama to the second position on table
+      if (a.feedId === 0 ) return -1;
+      if (b.feedId === 0 ) return 1;
+
       if (sortByBlock) {
         return b.number - a.number;
       } else {

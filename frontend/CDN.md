@@ -21,7 +21,7 @@ This will create **wrangler.toml** and **workers-site** folder. For more informa
 
 In **frontend** directory run:
 
-- run : `npm install` to install packages before build.
+- run : `npm ci` to install packages before build.
 - run : `npm run build` to generate build folder to be used by `wrangler publish`
 
 _For production purposes check the following steps_, to deploy your worker in **production mode** and linked to a **subdomain**.

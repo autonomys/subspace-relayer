@@ -1,4 +1,5 @@
 import * as tap from 'tap';
+import '@polkadot/api-augment';
 import { Event, EventRecord } from "@polkadot/types/interfaces/system";
 
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc, blockToBinary } from '../utils';

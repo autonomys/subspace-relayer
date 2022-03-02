@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import '@polkadot/api-augment';
 import { U64 } from "@polkadot/types";
 
 import { Config, ParachainConfig, PrimaryChainConfig } from "./config";
@@ -10,6 +11,8 @@ import ChainArchive from "./chainArchive";
 import { ChainId, ParaHeadAndId, ChainName } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, createApi } from "./utils";
+import { startServer } from './server';
+import Metrics from "./metrics";
 
 dotenv.config();
 
@@ -37,7 +40,7 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
-async function main() {
+async function main(metrics: Metrics) {
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
   const processingChains = [config.primaryChain, ...config.parachains]
     .map(async (chainConfig: PrimaryChainConfig | ParachainConfig) => {
@@ -48,6 +51,7 @@ async function main() {
         api: targetApi,
         logger,
         targetChainUrl: config.targetChainUrl,
+        metrics,
       });
 
       const chainName = (await sourceApi.rpc.system.chain()).toHuman() as ChainName;
@@ -175,7 +179,9 @@ async function main() {
 // TODO: remove IIFE when Eslint is updated to v8.0.0 (will support top-level await)
 (async () => {
   try {
-    await main();
+    const metrics = new Metrics();
+    startServer(8000, metrics);
+    await main(metrics);
   } catch (error) {
     if (error instanceof Error) {
       logger.error(error.stack || String(error));

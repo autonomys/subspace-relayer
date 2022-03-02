@@ -6,7 +6,7 @@
 const levelup = require("levelup");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const rocksdb = require("rocksdb");
-
+import logger from "../logger";
 import { createApi, blockNumberToBuffer } from '../utils';
 import { fetchAndStoreBlock } from './common';
 
@@ -18,37 +18,37 @@ let shouldStop = false;
 
 process
   .on('SIGINT', () => {
-    console.log('Got SIGINT, will stop as soon as possible');
+    logger.info('Got SIGINT, will stop as soon as possible');
     shouldStop = true;
   })
   .on('SIGTERM', () => {
-    console.log('Got SIGTERM, will stop as soon as possible');
+    logger.info('Got SIGTERM, will stop as soon as possible');
     shouldStop = true;
   });
 
 (async () => {
   const sourceChainRpc = process.env.SOURCE_CHAIN_RPC;
   if (!(sourceChainRpc && sourceChainRpc.startsWith('ws'))) {
-    console.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
+    logger.error("SOURCE_CHAIN_RPC environment variable must be set with WS RPC URL");
     process.exit(1);
   }
 
   const targetDir = process.env.TARGET_DIR;
   if (!sourceChainRpc) {
-    console.error("TARGET_DIR environment variable must be set with directory where downloaded blocks must be stored");
+    logger.error("TARGET_DIR environment variable must be set with directory where downloaded blocks must be stored");
     process.exit(1);
   }
 
-  console.log("Retrieving last finalized block...");
+  logger.info("Retrieving last finalized block...");
 
   const api = await createApi(sourceChainRpc);
 
   const lastFinalizedHash = await api.rpc.chain.getFinalizedHead();
   const lastFinalizedBlockNumber = (await api.rpc.chain.getHeader(lastFinalizedHash)).number.toNumber();
 
-  console.info(`Last finalized block is ${lastFinalizedBlockNumber}`);
+  logger.info(`Last finalized block is ${lastFinalizedBlockNumber}`);
 
-  console.log(`Downloading blocks into ${targetDir}`);
+  logger.info(`Downloading blocks into ${targetDir}`);
 
   const db = levelup(rocksdb(`${targetDir}/db`));
 
@@ -61,7 +61,7 @@ process
   }
 
   if (lastDownloadedBlock > -1) {
-    console.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
+    logger.info(`Continuing downloading from block ${lastDownloadedBlock + 1}`);
   }
 
   let lastDownloadingReportAt = Date.now();
@@ -80,14 +80,14 @@ process
         `(${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastDownloadingReportAt) / 1000)).toFixed(2)} blocks/s)`;
       lastDownloadingReportAt = now;
 
-      console.info(
+      logger.info(
         `Downloaded block ${blockNumber}/${lastFinalizedBlockNumber} ${downloadingRate}`
       );
     }
   }
 
   if (!shouldStop) {
-    console.info("Archived everything, verifying and fixing up archive if needed");
+    logger.info("Archived everything, verifying and fixing up archive if needed");
 
     blockNumber = 0;
 
@@ -102,7 +102,7 @@ process
       try {
         await db.get(blockNumberAsBuffer);
       } catch (e) {
-        console.log(`Found problematic block ${blockNumber} during archive verification, fixing it`);
+        logger.info(`Found problematic block ${blockNumber} during archive verification, fixing it`);
         await fetchAndStoreBlock(api, blockNumber, db);
       }
 
@@ -112,7 +112,7 @@ process
           `(${(Number(REPORT_PROGRESS_INTERVAL) / ((now - lastVerificationReportAt) / 1000)).toFixed(2)} blocks/s)`;
         lastVerificationReportAt = now;
 
-        console.info(
+        logger.info(
           `Verified block ${blockNumber}/${lastFinalizedBlockNumber} ${verificationRate}`
         );
       }

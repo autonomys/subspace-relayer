@@ -1,9 +1,11 @@
+import '@polkadot/api-augment';
 import { TypeRegistry } from '@polkadot/types';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 
 import loggerMock from '../../mocks/logger';
 import { createMockPutWithResult } from '../../mocks/api';
+import metricsMock from '../../mocks/metrics';
 import Relay from "../../relay";
 import Target from "../../target";
 import { ChainName } from '../../types';
@@ -22,7 +24,12 @@ const putSuccessResult = {
   }
 } as unknown as ISubmittableResult;
 const apiSuccess = createMockPutWithResult(putSuccessResult);
-const targetMock = new Target({ api: apiSuccess, logger: loggerMock, targetChainUrl });
+const targetMock = new Target({
+  api: apiSuccess,
+  logger: loggerMock,
+  targetChainUrl,
+  metrics: metricsMock,
+});
 const finalizedBlockNumber = 2;
 
 const defaultRelayParams = {
