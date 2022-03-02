@@ -1,11 +1,11 @@
-import { useContext, useEffect, useState } from "react";
+import React, { ReactElement, useContext, useEffect, useState } from "react";
 import { RelayerContext, SystemContext } from "context";
 import { Row, Container } from "reactstrap";
 import CardHeader from "./CardHeader";
 
 import { bytesToSize } from "./utils";
 
-const Header = () => {
+const Header: React.FC = (): ReactElement => {
   const { version } = useContext(SystemContext);
   const { parachainFeeds } = useContext(RelayerContext);
   const [accumulatedSizes, setAccumulatedSizes] = useState<number>(0);

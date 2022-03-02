@@ -5,10 +5,11 @@ import { from } from "rxjs";
 import { allChains } from "config/AvailableParachain";
 import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
 import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
+import type { AnyTuple } from '@polkadot/types/types';
 
 const feedIds: number[] = allChains.map((chain) => chain.feedId)
 
-function extractFeed(api: ApiPromise, args: any[]): ParachainFeed {
+function extractFeed(api: ApiPromise, args: AnyTuple): ParachainFeed {
   const id: number = api.registry.createType("u64", args[0]).toNumber();
   const metadata = api.registry.createType("Bytes", args[2]).toHuman();
   const { hash, number } = JSON.parse(metadata?.toString() || "{}");
@@ -60,13 +61,14 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
 async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
   const subspaceHash = hash.toString();
   const [{ block }, totals] = await Promise.all([api.rpc.chain.getBlock(subspaceHash), getFeedTotals(api)]);
-  let newFeeds: ParachainFeed[] = [...oldFeeds];
+  const newFeeds: ParachainFeed[] = [...oldFeeds];
 
   block.extrinsics.forEach(({ method: { method, section, args } }) => {
     let newFeed: ParachainFeed | undefined;
     if (section === "utility" && method === "batchAll") {
       // It assumes that a batchAll contains a Vec of put calls, for one feedId.
       // This way it is possible to get the feedId from the first argument of the put call
+      // TODO: remove no-explicit-any.
       const batchCalls: any = args[0];
       for (const { args } of batchCalls) {
         // Using 3 args feedId, data, metadata.
@@ -76,7 +78,7 @@ async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: Parachai
         }
       }
     } else if (section === "feeds" && method === "put" && args.length === 3) {
-      newFeed = extractFeed(api, args);
+      newFeed = extractFeed(api, args as AnyTuple);
     }
 
     if (newFeed) {
@@ -123,13 +125,13 @@ export function RelayerContextProvider(props: RelayerContextProviderProps): Reac
   // If we get a new header, get new feeds.
   useEffect(() => {
     if (!isApiReady || !api || !header) return;
-    if (header) {
+    if (header && parachainFeeds.length > 0) {
       const sub = from(getNewFeeds(api, header, parachainFeeds)).subscribe((newFeeds) => {
         setParachainFeeds(newFeeds);
       });
       return (): void => sub.unsubscribe();
     }
-  }, [isApiReady, api, header]);
+  }, [isApiReady, api, header, parachainFeeds]);
 
   return <RelayerContext.Provider value={{ parachainFeeds }}>{children}</RelayerContext.Provider>;
 }
