@@ -1,0 +1,31 @@
+name: wrangler-publish
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    name: Build App and Wrangler Publish.
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: "16"
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          REACT_APP_WS_PROVIDER: ${{secrets.REACT_APP_WS_PROVIDER}}
+      - run: npm i -g @cloudflare/wrangler
+        working-directory: frontend
+      - run: 'wrangler publish'
+        working-directory: frontend
+        env:
+          CF_ACCOUNT_ID: ${{secrets.CF_ACCOUNT_ID}}
+          CF_ZONE_ID: ${{secrets.CF_ZONE_ID}}
+          CF_API_TOKEN: ${{secrets.CF_API_TOKEN}}

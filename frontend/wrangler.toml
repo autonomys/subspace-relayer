@@ -1,0 +1,8 @@
+name = "relayer"
+type = "webpack"
+route = "testnet-relayer.subspace.network/*"
+usage_model = ""
+compatibility_flags = []
+workers_dev = false
+site = {bucket = "./build", entry-point = "workers-site"}
+compatibility_date = "2021-10-20"
