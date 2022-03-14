@@ -19,8 +19,6 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
-        env:
-          REACT_APP_WS_PROVIDER: ${{secrets.REACT_APP_WS_PROVIDER}}
       - run: npm i -g @cloudflare/wrangler
         working-directory: frontend
       - run: 'wrangler publish'
