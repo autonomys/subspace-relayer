@@ -33,10 +33,6 @@ With these projects runing, you can start the react app, it will subscribe to ne
 
 - Configure as needed, `REACT_APP_WS_PROVIDER` to your client node for provider connections with polkadot api.
 
-- `REACT_APP_POLKADOT_APP_SUBSPACE` to generate a polkadot apps link for your local client.
-
 ```
-REACT_APP_WS_PROVIDER=ws://127.0.0.1:9944
-
-REACT_APP_POLKADOT_APP_=https://polkadot.js.org/apps/?rpc=ws://localhost:9944#/explorer/query
+REACT_APP_WS_PROVIDER=wss://test-rpc.subspace.network
 ```
