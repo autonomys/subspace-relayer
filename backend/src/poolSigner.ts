@@ -1,3 +1,4 @@
+import { TypeRegistry } from "@polkadot/types";
 import { Registry } from "@polkadot/types/types";
 import { Worker } from "worker_threads";
 import { SignerPayloadJSON, SignerResult } from "@polkadot/types/types/extrinsic";
@@ -59,7 +60,7 @@ export class PoolSigner extends SignerWithAddress {
     private readonly workers: SigningWorker[] = [];
 
     public constructor(
-        private readonly registry: Registry,
+        private readonly registry: TypeRegistry | Registry,
         keypairSeed: string,
         poolSize: number,
     ) {
