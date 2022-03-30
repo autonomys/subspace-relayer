@@ -1,6 +1,6 @@
 import { compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
-import { PolkadotPrimitivesV1CandidateReceipt } from "@polkadot/types/lookup";
+import { PolkadotPrimitivesV2CandidateReceipt } from "@polkadot/types/lookup";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 
 import { ParaHeadAndId, SignedBlockJsonRpc, ChainId } from "./types";
@@ -8,7 +8,7 @@ import { ParaHeadAndId, SignedBlockJsonRpc, ChainId } from "./types";
 // TODO: implement tests
 export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
     // We know its contents here, no idea how to extract types in a more correct way
-    const { descriptor } = event.data[0] as PolkadotPrimitivesV1CandidateReceipt;
+    const { descriptor } = event.data[0] as PolkadotPrimitivesV2CandidateReceipt;
 
     return {
         blockHash: descriptor.paraHead.toHex(),
