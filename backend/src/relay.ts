@@ -115,7 +115,7 @@ export default class Relay {
               nonce++;
               throw e;
             }),
-          createRetryOptions(error => this.logger.error(error, 'sendBlocksBatchTx retry error:')),
+          createRetryOptions(error => this.logger.error(error, `sendBlocksBatchTx retry error (chain: ${chainName}, signer: ${signer.address}):`)),
         );
         nonce++;
 

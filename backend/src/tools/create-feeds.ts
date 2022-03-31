@@ -1,8 +1,12 @@
 // Small utility that will read relayer configuration and creates feeds for all accounts
-import logger from "../logger";
 import * as dotenv from "dotenv";
+import '@polkadot/api-augment';
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import type { SignedBlock } from '@polkadot/types/interfaces/runtime';
+import { BlockHash } from "@polkadot/types/interfaces";
+import { Bytes } from "@polkadot/types";
 
+import logger from "../logger";
 import Config, { PrimaryChainConfig } from "../config";
 import { getAccount } from "../account";
 import { createFeed } from "./common";
@@ -15,65 +19,98 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
+function getAuthorities(block: SignedBlock): Bytes | void {
+  for (const d of block.block.header.digest.logs) {
+    if (d.isConsensus) {
+      const [engineId, log] = d.asConsensus;
+
+      if (engineId.toString() === 'FRNK') {
+        return log;
+      }
+    }
+  }
+
+  return;
+}
+
+async function getSetId(api: ApiPromise, blockHash: BlockHash) {
+  const apiAt = await api.at(blockHash);
+  const setId = await apiAt.query.grandpa.currentSetId();
+  return setId;
+}
+
 (async () => {
   logger.info(`Connecting to target chain ${config.targetChainUrl}...`);
-  
+
   const targetApi = await ApiPromise.create({
     provider: new WsProvider(config.targetChainUrl),
+    types: {
+      ChainType: {
+        _enum: ['PolkadotLike']
+      },
+      InitialValidation: {
+        chainType: "ChainType",
+        header: "Vec<u8>",
+        authorityList: "Vec<u8>",
+        setId: "SetId",
+      }
+    }
   });
-  
+
   logger.info(`Connecting to source chain ${config.primaryChain.wsUrls[0]}...`);
-  
+
   const sourceApi = await ApiPromise.create({
     provider: new WsProvider(config.primaryChain.wsUrls),
   });
 
-  for (const chainConfig of [config.primaryChain, ...config.parachains]) {
-    const account = getAccount(chainConfig.accountSeed);
-    logger.info(`Creating feed for account ${account.address}...`);
+  try {
+    for (const chainConfig of [config.primaryChain, ...config.parachains]) {
+      const account = getAccount(chainConfig.accountSeed);
+      logger.info(`Creating feed for account ${account.address}...`);
 
-    const isRelay = chainConfig.feedId === 0 || chainConfig.feedId === 17; // Kusama feeId: 0, Polkadot feedId: 17
+      const isRelay = chainConfig.feedId === 0 || chainConfig.feedId === 17; // Kusama feeId: 0, Polkadot feedId: 17
 
-    const feedId = await createFeed(targetApi, account, isRelay);
+      let initialValidation;
 
-    if (feedId !== chainConfig.feedId) {
-      logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
-    }
+      // initialize grandpa finality verifier for relay chain
+      if (isRelay) {
+        // get header to start verification from
+        const blockNumber = (chainConfig as PrimaryChainConfig).headerToSyncFrom;
+        const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
+        const header = await sourceApi.rpc.chain.getHeader(hash);
+        const block = await sourceApi.rpc.chain.getBlock(hash);
+        const authorityList = getAuthorities(block);
 
-    // initialize grandpa finality verifier for relay chain
-    if (isRelay) {
-      // get header to start verification from
-      const blockNumber = (chainConfig as PrimaryChainConfig).headerToSyncFrom;
-      const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
-      const header = await sourceApi.rpc.chain.getHeader(hash);
+        if (!authorityList) {
+          throw Error("Block number to sync from has no authorities");
+        }
 
-      // TODO: get authority list and set id
+        const setId = await getSetId(sourceApi, hash);
+        const chainType = (await targetApi.createType("ChainType", "PolkadotLike")).toHex();
 
-      const unsub = await targetApi.tx.grandpaFinalityVerifier
-        .initialize({
-          chainId: 1,
-          chainType: '',
+        initialValidation = targetApi.createType("InitialValidation", {
+          chainType,
           header,
-          authorityList: [],
-          setId: 0,
-        })
-        .signAndSend(account, { nonce: -1 }, (result) => {
-          if (result.status.isInBlock) {
-            const success = result.dispatchError ? false : true;
-            logger.info(`📀 Transaction included at blockHash ${result.status.asInBlock} [success = ${success}]`);
-            unsub();
-          } else if (result.status.isBroadcast) {
-            logger.info(`🚀 Transaction broadcasted`);
-          } else if (result.isError) {
-            logger.error('Transaction submission failed');
-            unsub();
-          } else {
-            logger.info(`🤷 Other status ${result.status}`);
-          }
+          authorityList,
+          setId,
         });
-    }
-  }
+      }
 
-  targetApi.disconnect();
-  sourceApi.disconnect();
+      const feedId = await createFeed(targetApi, account, initialValidation);
+
+      if (feedId !== chainConfig.feedId) {
+        logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error(error.stack || String(error));
+    } else {
+      logger.error(String(error));
+    }
+    process.exit(1);
+  } finally {
+    targetApi.disconnect();
+    sourceApi.disconnect();
+  }
 })();
