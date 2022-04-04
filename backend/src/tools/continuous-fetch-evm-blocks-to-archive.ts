@@ -12,19 +12,15 @@ import { blockNumberToBuffer } from '../utils';
 import { PrimaryChainHeadState } from "../chainHeadState";
 import logger from "../logger";
 
-// TODO
+// TODO: implement better conversion similar to utils/blockToBinary instead of stringifying JSON
 function evmBlockToBinary(block: BlockTransactionObject): Buffer {
-  return Buffer.concat([
-
-  ]);
+  return Buffer.from(JSON.stringify(block), 'utf-8');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchAndStoreEvmBlock(api: Web3, blockNumber: number, db: any): Promise<void> {
   const block = await api.eth.getBlock(blockNumber, true);
-  // TODO: convert EVM block to binary
   const blockBytes = evmBlockToBinary(block);
-
   const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
   const blockHashAsBuffer = Buffer.from(block.hash.slice(2), 'hex');
 
@@ -39,6 +35,7 @@ export async function fetchAndStoreEvmBlock(api: Web3, blockNumber: number, db: 
       blockBytes,
     ]),
   );
+
   await db.put('last-downloaded-block', blockNumberAsBuffer);
 }
 
