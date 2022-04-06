@@ -23,7 +23,6 @@ export interface BlockMetadata {
 export interface TxBlock {
   block: Buffer;
   metadata: Buffer;
-  proof?: Uint8Array;
 }
 
 export interface ParaHeadAndId {

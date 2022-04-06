@@ -30,7 +30,7 @@ class Target {
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,
-    { block, metadata, proof }: TxBlock,
+    { block, metadata }: TxBlock,
     nonce: bigint,
   ): Promise<Hash> {
     this.logger.debug(`Sending ${chainName} block to feed ${feedId}`);
@@ -42,8 +42,7 @@ class Target {
         .put(
           feedId,
           `0x${block.toString('hex')}`,
-          `0x${metadata.toString('hex')}`,
-          proof,
+          `0x${metadata.toString('hex')}`
         )
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
@@ -75,12 +74,11 @@ class Target {
     this.logger.debug(`Sending ${txData.length} ${chainName} blocks to feed ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
-    const putCalls = txData.map(({ block, metadata, proof }: TxBlock) => {
+    const putCalls = txData.map(({ block, metadata }: TxBlock) => {
       return this.api.tx.feeds.put(
         feedId,
         `0x${block.toString('hex')}`,
         `0x${metadata.toString('hex')}`,
-        proof,
       );
     });
 

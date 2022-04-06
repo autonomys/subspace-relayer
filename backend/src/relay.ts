@@ -55,6 +55,7 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
+  // TODO: add finality proof fetching - same as for fetchBlocksInBatches
   private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[TxBlock[], number], void> {
     let blocksToArchive: TxBlock[] = [];
     let accumulatedBytes = 0;
@@ -166,6 +167,9 @@ export default class Relay {
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
       );
 
+      // check justifications
+      // if null - fetch finality proof, decode and add justifications to blocks
+
       const block = blockToBinary(rawBlock as SignedBlockJsonRpc);
 
       const metadata = Buffer.from(
@@ -197,7 +201,7 @@ export default class Relay {
         accumulatedBytes = 0;
       }
 
-      blocksToArchive.push({ block, metadata, proof });
+      blocksToArchive.push({ block, metadata });
       accumulatedBytes += extraBytes;
 
       if (blocksToArchive.length === this.batchCountLimit) {
