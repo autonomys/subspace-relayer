@@ -1,6 +1,5 @@
 // Small utility that will read relayer configuration and creates feeds for all accounts
 import * as dotenv from "dotenv";
-import '@polkadot/api-augment';
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import type { SignedBlock } from '@polkadot/types/interfaces/runtime';
 import { BlockHash } from "@polkadot/types/interfaces";

@@ -28,6 +28,7 @@ export async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, d
     await db.put('last-downloaded-block', blockNumberAsBuffer);
   }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function createFeed(api: ApiPromise, account: KeyringPair, initialValidation?: Codec ): Promise<number> {
   return new Promise((resolve, reject) => {
     let unsub: () => void;

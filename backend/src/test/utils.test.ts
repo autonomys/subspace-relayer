@@ -2,7 +2,12 @@ import * as tap from 'tap';
 import '@polkadot/api-augment';
 import { Event, EventRecord } from "@polkadot/types/interfaces/system";
 
-import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc, blockToBinary } from '../utils';
+import {
+  getParaHeadAndIdFromEvent,
+  isIncludedParablockRecord,
+  isInstanceOfSignedBlockJsonRpc,
+  blockToBinary,
+} from '../utils';
 import * as signedBlockMock from '../mocks/signedBlock.json';
 import * as signedBlockWithExtrinsicsMock from '../mocks/signedBlockWithExtrinsics.json';
 import * as signedBlockWithLogsMock from '../mocks/signedBlockWithLogs.json';
@@ -171,7 +176,7 @@ tap.test('blockToBinary util function', (t) => {
     t.end();
   });
 
-  tap.test('blockToBinary should convert SignedBlockJsonRpc with justifications to Buffer')
+  tap.test('blockToBinary should convert SignedBlockJsonRpc with justifications to Buffer');
 
   t.end();
-})
+});

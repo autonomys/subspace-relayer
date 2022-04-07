@@ -42,7 +42,7 @@ class Target {
         .put(
           feedId,
           `0x${block.toString('hex')}`,
-          `0x${metadata.toString('hex')}`
+          `0x${metadata.toString('hex')}`,
         )
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {

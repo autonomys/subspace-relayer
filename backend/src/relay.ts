@@ -165,12 +165,7 @@ export default class Relay {
       const rawBlock = await pRetry(
         () => this.sourceApi.rpc.chain.getBlock.raw(blockHash),
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
-      );
-
-      // check justifications
-      // if null - fetch finality proof, decode and add justifications to blocks
-
-      const block = blockToBinary(rawBlock as SignedBlockJsonRpc);
+      ) as SignedBlockJsonRpc;
 
       const metadata = Buffer.from(
         JSON.stringify({
@@ -180,19 +175,11 @@ export default class Relay {
         'utf-8',
       );
 
-      let proof;
-      let extraBytes;
-      // get proof for relay chain block and add it to bytes
-      if (isRelayChain) {
-        proof = (await pRetry(
-          () => this.sourceApi.rpc.grandpa.proveFinality(nextBlockToProcess),
-          createRetryOptions(error => this.logger.error(error, `get block justifications for #${nextBlockToProcess} retry error:`)),
-        )).toU8a();
+      const block = isRelayChain
+        ? await this.getBlockWithJustification(rawBlock)
+        : blockToBinary(rawBlock);
 
-        extraBytes = block.byteLength + metadata.byteLength + proof.byteLength;
-      } else {
-        extraBytes = block.byteLength + metadata.byteLength;
-      }
+      const extraBytes = block.byteLength + metadata.byteLength;
 
       if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
@@ -215,6 +202,30 @@ export default class Relay {
     if (blocksToArchive.length > 0) {
       yield [blocksToArchive, nextBlockToProcess];
     }
+  }
+
+  private async getBlockWithJustification(rawBlock: SignedBlockJsonRpc) {
+    // adding justifications from finality proof if there is none
+    if (!rawBlock.justifications) {
+      const { number } = rawBlock.block.header;
+      const proof = await pRetry(
+        () => this.sourceApi.rpc.grandpa.proveFinality(number),
+        createRetryOptions(error => this.logger.error(error, `get block justifications for #${number} retry error:`)),
+      );
+      const proofBytes = proof.toU8a(true);
+      // finality proof returns encoded block hash, justification and unknown headers
+      // only care about justification, removing leading extra bytes: 32 for block hash (has known fixed length)
+      const justification = proofBytes.slice(32);
+
+      rawBlock.justifications = [
+        [
+          [70, 82, 78, 75], // FRNK
+          Array.from(justification)
+        ]
+      ];
+    }
+
+    return blockToBinary(rawBlock);
   }
 
   private async relayBlocks(
