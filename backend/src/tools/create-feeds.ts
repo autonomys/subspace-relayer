@@ -1,9 +1,7 @@
 // Small utility that will read relayer configuration and creates feeds for all accounts
 import * as dotenv from "dotenv";
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import type { SignedBlock } from '@polkadot/types/interfaces/runtime';
 import { BlockHash } from "@polkadot/types/interfaces";
-import { Bytes } from "@polkadot/types";
 
 import logger from "../logger";
 import Config, { PrimaryChainConfig } from "../config";
@@ -18,20 +16,6 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
-function getAuthorities(block: SignedBlock): Bytes | void {
-  for (const d of block.block.header.digest.logs) {
-    if (d.isConsensus) {
-      const [engineId, log] = d.asConsensus;
-
-      if (engineId.toString() === 'FRNK') {
-        return log;
-      }
-    }
-  }
-
-  return;
-}
-
 async function getSetId(api: ApiPromise, blockHash: BlockHash) {
   const apiAt = await api.at(blockHash);
   const setId = await apiAt.query.grandpa.currentSetId();
@@ -43,14 +27,10 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
 
   const targetApi = await ApiPromise.create({
     provider: new WsProvider(config.targetChainUrl),
+    // TODO: check how to avoid passing types and use Metadata v14 instead
     types: {
-      ChainType: {
-        _enum: ['PolkadotLike']
-      },
       InitialValidation: {
-        chainType: "ChainType",
         header: "Vec<u8>",
-        authorityList: "Vec<u8>",
         setId: "SetId",
       }
     }
@@ -76,26 +56,17 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
         // get header to start verification from
         const blockNumber = (chainConfig as PrimaryChainConfig).headerToSyncFrom;
         const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
-        const header = await sourceApi.rpc.chain.getHeader(hash);
-        const block = await sourceApi.rpc.chain.getBlock(hash);
-        const authorityList = getAuthorities(block);
-
-        if (!authorityList) {
-          throw Error("Block number to sync from has no authorities");
-        }
-
+        const header = (await sourceApi.rpc.chain.getHeader(hash)).toHex();
         const setId = await getSetId(sourceApi, hash);
-        const chainType = (await targetApi.createType("ChainType", "PolkadotLike")).toHex();
-
+        
         initialValidation = targetApi.createType("InitialValidation", {
-          chainType,
           header,
-          authorityList,
           setId,
         });
       }
 
-      const feedId = await createFeed(targetApi, account, initialValidation);
+      const chainType = await targetApi.createType("SubspaceRuntimeFeedProcessorKind", isRelay ? "PolkadotLike" : "ParachainLike");
+      const feedId = await createFeed(targetApi, account, chainType.toHex(), initialValidation?.toHex());
 
       if (feedId !== chainConfig.feedId) {
         logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
