@@ -4,7 +4,7 @@ import { Logger } from "pino";
 import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
-import { TxBlock, ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
+import { ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { blockToBinary } from './utils';
 import { IChainArchive } from './chainArchive';
@@ -56,25 +56,23 @@ export default class Relay {
   }
 
   // TODO: add finality proof fetching - same as for fetchBlocksInBatches
-  private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[TxBlock[], number], void> {
-    let blocksToArchive: TxBlock[] = [];
+  private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[Buffer[], number], void> {
+    let blocksToArchive: Buffer[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
 
     for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
       const block = blockData.block;
-      const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
-      const extraBytes = block.byteLength + metadata.byteLength;
 
-      if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
+      if (accumulatedBytes + block.byteLength >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, lastBlockNumber];
         blocksToArchive = [];
         accumulatedBytes = 0;
       }
 
-      blocksToArchive.push({ block, metadata });
-      accumulatedBytes += extraBytes;
+      blocksToArchive.push(block);
+      accumulatedBytes += block.byteLength;
       lastBlockNumber = blockData.metadata.number;
 
       if (blocksToArchive.length === this.batchCountLimit) {
@@ -151,8 +149,8 @@ export default class Relay {
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
     isRelayChain?: boolean,
-  ): AsyncGenerator<[TxBlock[], number], void> {
-    let blocksToArchive: TxBlock[] = [];
+  ): AsyncGenerator<[Buffer[], number], void> {
+    let blocksToArchive: Buffer[] = [];
     let accumulatedBytes = 0;
 
     for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
@@ -167,29 +165,19 @@ export default class Relay {
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
       ) as SignedBlockJsonRpc;
 
-      const metadata = Buffer.from(
-        JSON.stringify({
-          hash: blockHash,
-          number: nextBlockToProcess,
-        }),
-        'utf-8',
-      );
-
       const block = isRelayChain
         ? await this.getBlockWithJustification(rawBlock)
         : blockToBinary(rawBlock);
 
-      const extraBytes = block.byteLength + metadata.byteLength;
-
-      if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
+      if (accumulatedBytes + block.byteLength >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, nextBlockToProcess];
         blocksToArchive = [];
         accumulatedBytes = 0;
       }
 
-      blocksToArchive.push({ block, metadata });
-      accumulatedBytes += extraBytes;
+      blocksToArchive.push(block);
+      accumulatedBytes += block.byteLength;
 
       if (blocksToArchive.length === this.batchCountLimit) {
         // Reached block count limit, yield now

@@ -17,13 +17,7 @@ tap.test('Target module', (t) => {
   const feedId = registry.createType('U64', 0);
   const chainName = 'random chain' as ChainName;
   const signer = { address: 'random signer address' } as SignerWithAddress;
-  const txBlock = {
-    block: blockToBinary(signedBlockMock),
-    metadata: Buffer.from(JSON.stringify({
-      hash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      number: 0,
-    }), 'utf-8'),
-  }
+  const txBlock = blockToBinary(signedBlockMock);
   const nonce = BigInt(0);
   const txBatch = [txBlock, txBlock];
 
