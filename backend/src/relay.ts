@@ -4,7 +4,7 @@ import { Logger } from "pino";
 import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
-import { ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
+import { ChainName, SignerWithAddress, SignedBlockJsonRpc, FinalityProof } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { blockToBinary } from './utils';
 import { IChainArchive } from './chainArchive';
@@ -36,7 +36,9 @@ const createRetryOptions = (onFailedAttempt: ((error: FailedAttemptError) => voi
   minTimeout: 1000,
   maxTimeout: 60 * 60 * 1000,
   onFailedAttempt,
-})
+});
+
+const GRANDPA_ENGINE_ID = [70, 82, 78, 75]; // FRNK
 
 export default class Relay {
   private readonly logger: Logger;
@@ -165,9 +167,9 @@ export default class Relay {
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
       ) as SignedBlockJsonRpc;
 
-      const block = isRelayChain
-        ? await this.getBlockWithJustification(rawBlock)
-        : blockToBinary(rawBlock);
+      const block = blockToBinary(isRelayChain
+        ? await this.withGrandpaJustification(rawBlock)
+        : rawBlock);
 
       if (accumulatedBytes + block.byteLength >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
@@ -192,7 +194,7 @@ export default class Relay {
     }
   }
 
-  private async getBlockWithJustification(rawBlock: SignedBlockJsonRpc) {
+  private async withGrandpaJustification(rawBlock: SignedBlockJsonRpc): Promise<SignedBlockJsonRpc> {
     // adding justifications from finality proof if there is none
     if (!rawBlock.justifications) {
       const { number } = rawBlock.block.header;
@@ -201,19 +203,13 @@ export default class Relay {
         createRetryOptions(error => this.logger.error(error, `get block justifications for #${number} retry error:`)),
       );
       const proofBytes = proof.toU8a(true);
-      // finality proof returns encoded block hash, justification and unknown headers
-      // only care about justification, removing leading extra bytes: 32 for block hash (has known fixed length)
-      const justification = proofBytes.slice(32);
+      const decodedProof = this.sourceApi.createType("FinalityProof", proofBytes);
+      const justificationBytes = (decodedProof as unknown as FinalityProof).justification.toU8a(true);
 
-      rawBlock.justifications = [
-        [
-          [70, 82, 78, 75], // FRNK
-          Array.from(justification)
-        ]
-      ];
+      rawBlock.justifications = [[GRANDPA_ENGINE_ID, Array.from(justificationBytes)]];
     }
 
-    return blockToBinary(rawBlock);
+    return rawBlock;
   }
 
   private async relayBlocks(
@@ -226,7 +222,6 @@ export default class Relay {
   ): Promise<RelayBlocksResult> {
     let lastTxPromise: Promise<void> | undefined;
 
-    // TODO: implement better way to determine if chain is a relay chain
     const isRelayChain = chainName === 'Kusama' || chainName === 'Polkadot';
 
     const blockBatches = this.fetchBlocksInBatches(

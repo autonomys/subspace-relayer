@@ -47,7 +47,13 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
         : null;
 
     const justifications = blockJustifications
-        ? [Uint8Array.of(1), compactToU8a(blockJustifications[0].length), ...blockJustifications[0]]
+        ? [
+            Uint8Array.of(1),
+            compactToU8a(blockJustifications.length),
+            blockJustifications[0][0], // engine ID
+            compactToU8a(blockJustifications[0][1].length), 
+            blockJustifications[0][1], // justification
+        ]
         : [Uint8Array.of(0)]
 
     return Buffer.concat([
@@ -97,6 +103,13 @@ export function createApi(url: string | string[]): Promise<ApiPromise> {
     };
     return ApiPromise.create({
         provider,
+        types: {
+            FinalityProof: {
+                block: "BlockHash",
+                justification: "Vec<u8>",
+                uknownHeaders: "Vec<Header>"
+            }
+        }
     });
 }
 
