@@ -47,12 +47,12 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
       const account = getAccount(chainConfig.accountSeed);
       logger.info(`Creating feed for account ${account.address}...`);
 
-      const isRelay = chainConfig.feedId === 0 || chainConfig.feedId === 17; // Kusama feeId: 0, Polkadot feedId: 17
+      const isRelayChain = chainConfig.feedId === 0 || chainConfig.feedId === 17; // Kusama feeId: 0, Polkadot feedId: 17
 
       let initialValidation;
 
       // initialize grandpa finality verifier for relay chain
-      if (isRelay) {
+      if (isRelayChain) {
         // get header to start verification from
         const blockNumber = (chainConfig as PrimaryChainConfig).headerToSyncFrom;
         const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
@@ -65,7 +65,7 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
         });
       }
 
-      const chainType = await targetApi.createType("SubspaceRuntimeFeedProcessorKind", isRelay ? "PolkadotLike" : "ParachainLike");
+      const chainType = await targetApi.createType("SubspaceRuntimeFeedProcessorKind", isRelayChain ? "PolkadotLike" : "ParachainLike");
       const feedId = await createFeed(targetApi, account, chainType.toHex(), initialValidation?.toHex());
 
       if (feedId !== chainConfig.feedId) {

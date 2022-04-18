@@ -1,12 +1,12 @@
 import { U64 } from "@polkadot/types";
-import pRetry, { FailedAttemptError } from "p-retry";
+import pRetry from "p-retry";
 import { Logger } from "pino";
 import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
-import { ChainName, SignerWithAddress, SignedBlockJsonRpc, FinalityProof } from "./types";
+import { ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { blockToBinary } from './utils';
+import { blockToBinary, withGrandpaJustification, createRetryOptions } from './utils';
 import { IChainArchive } from './chainArchive';
 
 function polkadotAppsUrl(targetChainUrl: string) {
@@ -29,17 +29,6 @@ interface RelayBlocksResult {
   nextBlockToProcess: number;
 }
 
-// used by pRetry in case of failing request
-const createRetryOptions = (onFailedAttempt: ((error: FailedAttemptError) => void | Promise<void>)) => ({
-  randomize: true,
-  forever: true,
-  minTimeout: 1000,
-  maxTimeout: 60 * 60 * 1000,
-  onFailedAttempt,
-});
-
-const GRANDPA_ENGINE_ID = [70, 82, 78, 75]; // FRNK
-
 export default class Relay {
   private readonly logger: Logger;
   private readonly polkadotAppsBaseUrl: string;
@@ -57,7 +46,6 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  // TODO: add finality proof fetching - same as for fetchBlocksInBatches
   private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[Buffer[], number], void> {
     let blocksToArchive: Buffer[] = [];
     let accumulatedBytes = 0;
@@ -167,9 +155,11 @@ export default class Relay {
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
       ) as SignedBlockJsonRpc;
 
-      const block = blockToBinary(isRelayChain
-        ? await this.withGrandpaJustification(rawBlock)
-        : rawBlock);
+      const block = blockToBinary(
+        isRelayChain
+          ? await withGrandpaJustification(this.sourceApi, this.logger, rawBlock)
+          : rawBlock
+      );
 
       if (accumulatedBytes + block.byteLength >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
@@ -192,24 +182,6 @@ export default class Relay {
     if (blocksToArchive.length > 0) {
       yield [blocksToArchive, nextBlockToProcess];
     }
-  }
-
-  private async withGrandpaJustification(rawBlock: SignedBlockJsonRpc): Promise<SignedBlockJsonRpc> {
-    // adding justifications from finality proof if there is none
-    if (!rawBlock.justifications) {
-      const { number } = rawBlock.block.header;
-      const proof = await pRetry(
-        () => this.sourceApi.rpc.grandpa.proveFinality(number),
-        createRetryOptions(error => this.logger.error(error, `get block justifications for #${number} retry error:`)),
-      );
-      const proofBytes = proof.toU8a(true);
-      const decodedProof = this.sourceApi.createType("FinalityProof", proofBytes);
-      const justificationBytes = (decodedProof as unknown as FinalityProof).justification.toU8a(true);
-
-      rawBlock.justifications = [[GRANDPA_ENGINE_ID, Array.from(justificationBytes)]];
-    }
-
-    return rawBlock;
   }
 
   private async relayBlocks(
