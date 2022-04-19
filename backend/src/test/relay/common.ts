@@ -38,6 +38,7 @@ const defaultRelayParams = {
   sourceApi: apiSuccess,
   batchBytesLimit,
   batchCountLimit,
+  bestGrandpaFinalizedBlockNumber: 100,
 };
 const relayWithDefaultParams = new Relay(defaultRelayParams);
 const feedId = registry.createType('u64', 10);

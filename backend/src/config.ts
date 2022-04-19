@@ -10,7 +10,7 @@ const AnyChainConfig = z.object({
 });
 
 const PrimaryChainConfig = AnyChainConfig.extend({
-  headerToSyncFrom: z.number().optional(),
+  bestGrandpaFinalizedBlockNumber: z.number(),
 });
 
 const ParachainConfig = AnyChainConfig.extend({

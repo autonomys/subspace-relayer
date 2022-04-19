@@ -22,6 +22,7 @@ interface RelayParams {
   sourceApi: ApiPromise;
   batchBytesLimit: number;
   batchCountLimit: number;
+  bestGrandpaFinalizedBlockNumber: number;
 }
 
 interface RelayBlocksResult {
@@ -36,6 +37,7 @@ export default class Relay {
   private readonly sourceApi: ApiPromise;
   private readonly batchBytesLimit: number;
   private readonly batchCountLimit: number;
+  private readonly bestGrandpaFinalizedBlockNumber: number;
 
   public constructor(params: RelayParams) {
     this.logger = params.logger;
@@ -44,6 +46,7 @@ export default class Relay {
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
     this.batchBytesLimit = params.batchBytesLimit;
     this.batchCountLimit = params.batchCountLimit;
+    this.bestGrandpaFinalizedBlockNumber = params.bestGrandpaFinalizedBlockNumber;
   }
 
   private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[Buffer[], number], void> {
@@ -155,8 +158,10 @@ export default class Relay {
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
       ) as SignedBlockJsonRpc;
 
+      const shouldFetchJustification = isRelayChain && nextBlockToProcess > this.bestGrandpaFinalizedBlockNumber;
+
       const block = blockToBinary(
-        isRelayChain
+        shouldFetchJustification
           ? await withGrandpaJustification(this.sourceApi, this.logger, rawBlock)
           : rawBlock
       );

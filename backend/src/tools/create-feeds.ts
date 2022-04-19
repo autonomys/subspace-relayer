@@ -30,7 +30,8 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
     // TODO: check how to avoid passing types and use Metadata v14 instead
     types: {
       InitialValidation: {
-        header: "Vec<u8>",
+        genesisHash: "Hash",
+        bestKnownFinalizedHeader: "Vec<u8>",
         setId: "SetId",
       }
     }
@@ -54,13 +55,15 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
       // initialize grandpa finality verifier for relay chain
       if (isRelayChain) {
         // get header to start verification from
-        const blockNumber = (chainConfig as PrimaryChainConfig).headerToSyncFrom;
+        const blockNumber = (chainConfig as PrimaryChainConfig).bestGrandpaFinalizedBlockNumber;
+        const genesisHash = await sourceApi.rpc.chain.getBlockHash(0);
         const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
-        const header = (await sourceApi.rpc.chain.getHeader(hash)).toHex();
+        const bestKnownFinalizedHeader = (await sourceApi.rpc.chain.getHeader(hash)).toHex();
         const setId = await getSetId(sourceApi, hash);
         
         initialValidation = targetApi.createType("InitialValidation", {
-          header,
+          genesisHash,
+          bestKnownFinalizedHeader,
           setId,
         });
       }
