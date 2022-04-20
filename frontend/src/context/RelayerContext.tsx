@@ -28,7 +28,7 @@ async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   const totals = await api.query.feeds.totals.multi(feedIds);
   for (let i = 0; i < feedIds.length; i++) {
     const feedId = feedIds[i];
-    const feedTotal: Totals = api.registry.createType("Totals", totals[i]);
+    const feedTotal: Totals = api.registry.createType("PalletFeedsTotalObjectsAndSize", totals[i]);
     if (!feedTotal.isEmpty)
       feedsTotals.push({
         feedId,

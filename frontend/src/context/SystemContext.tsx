@@ -20,13 +20,11 @@ export function SystemContextProvider(
   const { children = null } = props;
   const provider = useProvider();
 
-  const [chain, setChain] = useState<Text>();
   const [version, setVersion] = useState<Text>();
   const registryRef = useRef(new TypeRegistry());
   const [rpc, setRpc] = useState<RpcCore & RpcInterface>();
 
   useEffect(() => {
-    setChain(undefined);
     setVersion(undefined);
 
     if (!provider) {
@@ -51,7 +49,6 @@ export function SystemContextProvider(
       )
       .subscribe(([_chain, _version]) => {
         l.log(`Rpc connected to chain "${_chain}" with version "${_version}"`);
-        setChain(_chain);
         setVersion(_version);
       });
 
@@ -61,9 +58,8 @@ export function SystemContextProvider(
   return (
     <SystemContext.Provider
       value={{
-        chain,
         version,
-        isSystemReady: !!(chain && version),
+        isSystemReady: !!version,
       }}
     >
       {children}
