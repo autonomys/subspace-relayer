@@ -5,7 +5,11 @@ import { ParachainFeed, ParachainProps } from "config/interfaces/Parachain";
 import { bytesToSize, explorerLink, prettyHash } from "components/utils";
 import { useWindowSize } from "hooks/WindowsSize";
 
-const ParachainRow: React.FC<ParachainProps & ParachainFeed> = ({ subspaceWss, wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }) => {
+import { getApiUrl } from "../config/RpcSettings";
+
+const subspaceWss = getApiUrl();
+
+const ParachainRow: React.FC<ParachainProps & ParachainFeed> = ({ wss, filter, ecosystem, chain, chainName, web, hash, number, size, subspaceHash }) => {
   const { width } = useWindowSize();
   const [count, setCount] = useState<number>(0);
   const [lastUpdate, setLastUpdate] = useState<number>(0);

@@ -1,6 +1,4 @@
 import { ParachainProps } from "./interfaces/Parachain";
-import { getApiUrl } from "./RpcSettings";
-const subspaceWss = getApiUrl();
 
 const apiKey = process.env.REACT_APP_ONFINALITY_API_KEY;
 
@@ -13,7 +11,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Kusama",
     web: "https://kusama.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://statemine.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -23,7 +20,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Statemine",
     web: "https://parachains.info/details/statemine",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://karura.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -33,7 +29,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Karura",
     web: "https://acala.network/karura",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://bifrost-parachain.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -43,7 +38,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Bifrost",
     web: "https://bifrost.finance/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://khala.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -53,7 +47,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Khala",
     web: "https://phala.network/en/khala/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://shiden.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -63,7 +56,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Shiden",
     web: "https://phala.network/en/shiden/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://moonriver.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -73,7 +65,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Moonriver",
     web: "https://moonbeam.foundation/moonriver-token/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://calamari.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -83,7 +74,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Calamari",
     web: "https://www.calamari.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://spiritnet.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -93,7 +83,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "KILT Spiritnet",
     web: "https://www.kilt.io/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://basilisk.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -103,7 +92,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Basilisk",
     web: "https://bsx.fi/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://altair.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -113,7 +101,6 @@ const kusamaParachains: ParachainProps[] = [
     chainName: "Altair",
     web: "https://centrifuge.io/altair/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://parallel-heiko.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -123,7 +110,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 11,
     web: "https://parallel.fi/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://kintsugi.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -133,7 +119,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 12,
     web: "https://kintsugi.interlay.io/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://pioneer-1-rpc.bit.country",
@@ -143,7 +128,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 13,
     web: "https://bit.country/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://node.genshiro.io",
@@ -153,7 +137,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 14,
     web: "https://genshiro.equilibrium.io/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://us-ws-quartz.unique.network",
@@ -163,7 +146,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 15,
     web: "https://unique.network/quartz/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://picasso-rpc.composable.finance",
@@ -173,7 +155,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 16,
     web: "https://picasso.composable.finance/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://api.kusama.encointer.org",
@@ -183,7 +164,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 24,
     web: "https://encointer.org/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://kusama.rpc.robonomics.network",
@@ -193,7 +173,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 25,
     web: "https://robonomics.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://rpc-0.zeitgeist.pm",
@@ -203,7 +182,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 26,
     web: "https://zeitgeist.pm",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://para.subsocial.network",
@@ -213,7 +191,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 27,
     web: "https://subsocial.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.sakura.clover.finance",
@@ -223,7 +200,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 28,
     web: "https://sakurafinance.io/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://rpc-shadow.crust.network/",
@@ -233,7 +209,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 29,
     web: "https://crust.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://kusama.api.integritee.network/",
@@ -243,7 +218,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 30,
     web: "https://integritee.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://crab-parachain-rpc.darwinia.network/",
@@ -253,7 +227,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 31,
     web: "https://crab.network/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.litmus-parachain.litentry.io/",
@@ -263,7 +236,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 32,
     web: "https://www.litentry.com/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.api.kico.dico.io/",
@@ -273,7 +245,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 33,
     web: "https://dico.io/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: `wss://turing.api.onfinality.io/ws?apikey=${apiKey}`,
@@ -283,7 +254,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 42,
     web: "https://oak.tech/turing/home/",
     ecosystem: "kusama",
-    subspaceWss,
   },
   {
     wss: "wss://ws.parachain-collator-1.c1.sora2.soramitsu.co.jp",
@@ -293,7 +263,6 @@ const kusamaParachains: ParachainProps[] = [
     feedId: 43,
     web: "https://sora.org/",
     ecosystem: "kusama",
-    subspaceWss,
   },
 ];
 
@@ -306,7 +275,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 17,
     web: "https://polkadot.network/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
 
   {
@@ -317,7 +285,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 18,
     web: "https://parachains.info/details/statemint",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://acala-rpc-0.aca-api.network",
@@ -327,7 +294,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 19,
     web: "https://acala.network/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.astar.network",
@@ -337,7 +303,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 20,
     web: "https://astar.network/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://rpc-para.clover.finance",
@@ -347,7 +312,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 21,
     web: "https://clover.finance/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://wss.api.moonbeam.network",
@@ -357,7 +321,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 22,
     web: "https://moonbeam.network/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.parallel.fi",
@@ -367,7 +330,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 23,
     web: "https://moonbeam.network/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.composable.finance",
@@ -377,7 +339,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 34,
     web: "https://www.composable.finance/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://rpc.efinity.io",
@@ -387,7 +348,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 35,
     web: "https://enjin.io/efinity-crowdloan",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://fullnode.parachain.centrifuge.io",
@@ -397,7 +357,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 36,
     web: "https://centrifuge.io/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://api.interlay.io/parachain",
@@ -407,7 +366,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 37,
     web: "https://interlay.io/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://rpc-01.hydradx.io",
@@ -417,7 +375,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 38,
     web: "https://hydradx.io/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: `wss://nodle-parachain.api.onfinality.io/ws?apiKey=${apiKey}`,
@@ -427,7 +384,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 39,
     web: "https://www.nodle.com/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://node.pol.equilibrium.io/",
@@ -437,7 +393,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 40,
     web: "https://equilibrium.io/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
   {
     wss: "wss://api.phala.network/ws",
@@ -447,7 +402,6 @@ const polkadotParachains: ParachainProps[] = [
     feedId: 41,
     web: "https://www.phala.network/",
     ecosystem: "polkadot",
-    subspaceWss,
   },
 ];
 

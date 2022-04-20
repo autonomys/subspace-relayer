@@ -19,7 +19,6 @@ export interface ParachainProps {
   chainName: string;
   web: string;
   ecosystem: string;
-  subspaceWss: string;
   filter?: number;
 }
 
