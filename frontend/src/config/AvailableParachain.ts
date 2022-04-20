@@ -2,9 +2,11 @@ import { ParachainProps } from "./interfaces/Parachain";
 import { getApiUrl } from "./RpcSettings";
 const subspaceWss = getApiUrl();
 
+const apiKey = process.env.REACT_APP_ONFINALITY_API_KEY;
+
 const kusamaParachains: ParachainProps[] = [
   {
-    wss: "wss://kusama.api.onfinality.io/public-ws",
+    wss: `wss://kusama.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 0,
     feedId: 0,
     chain: "kusama",
@@ -14,7 +16,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://statemine.api.onfinality.io/public-ws",
+    wss: `wss://statemine.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 1000,
     feedId: 1,
     chain: "statemine",
@@ -24,7 +26,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://karura.api.onfinality.io/public-ws",
+    wss: `wss://karura.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2000,
     feedId: 2,
     chain: "karura",
@@ -34,7 +36,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://bifrost-parachain.api.onfinality.io/public-ws",
+    wss: `wss://bifrost-parachain.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2001,
     feedId: 3,
     chain: "bifrost",
@@ -44,7 +46,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://khala.api.onfinality.io/public-ws",
+    wss: `wss://khala.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2004,
     feedId: 4,
     chain: "khala",
@@ -54,7 +56,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://shiden.api.onfinality.io/public-ws",
+    wss: `wss://shiden.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2007,
     feedId: 5,
     chain: "shiden",
@@ -64,7 +66,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://moonriver.api.onfinality.io/public-ws",
+    wss: `wss://moonriver.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2023,
     feedId: 6,
     chain: "moonriver",
@@ -74,7 +76,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://calamari.api.onfinality.io/public-ws",
+    wss: `wss://calamari.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2084,
     feedId: 7,
     chain: "calamari",
@@ -84,7 +86,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://spiritnet.api.onfinality.io/public-ws",
+    wss: `wss://spiritnet.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2086,
     feedId: 8,
     chain: "kilt_spiritnet",
@@ -94,7 +96,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://basilisk.api.onfinality.io/public-ws",
+    wss: `wss://basilisk.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2090,
     feedId: 9,
     chain: "basilisk",
@@ -104,7 +106,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://altair.api.onfinality.io/public-ws",
+    wss: `wss://altair.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2088,
     feedId: 10,
     chain: "altair",
@@ -114,7 +116,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://parallel-heiko.api.onfinality.io/public-ws",
+    wss: `wss://parallel-heiko.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2085,
     chainName: "Parallel Heiko",
     chain: "parallel_heiko",
@@ -124,7 +126,7 @@ const kusamaParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://kintsugi.api.onfinality.io/public-ws",
+    wss: `wss://kintsugi.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2092,
     chainName: "Kintsugi BTC",
     chain: "kintsugi",
@@ -273,11 +275,31 @@ const kusamaParachains: ParachainProps[] = [
     ecosystem: "kusama",
     subspaceWss,
   },
+  {
+    wss: `wss://turing.api.onfinality.io/ws?apikey=${apiKey}`,
+    paraId: 2114,
+    chainName: "Turing Network",
+    chain: "turing",
+    feedId: 42,
+    web: "https://oak.tech/turing/home/",
+    ecosystem: "kusama",
+    subspaceWss,
+  },
+  {
+    wss: "wss://ws.parachain-collator-1.c1.sora2.soramitsu.co.jp",
+    paraId: 2011,
+    chainName: "Sora",
+    chain: "sora",
+    feedId: 43,
+    web: "https://sora.org/",
+    ecosystem: "kusama",
+    subspaceWss,
+  },
 ];
 
 const polkadotParachains: ParachainProps[] = [
   {
-    wss: "wss://polkadot.api.onfinality.io/public-ws",
+    wss: `wss://polkadot.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2087,
     chainName: "Polkadot",
     chain: "polkadot",
@@ -398,12 +420,32 @@ const polkadotParachains: ParachainProps[] = [
     subspaceWss,
   },
   {
-    wss: "wss://nodle-parachain.api.onfinality.io/public-ws",
+    wss: `wss://nodle-parachain.api.onfinality.io/ws?apiKey=${apiKey}`,
     paraId: 2026,
     chainName: "Nodle",
     chain: "nodle",
     feedId: 39,
     web: "https://www.nodle.com/",
+    ecosystem: "polkadot",
+    subspaceWss,
+  },
+  {
+    wss: "wss://node.pol.equilibrium.io/",
+    paraId: 2011,
+    chainName: "Equilibrium",
+    chain: "equilibrium",
+    feedId: 40,
+    web: "https://equilibrium.io/",
+    ecosystem: "polkadot",
+    subspaceWss,
+  },
+  {
+    wss: "wss://api.phala.network/ws",
+    paraId: 2035,
+    chainName: "Phala",
+    chain: "phala",
+    feedId: 41,
+    web: "https://www.phala.network/",
     ecosystem: "polkadot",
     subspaceWss,
   },

@@ -36,3 +36,9 @@ With these projects runing, you can start the react app, it will subscribe to ne
 ```
 REACT_APP_WS_PROVIDER=wss://test-rpc.subspace.network
 ```
+
+- Additionally it is possible to provide `REACT_APP_ONFINALITY_API_KEY` to utilize OnFinality API endpoints. If api key is not provided - it will use public endpoints by default.
+
+```
+REACT_APP_ONFINALITY_API_KEY=your api key
+```
