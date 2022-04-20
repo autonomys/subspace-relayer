@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { logger } from "@polkadot/util";
 import { ApiPromise } from "@polkadot/api";
-import { TypeRegistry } from "@polkadot/types";
 import {
   ApiPromiseContextProviderProps,
   ApiPromiseContextType,
 } from "context/interfaces";
 import { useProvider } from "./ProviderContext";
-import customTypes from "context/utils/types.json";
 
 const l = logger("api-context");
-const registry = new TypeRegistry();
 
 export const ApiPromiseContext: React.Context<ApiPromiseContextType> =
   React.createContext({} as ApiPromiseContextType);
@@ -21,14 +18,13 @@ export function ApiPromiseContextProvider(
   const { children = null } = props;
   const provider = useProvider();
   const [apiPromise] = useState<ApiPromise>(
-    new ApiPromise({ provider, types: customTypes })
+    new ApiPromise({ provider })
   );
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     apiPromise.isReady
       .then(() => {
-        registry.register(customTypes);
         l.log(`Api ready OK.`);
         setIsReady(true);
       })
