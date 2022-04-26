@@ -27,7 +27,7 @@
     "node-sass": "6.0.1",
     "node-sass-package-importer": "5.3.2",
     "react-scripts": "5.0.0",
-    "typescript": "^4.1.2"
+    "typescript": "^4.6.3"
   },
   "scripts": {
     "lint": "tsc --noEmit && eslint src/**/*.ts{,x}",
