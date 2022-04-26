@@ -80,17 +80,18 @@ export function isInstanceOfSignedBlockJsonRpc(object: any): object is SignedBlo
 }
 
 export function createApi(url: string | string[]): Promise<ApiPromise> {
-    const provider = new WsProvider(url);
+    const TIMEOUT_MS = 90 * 1000;
+    const provider = new WsProvider(url, undefined, undefined, TIMEOUT_MS);
     const originalSend = provider.send;
 
     // TODO: This is an ugly workaround for https://github.com/polkadot-js/api/issues/4414
-    provider.send = function(
-      method: string,
-      params: unknown[],
-      _isCachable?: boolean,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      subscription?: any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    provider.send = function (
+        method: string,
+        params: unknown[],
+        _isCachable?: boolean,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        subscription?: any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<any> {
         return originalSend.call(this, method, params, false, subscription);
     };
