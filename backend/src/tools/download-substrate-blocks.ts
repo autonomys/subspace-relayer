@@ -42,6 +42,8 @@ process
   logger.info("Retrieving last finalized block...");
 
   const api = await createApi(sourceChainRpc);
+  const chainName = (await api.rpc.system.chain()).toString();
+  const isRelayChain = chainName === 'Kusama' || chainName === 'Polkadot';
 
   const lastFinalizedHash = await api.rpc.chain.getFinalizedHead();
   const lastFinalizedBlockNumber = (await api.rpc.chain.getHeader(lastFinalizedHash)).number.toNumber();
@@ -72,7 +74,7 @@ process
       break;
     }
 
-    await fetchAndStoreBlock(api, blockNumber, db);
+    await fetchAndStoreBlock(api, blockNumber, db, isRelayChain);
 
     if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {
       const now = Date.now();
@@ -103,7 +105,7 @@ process
         await db.get(blockNumberAsBuffer);
       } catch (e) {
         logger.info(`Found problematic block ${blockNumber} during archive verification, fixing it`);
-        await fetchAndStoreBlock(api, blockNumber, db);
+        await fetchAndStoreBlock(api, blockNumber, db, isRelayChain);
       }
 
       if (blockNumber > 0 && blockNumber % REPORT_PROGRESS_INTERVAL === 0) {

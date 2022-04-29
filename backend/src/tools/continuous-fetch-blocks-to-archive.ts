@@ -18,7 +18,7 @@ import logger from "../logger";
   }
 
   const targetDir = process.env.TARGET_DIR;
-  if (!sourceChainRpc) {
+  if (!targetDir) {
     logger.error("TARGET_DIR environment variable must be set with directory where downloaded blocks must be stored");
     process.exit(1);
   }
@@ -26,7 +26,8 @@ import logger from "../logger";
   logger.info("Retrieving last finalized block...");
 
   const api = await createApi(sourceChainRpc);
-
+  const chainName = (await api.rpc.system.chain()).toString();
+  const isRelayChain = chainName === 'Kusama' || chainName === 'Polkadot';
   const chainHeadState = new PrimaryChainHeadState(0);
 
   await api.rpc.chain.subscribeFinalizedHeads(async (blockHeader) => {
@@ -57,7 +58,7 @@ import logger from "../logger";
 
   for (; ;) {
     if (blockNumber <= chainHeadState.lastFinalizedBlockNumber) {
-      await fetchAndStoreBlock(api, blockNumber, db);
+      await fetchAndStoreBlock(api, blockNumber, db, isRelayChain);
 
       logger.debug(`Downloaded block ${blockNumber}/${chainHeadState.lastFinalizedBlockNumber}`);
 
