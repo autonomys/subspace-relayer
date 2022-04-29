@@ -1,12 +1,12 @@
 import { U64 } from "@polkadot/types";
-import pRetry, { FailedAttemptError } from "p-retry";
+import pRetry from "p-retry";
 import { Logger } from "pino";
 import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
-import { ChainName, SignerWithAddress } from "./types";
+import { ChainName, SignerWithAddress, SignedBlockJsonRpc } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
-import { blockToBinary } from './utils';
+import { blockToBinary, withGrandpaJustification, createRetryOptions } from './utils';
 import { IChainArchive } from './chainArchive';
 
 function polkadotAppsUrl(targetChainUrl: string) {
@@ -22,21 +22,13 @@ interface RelayParams {
   sourceApi: ApiPromise;
   batchBytesLimit: number;
   batchCountLimit: number;
+  bestGrandpaFinalizedBlockNumber: number;
 }
 
 interface RelayBlocksResult {
   nonce: bigint;
   nextBlockToProcess: number;
 }
-
-// used by pRetry in case of failing request
-const createRetryOptions = (onFailedAttempt: ((error: FailedAttemptError) => void | Promise<void>)) => ({
-  randomize: true,
-  forever: true,
-  minTimeout: 1000,
-  maxTimeout: 60 * 60 * 1000,
-  onFailedAttempt,
-})
 
 export default class Relay {
   private readonly logger: Logger;
@@ -45,6 +37,7 @@ export default class Relay {
   private readonly sourceApi: ApiPromise;
   private readonly batchBytesLimit: number;
   private readonly batchCountLimit: number;
+  private readonly bestGrandpaFinalizedBlockNumber: number;
 
   public constructor(params: RelayParams) {
     this.logger = params.logger;
@@ -53,6 +46,7 @@ export default class Relay {
     this.polkadotAppsBaseUrl = polkadotAppsUrl(params.target.targetChainUrl);
     this.batchBytesLimit = params.batchBytesLimit;
     this.batchCountLimit = params.batchCountLimit;
+    this.bestGrandpaFinalizedBlockNumber = params.bestGrandpaFinalizedBlockNumber;
   }
 
   private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[Buffer[], number], void> {
@@ -62,10 +56,8 @@ export default class Relay {
 
     for await (const blockData of archive.getBlocks(lastProcessedBlock)) {
       const block = blockData.block;
-      const metadata = Buffer.from(JSON.stringify(blockData.metadata), 'utf-8');
-      const extraBytes = block.byteLength + metadata.byteLength;
 
-      if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
+      if (accumulatedBytes + block.byteLength >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, lastBlockNumber];
         blocksToArchive = [];
@@ -73,7 +65,7 @@ export default class Relay {
       }
 
       blocksToArchive.push(block);
-      accumulatedBytes += extraBytes;
+      accumulatedBytes += block.byteLength;
       lastBlockNumber = blockData.metadata.number;
 
       if (blocksToArchive.length === this.batchCountLimit) {
@@ -115,7 +107,7 @@ export default class Relay {
               nonce++;
               throw e;
             }),
-          createRetryOptions(error => this.logger.error(error, 'sendBlocksBatchTx retry error:')),
+          createRetryOptions(error => this.logger.error(error, `sendBlocksBatchTx retry error (chain: ${chainName}, signer: ${signer.address}):`)),
         );
         nonce++;
 
@@ -149,6 +141,7 @@ export default class Relay {
   private async * fetchBlocksInBatches(
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
+    isRelayChain?: boolean,
   ): AsyncGenerator<[Buffer[], number], void> {
     let blocksToArchive: Buffer[] = [];
     let accumulatedBytes = 0;
@@ -159,22 +152,21 @@ export default class Relay {
         () => this.sourceApi.rpc.chain.getBlockHash(nextBlockToProcess),
         createRetryOptions(error => this.logger.error(error, 'getBlockHash retry error:')),
       );
-      const block = blockToBinary(await pRetry(
+
+      const rawBlock = await pRetry(
         () => this.sourceApi.rpc.chain.getBlock.raw(blockHash),
         createRetryOptions(error => this.logger.error(error, 'getBlock retry error:')),
-      ));
+      ) as SignedBlockJsonRpc;
 
-      const metadata = Buffer.from(
-        JSON.stringify({
-          hash: blockHash,
-          number: nextBlockToProcess,
-        }),
-        'utf-8',
+      const shouldFetchJustification = isRelayChain && nextBlockToProcess > this.bestGrandpaFinalizedBlockNumber;
+
+      const block = blockToBinary(
+        shouldFetchJustification
+          ? await withGrandpaJustification(this.sourceApi, this.logger, rawBlock)
+          : rawBlock
       );
 
-      const extraBytes = block.byteLength + metadata.byteLength;
-
-      if (accumulatedBytes + extraBytes >= this.batchBytesLimit) {
+      if (accumulatedBytes + block.byteLength >= this.batchBytesLimit) {
         // With new block limit will be exceeded, yield now
         yield [blocksToArchive, nextBlockToProcess];
         blocksToArchive = [];
@@ -182,7 +174,7 @@ export default class Relay {
       }
 
       blocksToArchive.push(block);
-      accumulatedBytes += extraBytes;
+      accumulatedBytes += block.byteLength;
 
       if (blocksToArchive.length === this.batchCountLimit) {
         // Reached block count limit, yield now
@@ -207,9 +199,12 @@ export default class Relay {
   ): Promise<RelayBlocksResult> {
     let lastTxPromise: Promise<void> | undefined;
 
+    const isRelayChain = chainName === 'Kusama' || chainName === 'Polkadot';
+
     const blockBatches = this.fetchBlocksInBatches(
       nextBlockToProcess,
       lastFinalizedBlockNumber,
+      isRelayChain,
     );
 
     for await (const [blocksToArchive, newNextBlockToProcess] of blockBatches) {
