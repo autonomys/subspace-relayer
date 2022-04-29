@@ -20,11 +20,6 @@ export interface BlockMetadata {
   number: number;
 }
 
-export interface TxBlock {
-  block: Buffer;
-  metadata: Buffer;
-}
-
 export interface ParaHeadAndId {
   paraId: ChainId;
   blockHash: HexString;

@@ -4,7 +4,7 @@ import { Logger } from "pino";
 import { ApiPromise } from "@polkadot/api";
 
 import Target from "./target";
-import { TxBlock, ChainName, SignerWithAddress } from "./types";
+import { ChainName, SignerWithAddress } from "./types";
 import { ParachainHeadState, PrimaryChainHeadState } from "./chainHeadState";
 import { blockToBinary } from './utils';
 import { IChainArchive } from './chainArchive';
@@ -55,8 +55,8 @@ export default class Relay {
     this.batchCountLimit = params.batchCountLimit;
   }
 
-  private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[TxBlock[], number], void> {
-    let blocksToArchive: TxBlock[] = [];
+  private async * readBlocksInBatches(lastProcessedBlock: number, archive: IChainArchive): AsyncGenerator<[Buffer[], number], void> {
+    let blocksToArchive: Buffer[] = [];
     let accumulatedBytes = 0;
     let lastBlockNumber = 0;
 
@@ -72,7 +72,7 @@ export default class Relay {
         accumulatedBytes = 0;
       }
 
-      blocksToArchive.push({ block, metadata });
+      blocksToArchive.push(block);
       accumulatedBytes += extraBytes;
       lastBlockNumber = blockData.metadata.number;
 
@@ -149,8 +149,8 @@ export default class Relay {
   private async * fetchBlocksInBatches(
     nextBlockToProcess: number,
     lastFinalizedBlockNumber: () => number,
-  ): AsyncGenerator<[TxBlock[], number], void> {
-    let blocksToArchive: TxBlock[] = [];
+  ): AsyncGenerator<[Buffer[], number], void> {
+    let blocksToArchive: Buffer[] = [];
     let accumulatedBytes = 0;
 
     for (; nextBlockToProcess <= lastFinalizedBlockNumber(); nextBlockToProcess++) {
@@ -181,7 +181,7 @@ export default class Relay {
         accumulatedBytes = 0;
       }
 
-      blocksToArchive.push({ block, metadata });
+      blocksToArchive.push(block);
       accumulatedBytes += extraBytes;
 
       if (blocksToArchive.length === this.batchCountLimit) {
