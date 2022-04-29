@@ -2,8 +2,10 @@ import { compactToU8a } from "@polkadot/util";
 import { EventRecord, Event } from "@polkadot/types/interfaces/system";
 import { PolkadotPrimitivesV2CandidateReceipt } from "@polkadot/types/lookup";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import pRetry, { FailedAttemptError, Options as pRetryOptions } from "p-retry";
+import { Logger } from "pino";
 
-import { ParaHeadAndId, SignedBlockJsonRpc, ChainId } from "./types";
+import { ParaHeadAndId, SignedBlockJsonRpc, ChainId, FinalityProof } from "./types";
 
 // TODO: implement tests
 export const getParaHeadAndIdFromEvent = (event: Event): ParaHeadAndId => {
@@ -105,9 +107,45 @@ export function createApi(url: string | string[]): Promise<ApiPromise> {
     };
     return ApiPromise.create({
         provider,
+        types: {
+            // necessary for decoding results of api.rpc.grandpa.proveFinality
+            FinalityProof: {
+                block: "BlockHash",
+                justification: "Vec<u8>",
+                uknownHeaders: "Vec<Header>"
+            }
+        }
     });
 }
 
 export function blockNumberToBuffer(blockNumber: number): Buffer {
     return Buffer.from(BigUint64Array.of(BigInt(blockNumber)).buffer);
+}
+
+export const createRetryOptions = (onFailedAttempt: ((error: FailedAttemptError) => void | Promise<void>)): pRetryOptions => ({
+    randomize: true,
+    forever: true,
+    minTimeout: 1000,
+    maxTimeout: 60 * 60 * 1000,
+    onFailedAttempt,
+});
+
+export const GRANDPA_ENGINE_ID = [70, 82, 78, 75]; // FRNK
+
+export async function withGrandpaJustification(api: ApiPromise, logger: Logger, rawBlock: SignedBlockJsonRpc): Promise<SignedBlockJsonRpc> {
+    // adding justifications from finality proof if there is none
+    if (!rawBlock.justifications) {
+        const { number } = rawBlock.block.header;
+        const proof = await pRetry(
+            () => api.rpc.grandpa.proveFinality(number),
+            createRetryOptions(error => logger.error(error, `get block justifications for #${number} retry error:`)),
+        );
+        const proofBytes = proof.toU8a(true);
+        const decodedProof = api.createType("FinalityProof", proofBytes);
+        const justificationBytes = (decodedProof as unknown as FinalityProof).justification.toU8a(true);
+
+        rawBlock.justifications = [[GRANDPA_ENGINE_ID, Array.from(justificationBytes)]];
+    }
+
+    return rawBlock;
 }
