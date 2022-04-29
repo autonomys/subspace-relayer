@@ -1,11 +1,13 @@
 import * as tap from 'tap';
 import '@polkadot/api-augment';
 import { Event, EventRecord } from "@polkadot/types/interfaces/system";
+import * as fsp from 'fs/promises';
 
 import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc, blockToBinary } from '../utils';
 import * as signedBlockMock from '../mocks/signedBlock.json';
 import * as signedBlockWithExtrinsicsMock from '../mocks/signedBlockWithExtrinsics.json';
 import * as signedBlockWithLogsMock from '../mocks/signedBlockWithLogs.json';
+import * as signedBlockWithJustificationsMock from '../mocks/signedBlockWithJustifications.json';
 
 tap.test('getParaHeadAndIdFromEvent should return parablock hash and paraId', (t) => {
   const paraId = 2088;
@@ -171,7 +173,17 @@ tap.test('blockToBinary util function', (t) => {
     t.end();
   });
 
-  tap.test('blockToBinary should convert SignedBlockJsonRpc with justifications to Buffer')
+  tap.test('blockToBinary should convert SignedBlockJsonRpc with justifications to Buffer', async (t) => {
+    const result = blockToBinary(signedBlockWithJustificationsMock);
+
+    const hex = await fsp.readFile('src/mocks/signedBlockWithJustificationsHex', 'utf-8');
+
+    const expected = Buffer.from(hex, 'hex');
+
+    t.same(result, expected);
+
+    t.end();
+  });
 
   t.end();
-})
+});

@@ -41,9 +41,21 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
     const extrinsicsRoot = hexToUint8Array(block.block.header.extrinsicsRoot);
     const digest = block.block.header.digest.logs.map(hexToUint8Array);
     const extrinsics = block.block.extrinsics.map(hexToUint8Array);
-    const justifications = block.justifications
-        ? block.justifications.map(hexToUint8Array)
+    const blockJustifications = block.justifications
+        // converting number[][] to Uint8Array[][]
+        ? block.justifications.map(js => js.map(j => new Uint8Array(j)))
         : null;
+
+
+    const justifications = blockJustifications
+        ? [
+            Uint8Array.of(1),
+            compactToU8a(blockJustifications.length),
+            blockJustifications[0][0], // engine ID
+            compactToU8a(blockJustifications[0][1].length),
+            blockJustifications[0][1], // justification
+        ]
+        : [Uint8Array.of(0)];
 
     return Buffer.concat([
         parentHash,
@@ -54,11 +66,7 @@ export function blockToBinary(block: SignedBlockJsonRpc): Buffer {
         ...digest,
         compactToU8a(extrinsics.length),
         ...extrinsics,
-        ...(
-            justifications
-                ? [Uint8Array.of(1), compactToU8a(justifications.length), ...justifications]
-                : [Uint8Array.of(0)]
-        )
+        ...justifications
     ]);
 }
 

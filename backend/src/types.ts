@@ -45,5 +45,5 @@ interface BlockJsonRpc {
 
 export interface SignedBlockJsonRpc {
   block: BlockJsonRpc,
-  justifications: null | string[],
+  justifications: null | number[][][],
 }
