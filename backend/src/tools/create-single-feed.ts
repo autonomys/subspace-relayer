@@ -1,4 +1,4 @@
-// Small utility that will fund account and create feed for a single chain. Config should include chain data, chain paraId should be provided as an argument
+// Small utility that will fund account and create feed for a single parachain (relay chain feed should already be created). Config should include chain data, chain paraId should be provided as an argument
 // `FUNDS_ACCOUNT_SEED` environment variable
 import logger from "../logger";
 import * as dotenv from "dotenv";

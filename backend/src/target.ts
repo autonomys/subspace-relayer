@@ -3,7 +3,7 @@ import { Logger } from "pino";
 import { Hash } from "@polkadot/types/interfaces";
 import { U64 } from "@polkadot/types/primitive";
 
-import { SignerWithAddress, TxBlock, ChainName } from "./types";
+import { SignerWithAddress, ChainName } from "./types";
 import { IMetrics } from './metrics';
 
 interface TargetConstructorParams {
@@ -30,7 +30,7 @@ class Target {
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,
-    { block, metadata }: TxBlock,
+    block: Buffer,
     nonce: bigint,
   ): Promise<Hash> {
     this.logger.debug(`Sending ${chainName} block to feed ${feedId}`);
@@ -39,11 +39,7 @@ class Target {
     return new Promise<Hash>((resolve, reject) => {
       let unsub: () => void;
       this.api.tx.feeds
-        .put(
-          feedId,
-          `0x${block.toString('hex')}`,
-          `0x${metadata.toString('hex')}`,
-        )
+        .put(feedId, `0x${block.toString('hex')}`)
         .signAndSend(signer.address, { nonce, signer }, (result) => {
           if (result.isError) {
             reject(new Error(result.status.toString()));
@@ -68,18 +64,14 @@ class Target {
     feedId: U64,
     chainName: ChainName,
     signer: SignerWithAddress,
-    txData: TxBlock[],
+    txData: Buffer[],
     nonce: bigint,
   ): Promise<Hash> {
     this.logger.debug(`Sending ${txData.length} ${chainName} blocks to feed ${feedId}`);
     this.logger.debug(`Signer: ${signer.address}`);
 
-    const putCalls = txData.map(({ block, metadata }: TxBlock) => {
-      return this.api.tx.feeds.put(
-        feedId,
-        `0x${block.toString('hex')}`,
-        `0x${metadata.toString('hex')}`,
-      );
+    const putCalls = txData.map((block: Buffer) => {
+      return this.api.tx.feeds.put(feedId, `0x${block.toString('hex')}`);
     });
 
     return new Promise<Hash>((resolve, reject) => {

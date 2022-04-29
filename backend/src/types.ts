@@ -1,5 +1,7 @@
 import { Signer, SignerPayloadJSON, SignerResult } from "@polkadot/types/types/extrinsic";
 import { HexString } from "@polkadot/util/types";
+import { U8, Vec } from "@polkadot/types";
+import { Hash, Header } from "@polkadot/types/interfaces";
 
 type Brand<K, T> = K & { __brand: T; };
 
@@ -18,11 +20,6 @@ export abstract class SignerWithAddress implements Signer {
 export interface BlockMetadata {
   hash: HexString;
   number: number;
-}
-
-export interface TxBlock {
-  block: Buffer;
-  metadata: Buffer;
 }
 
 export interface ParaHeadAndId {
@@ -50,5 +47,11 @@ interface BlockJsonRpc {
 
 export interface SignedBlockJsonRpc {
   block: BlockJsonRpc,
-  justifications: null | string[],
+  justifications: null | number[][][],
+}
+
+export interface FinalityProof {
+  block: Hash,
+  justification: Vec<U8>,
+  uknownHeaders: Vec<Header>,
 }

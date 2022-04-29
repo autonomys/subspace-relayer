@@ -3,40 +3,46 @@ import { ApiPromise } from "@polkadot/api";
 import { EventRecord } from "@polkadot/types/interfaces";
 import { KeyringPair } from "@polkadot/keyring/types";
 
-import { blockToBinary, blockNumberToBuffer } from '../utils';
+import { blockToBinary, blockNumberToBuffer, withGrandpaJustification } from '../utils';
+import { SignedBlockJsonRpc } from "../types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, db: any): Promise<void> {
-    const blockHash = (await api.rpc.chain.getBlockHash(blockNumber)).toString();
-    const blockBytes = blockToBinary(await api.rpc.chain.getBlock.raw(blockHash));
-  
-    const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
-    const blockHashAsBuffer = Buffer.from(blockHash.slice(2), 'hex');
-  
-    await db.put(
-      blockNumberAsBuffer,
-      Buffer.concat([
-        // Block hash length in bytes
-        Buffer.from(Uint8Array.of(blockHashAsBuffer.byteLength)),
-        // Block hash itself
-        blockHashAsBuffer,
-        // Block bytes in full
-        blockBytes,
-      ]),
-    );
-    await db.put('last-downloaded-block', blockNumberAsBuffer);
-  }
+export async function fetchAndStoreBlock(api: ApiPromise, blockNumber: number, db: any, isRelayChain: boolean): Promise<void> {
+  const blockHash = (await api.rpc.chain.getBlockHash(blockNumber)).toString();
+  const rawBlock = await api.rpc.chain.getBlock.raw(blockHash) as SignedBlockJsonRpc;
+  const blockBytes = blockToBinary(
+    isRelayChain
+      ? await withGrandpaJustification(api, logger, rawBlock)
+      : rawBlock
+  );
+  const blockNumberAsBuffer = blockNumberToBuffer(blockNumber);
+  const blockHashAsBuffer = Buffer.from(blockHash.slice(2), 'hex');
 
-export function createFeed(api: ApiPromise, account: KeyringPair): Promise<number> {
+  await db.put(
+    blockNumberAsBuffer,
+    Buffer.concat([
+      // Block hash length in bytes
+      Buffer.from(Uint8Array.of(blockHashAsBuffer.byteLength)),
+      // Block hash itself
+      blockHashAsBuffer,
+      // Block bytes in full
+      blockBytes,
+    ]),
+  );
+  await db.put('last-downloaded-block', blockNumberAsBuffer);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function createFeed(api: ApiPromise, account: KeyringPair, chainType?: string, initialValidation?: string): Promise<number> {
   return new Promise((resolve, reject) => {
     let unsub: () => void;
     api.tx.feeds
-      .create()
+      .create(chainType, initialValidation)
       .signAndSend(account, { nonce: -1 }, (result) => {
         if (result.status.isInBlock) {
           const success = result.dispatchError ? false : true;
           logger.info(`📀 Transaction included at blockHash ${result.status.asInBlock} [success = ${success}]`);
-          
+
           const feedCreatedEvent = result.events.find(
             ({ event }: EventRecord) => api.events.feeds.FeedCreated.is(event)
           );

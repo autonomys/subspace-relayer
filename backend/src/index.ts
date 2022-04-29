@@ -66,13 +66,15 @@ async function main(metrics: Metrics) {
 
       const totals = (await targetApi.query.feeds.totals(feedId)) as unknown as { size: U64, count: U64 };
       // We know that block number will not exceed 53-bit size integer
-      let lastProcessedBlock = Number(totals.count.toBigInt()) - 1;
+      // genesis block is not imported, so we start from block #1
+      let lastProcessedBlock = Number(totals.count.toBigInt());
 
       const relayParams = {
         logger,
         target,
         sourceApi,
         batchBytesLimit: BATCH_BYTES_LIMIT,
+        bestGrandpaFinalizedBlockNumber: config.primaryChain.bestGrandpaFinalizedBlockNumber,
       };
 
       let relay;

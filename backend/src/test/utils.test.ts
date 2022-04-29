@@ -1,11 +1,22 @@
 import * as tap from 'tap';
 import '@polkadot/api-augment';
 import { Event, EventRecord } from "@polkadot/types/interfaces/system";
+import * as fsp from 'fs/promises';
+import { ApiPromise } from '@polkadot/api';
 
-import { getParaHeadAndIdFromEvent, isIncludedParablockRecord, isInstanceOfSignedBlockJsonRpc, blockToBinary } from '../utils';
+import {
+  getParaHeadAndIdFromEvent,
+  isIncludedParablockRecord,
+  isInstanceOfSignedBlockJsonRpc,
+  blockToBinary,
+  withGrandpaJustification,
+  GRANDPA_ENGINE_ID,
+} from '../utils';
 import * as signedBlockMock from '../mocks/signedBlock.json';
 import * as signedBlockWithExtrinsicsMock from '../mocks/signedBlockWithExtrinsics.json';
 import * as signedBlockWithLogsMock from '../mocks/signedBlockWithLogs.json';
+import * as signedBlockWithJustificationsMock from '../mocks/signedBlockWithJustifications.json';
+import logger from '../mocks/logger';
 
 tap.test('getParaHeadAndIdFromEvent should return parablock hash and paraId', (t) => {
   const paraId = 2088;
@@ -171,7 +182,62 @@ tap.test('blockToBinary util function', (t) => {
     t.end();
   });
 
-  tap.test('blockToBinary should convert SignedBlockJsonRpc with justifications to Buffer')
+  tap.test('blockToBinary should convert SignedBlockJsonRpc with justifications to Buffer', async (t) => {
+    const result = blockToBinary(signedBlockWithJustificationsMock);
+
+    const hex = await fsp.readFile('src/mocks/signedBlockWithJustificationsHex', 'utf-8');
+
+    const expected = Buffer.from(hex, 'hex');
+
+    t.same(result, expected);
+
+    t.end();
+  });
 
   t.end();
-})
+});
+
+tap.test('withGrandpaJustification util function', (t) => {
+  const justificationBytesMock = new Uint8Array([1, 2, 3, 4]);
+  const decodedFinalityProofMock = {
+    block: 'random block hash',
+    justification: {
+      toU8a() {
+        return justificationBytesMock;
+      }
+    },
+    unknownHeaders: []
+  };
+
+  const apiMock = {
+    rpc: {
+      grandpa: {
+        proveFinality() {
+          return Promise.resolve({
+            toU8a() {
+              return new Uint8Array([5, 6, 7, 8]);
+            }
+          })
+        }
+      }
+    },
+    createType() {
+      return decodedFinalityProofMock;
+    }
+  } as unknown as ApiPromise
+
+  tap.test('should add GRANDPA justification if block does not have any', async (t) => {
+    const result = await withGrandpaJustification(apiMock, logger, signedBlockMock);
+    const expectedJustifications = [[GRANDPA_ENGINE_ID, justificationBytesMock]];
+    t.same(result.justifications, expectedJustifications);
+    t.end();
+  });
+
+  tap.test('should return block as is if there is already justification', async (t) => {
+    const result = await withGrandpaJustification(apiMock, logger, signedBlockWithJustificationsMock);
+    t.same(result, signedBlockWithJustificationsMock);
+    t.end();
+  });
+
+  t.end();
+});

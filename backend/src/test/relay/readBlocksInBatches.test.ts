@@ -1,6 +1,5 @@
 import * as tap from 'tap';
 
-import { TxBlock } from '../../types';
 import { setup } from './common';
 import ChainArchiveMock from '../../mocks/chainArchive';
 
@@ -20,7 +19,7 @@ tap.test('Relay module - readBlocksInBatches method', async (t) => {
     {
       const first = await batchesGenerator.next();
       t.notOk(first.done);
-      const [blocks, number] = (first.value as [TxBlock[], number]);
+      const [blocks, number] = (first.value as [Buffer[], number]);
       // total number of blocks is 3, batch count limit is 2 - we expect 2 blocks
       t.equal(blocks.length, 2);
       t.equal(number, 2);
@@ -29,7 +28,7 @@ tap.test('Relay module - readBlocksInBatches method', async (t) => {
     {
       const second = await batchesGenerator.next();
       t.notOk(second.done);
-      const [blocks, number] = (second.value as [TxBlock[], number]);
+      const [blocks, number] = (second.value as [Buffer[], number]);
       // 1 out of 3 blocks left
       t.equal(blocks.length, 1);
       t.equal(number, 3);
@@ -75,13 +74,13 @@ tap.test('Relay module - readBlocksInBatches method', async (t) => {
 
       const first = await batchesGenerator.next();
       t.notOk(first.done);
-      const [firstBatch] = (first.value as [TxBlock[], number]);
+      const [firstBatch] = (first.value as [Buffer[], number]);
       // two blocks can fit
       t.equal(firstBatch.length, 2);
 
       const second = await batchesGenerator.next();
       t.notOk(second.done);
-      const [secondBatch] = (second.value as [TxBlock[], number]);
+      const [secondBatch] = (second.value as [Buffer[], number]);
       // only one block left
       t.equal(secondBatch.length, 1);
     }
