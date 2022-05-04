@@ -16,7 +16,7 @@
     "prefetch": "npm run build",
     "fetch": "node dist/tools/continuous-fetch-blocks-to-archive.js",
     "prebalances": "npm run build",
-    "balances": "node dist/tools/list-account-balances.js",
+    "balances": "node dist/tools/list-account-balances.js"
   },
   "keywords": [],
   "author": "",
