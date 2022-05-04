@@ -104,8 +104,8 @@ Where:
 Currently balance transfers are disabled. Every chain accounts has to be funded using SUDO before starting the relayer. It is possible to check all account balances using script below
 
 ## Scripts
-- `npm setup` - create feeds based on the `config.json`
 - `npm start` - run application
+- `npm run setup` - create feeds based on the `config.json`
 - `npm run balances` - list all chain accounts and their balances
 - `npm run lint` - check codebase with Eslint
 - `npm run build` - build project
