@@ -130,20 +130,51 @@ Instructions to build and run with docker:
 
 If you decide to build image yourself:
 ```
-docker build -t subspacelabs/subspace-relayer:latest .
+docker build -t ghcr.io/subspace/relayer:latest .
 ```
 
-### Run feed creation
+### List account balances
 
 Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
 
 ```bash
 docker run --rm -it \
     -e CHAIN_CONFIG_PATH="/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
     --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
     --network host \
-    subspacelabs/subspace-relayer \
+    --entrypoint "node" \
+    ghcr.io/subspace/relayer /dist/tools/list-account-balances.js
+```
+
+### Run feeds creation
+Creates feeds for all chains specified in `config.json`.
+
+Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
+
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    ghcr.io/subspace/relayer \
     create-feeds
+```
+
+### Run single feed creation
+Creates feed for particular chain, used when adding a new chain to existing relayer.
+
+Replace:
+* `DIR_WITH_CONFIG` with directory where `config.json` is located
+* `PARA_ID` with para id specified in the `config.json`
+
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    --entrypoint "node" \
+    ghcr.io/subspace/relayer /dist/tools/create-single-feed.js PARA_ID
 ```
 
 ### Run relayer
@@ -157,7 +188,7 @@ docker run --rm -it --init \
     --volume /DIR_WITH_CONFIG:/config:ro \
     --network host \
     --name subspace-relayer \
-    subspacelabs/subspace-relayer
+    ghcr.io/subspace/relayer
 ```
 
 </details>
