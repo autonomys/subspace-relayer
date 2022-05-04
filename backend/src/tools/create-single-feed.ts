@@ -1,4 +1,4 @@
-// Small utility that will fund account and create feed for a single parachain (relay chain feed should already be created). Config should include chain data, chain paraId should be provided as an argument
+// Small utility that will create feed for a single parachain (relay chain feed should already be created). Config should include chain data, chain paraId should be provided as an argument
 // `FUNDS_ACCOUNT_SEED` environment variable
 import logger from "../logger";
 import * as dotenv from "dotenv";
@@ -39,27 +39,25 @@ if (!chainConfig) {
   logger.info(`Connecting to ${config.targetChainUrl}...`);
   const provider = new WsProvider(config.targetChainUrl);
   const api = await ApiPromise.create({ provider });
-  const fundsAccount = getAccount(fundsAccountSeed);
-  const chainAccount = getAccount(chainConfig.accountSeed);
-  
-  // Send 1 SSC and create feed
-  logger.info(`Funding account ${chainAccount.address}...`);
 
-  const unsub = await api.tx.balances
-    .transfer(chainAccount.address, 10n ** 18n)
-    .signAndSend(fundsAccount, { nonce: -1 }, async (result) => {
-      if (result.isError) {
-        logger.error(`Failed funding account for paraId ${paraId}!`);
-        unsub();
-        api.disconnect();
-      } else if (result.status.isInBlock) {
-        logger.info(`Creating feed for account ${chainAccount.address}...`);
-        const feedId = await createFeed(api, chainAccount);
-        if (feedId !== chainConfig.feedId) {
-          logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
-        }
-        unsub();
-        api.disconnect();
-      }
-    });
+  try {
+    const chainAccount = getAccount(`${fundsAccountSeed}//${chainConfig.feedId}`);
+    
+    logger.info(`Creating feed for account ${chainAccount.address}...`);
+    
+    const feedId = await createFeed(api, chainAccount);
+    
+    if (feedId !== chainConfig.feedId) {
+      logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error(error.stack || String(error));
+    } else {
+      logger.error(String(error));
+    }
+    process.exit(1);
+  } finally {
+    api.disconnect();
+  }
 })();

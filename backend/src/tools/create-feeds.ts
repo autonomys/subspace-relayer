@@ -16,6 +16,12 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
+if (!process.env.FUNDS_ACCOUNT_SEED) {
+  throw new Error(`"FUNDS_ACCOUNT_SEED" environment variable is required`);
+}
+
+const fundsAccountSeed = process.env.FUNDS_ACCOUNT_SEED;
+
 async function getSetId(api: ApiPromise, blockHash: BlockHash) {
   const apiAt = await api.at(blockHash);
   const setId = await apiAt.query.grandpa.currentSetId();
@@ -27,7 +33,6 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
 
   const targetApi = await ApiPromise.create({
     provider: new WsProvider(config.targetChainUrl),
-    // TODO: check how to avoid passing types and use Metadata v14 instead
     types: {
       InitialValidation: {
         genesisHash: "Hash",
@@ -45,8 +50,8 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
 
   try {
     for (const chainConfig of [config.primaryChain, ...config.parachains]) {
-      const account = getAccount(chainConfig.accountSeed);
-      logger.info(`Creating feed for account ${account.address}...`);
+      const chainAccount = getAccount(`${fundsAccountSeed}//${chainConfig.feedId}`);
+      logger.info(`Creating feed for account ${chainAccount.address}...`);
 
       const isRelayChain = chainConfig.feedId === 0 || chainConfig.feedId === 17; // Kusama feeId: 0, Polkadot feedId: 17
 
@@ -60,7 +65,7 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
         const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
         const bestKnownFinalizedHeader = (await sourceApi.rpc.chain.getHeader(hash)).toHex();
         const setId = await getSetId(sourceApi, hash);
-        
+
         initialValidation = targetApi.createType("InitialValidation", {
           genesisHash,
           bestKnownFinalizedHeader,
@@ -69,7 +74,7 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
       }
 
       const chainType = await targetApi.createType("SubspaceRuntimeFeedProcessorKind", isRelayChain ? "PolkadotLike" : "ParachainLike");
-      const feedId = await createFeed(targetApi, account, chainType.toHex(), initialValidation?.toHex());
+      const feedId = await createFeed(targetApi, chainAccount, chainType.toHex(), initialValidation?.toHex());
 
       if (feedId !== chainConfig.feedId) {
         logger.error(`!!! Expected feedId ${chainConfig.feedId}, but created feedId ${feedId}!`);
