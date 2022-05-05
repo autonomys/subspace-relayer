@@ -40,6 +40,12 @@ if (!process.env.CHAIN_CONFIG_PATH) {
 
 const config = new Config(process.env.CHAIN_CONFIG_PATH);
 
+if (!process.env.FUNDS_ACCOUNT_SEED) {
+  throw new Error(`"FUNDS_ACCOUNT_SEED" environment variable is required`);
+}
+
+const mainAccountSeed = process.env.FUNDS_ACCOUNT_SEED;
+
 async function main(metrics: Metrics) {
   const chainHeadStateMap = new Map<ChainId, PrimaryChainHeadState | ParachainHeadState>();
   const processingChains = [config.primaryChain, ...config.parachains]
@@ -54,16 +60,16 @@ async function main(metrics: Metrics) {
         metrics,
       });
 
-      const chainName = (await sourceApi.rpc.system.chain()).toHuman() as ChainName;
+      const chainAccountSeed = `${mainAccountSeed}//${chainConfig.feedId}`;
 
       const signer = new PoolSigner(
         target.api.registry,
-        chainConfig.accountSeed,
+        chainAccountSeed,
         1,
       );
 
+      const chainName = (await sourceApi.rpc.system.chain()).toHuman() as ChainName;
       const feedId = await targetApi.createType('U64', chainConfig.feedId);
-
       const totals = (await targetApi.query.feeds.totals(feedId)) as unknown as { size: U64, count: U64 };
       // We know that block number will not exceed 53-bit size integer
       // genesis block is not imported, so we start from block #1

@@ -32,7 +32,8 @@ const config = new Config(process.env.CHAIN_CONFIG_PATH);
   const unsub = await api.tx.utility.batchAll(
     [config.primaryChain, ...config.parachains]
       .map((chainConfig) => {
-        const account = getAccount(chainConfig.accountSeed).address;
+        const seed = `${fundsAccountSeed}//${chainConfig.feedId}`;
+        const account = getAccount(seed).address;
         // Send 1 SSC
         logger.info(`Funding account ${account}...`);
         return api.tx.balances.transfer(account, 10n ** 18n);

@@ -1,11 +1,16 @@
 # Relayer
 
 Node.js app which subscribes to the blocks on the source chain and sends block data to the Subspace chain as an extrinsic.
-Transactions are signed and sent by the Subspace chain account, which is derived from the seed.
+Transactions are signed and sent by the corresponding account (per chain), which is derived from the main seed. 
+For example: `//Alice//1` 
+Where: 
+* `//Alice` is the main seed (for development) 
+* `1` is chain feed ID (specified in the config below).
 
-Path to JSON configuration file can be specified at `.env`:
+Main seed and path to JSON configuration file can be specified at `.env`:
 ```
 CHAIN_CONFIG_PATH=config.json
+FUNDS_ACCOUNT_SEED="//Alice"
 ```
 
 `CHAIN_CONFIG_PATH` needs to point to JSON file with the following structure:
@@ -22,8 +27,8 @@ CHAIN_CONFIG_PATH=config.json
             "wss://pub.elara.patract.io/kusama",
             "wss://kusama.geometry.io/websockets"
         ],
-        "accountSeed": "//Alice//0",
-        "feedId": 0
+        "feedId": 0,
+        "bestGrandpaFinalizedBlockNumber": 12518416
     },
     "parachains": [
         {
@@ -33,7 +38,6 @@ CHAIN_CONFIG_PATH=config.json
                 "wss://statemine.api.onfinality.io/public-ws"
             ],
             "paraId": 1000,
-            "accountSeed": "//Alice//1000",
             "feedId": 1
         },
         {
@@ -47,7 +51,6 @@ CHAIN_CONFIG_PATH=config.json
                 "wss://pub.elara.patract.io/karura"
             ],
             "paraId": 2000,
-            "accountSeed": "//Alice//2000",
             "feedId": 2
         },
         {
@@ -57,7 +60,6 @@ CHAIN_CONFIG_PATH=config.json
                 "wss://pub.elara.patract.io/bifrost"
             ],
             "paraId": 2001,
-            "accountSeed": "//Alice//2001",
             "feedId": 3
         },
         {
@@ -66,7 +68,6 @@ CHAIN_CONFIG_PATH=config.json
                 "wss://khala.api.onfinality.io/public-ws"
             ],
             "paraId": 2004,
-            "accountSeed": "//Alice//2004",
             "feedId": 4
         },
         {
@@ -75,7 +76,6 @@ CHAIN_CONFIG_PATH=config.json
                 "wss://rpc.pinknode.io/shiden/explorer"
             ],
             "paraId": 2007,
-            "accountSeed": "//Alice//2007",
             "feedId": 5
         },
         {
@@ -86,97 +86,7 @@ CHAIN_CONFIG_PATH=config.json
                 "wss://pub.elara.patract.io/moonriver"
             ],
             "paraId": 2023,
-            "accountSeed": "//Alice//2023",
             "feedId": 6
-        },
-        {
-            "wsUrls": [
-                "wss://falafel.calamari.systems/",
-                "wss://fritti.calamari.systems/",
-                "wss://smoothie.calamari.systems/",
-                "wss://calamari.api.onfinality.io/public-ws"
-            ],
-            "paraId": 2084,
-            "accountSeed": "//Alice//2084",
-            "feedId": 7
-        },
-        {
-            "wsUrls": [
-                "wss://spiritnet.kilt.io/",
-                "wss://spiritnet.api.onfinality.io/public-ws"
-            ],
-            "paraId": 2086,
-            "accountSeed": "//Alice//2086",
-            "feedId": 8
-        },
-        {
-            "wsUrls": [
-                "wss://rpc-01.basilisk.hydradx.io",
-                "wss://basilisk.api.onfinality.io/public-ws"
-            ],
-            "paraId": 2090,
-            "accountSeed": "//Alice//2090",
-            "feedId": 9
-        },
-        {
-            "wsUrls": [
-                "wss://fullnode.altair.centrifuge.io",
-                "wss://altair.api.onfinality.io/public-ws"
-            ],
-            "paraId": 2088,
-            "accountSeed": "//Alice//2088",
-            "feedId": 10
-        },
-        {
-            "wsUrls": [
-                "wss://heiko-rpc.parallel.fi",
-                "wss://parallel-heiko.api.onfinality.io/public-ws"
-            ],
-            "paraId": 2085,
-            "accountSeed": "//Alice//2085",
-            "feedId": 11
-        },
-        {
-            "wsUrls": [
-                "wss://api-kusama.interlay.io/parachain",
-                "wss://kintsugi.api.onfinality.io/public-ws"
-            ],
-            "paraId": 2092,
-            "accountSeed": "//Alice//2092",
-            "feedId": 12
-        },
-        {
-            "wsUrls": [
-                "wss://pioneer.api.onfinality.io/public-ws",
-                "wss://pioneer-1-rpc.bit.country"
-            ],
-            "paraId": 2096,
-            "accountSeed": "//Alice//2096",
-            "feedId": 13
-        },
-        {
-            "wsUrls": [
-                "wss://node.genshiro.io"
-            ],
-            "paraId": 2024,
-            "accountSeed": "//Alice//2024",
-            "feedId": 14
-        },
-        {
-            "wsUrls": [
-                "wss://us-ws-quartz.unique.network"
-            ],
-            "paraId": 2095,
-            "accountSeed": "//Alice//2095",
-            "feedId": 15
-        },
-        {
-            "wsUrls": [
-                "wss://picasso-rpc.composable.finance"
-            ],
-            "paraId": 2087,
-            "accountSeed": "//Alice//2087",
-            "feedId": 16
         }
     ]
 }
@@ -185,16 +95,20 @@ CHAIN_CONFIG_PATH=config.json
 Where:
 * `targetChainUrl` - WebSocket JSON-RPC endpoint URL of the target (Subspace) chain where transactions with blocks will be sent
 * `downloadedArchivePath` - optional path to downloaded archive of blocks for a particular chain as RocksDB database (can be created with `tools/download-substrate-blocks` script)
-* `httpUrl` - HTTP JSON-RPC endpoint URL of a Substrate-based chain
-* `wsUrl` - WebSocket JSON-RPC endpoint URL of the main Substrate-based chain (in most cases relay chain like Kusama or Polkadot, but can be used with any other chain too)
+* `wsUrls` - WebSocket JSON-RPC endpoint URLs of the main Substrate-based chain (in most cases relay chain like Kusama or Polkadot, but can be used with any other chain too)
 * `paraId` - ID of a parachain or parathread under above relay chain
-* `accountSeed` - seed for the account that will be used on target chain for submitting transactions with blocks for particular chain (all such accounts can be funded with `tools/fund-accounts` script)
 * `feedId` - ID of the feed already created on Subspace chain into which archived blocks will go (`tools/create-feeds` script can be used to create feeds for accounts in the config file)
+* `bestGrandpaFinalizedBlockNumber` - relay chain block number from which [pallet-grandpa-finality-verifier](https://github.com/subspace/subspace/tree/main/crates/pallet-grandpa-finality-verifier) starts GRANDPA verification. It has to be a block when GRANDPA authorities changed 
 
 </details>
 
+## Account funding
+Currently balance transfers are disabled. Every chain accounts has to be funded using SUDO before starting the relayer. It is possible to check all account balances using script below
+
 ## Scripts
 - `npm start` - run application
+- `npm run setup` - create feeds based on the `config.json`
+- `npm run balances` - list all chain accounts and their balances
 - `npm run lint` - check codebase with Eslint
 - `npm run build` - build project
 
@@ -218,10 +132,10 @@ Instructions to build and run with docker:
 
 If you decide to build image yourself:
 ```
-docker build -t subspacelabs/subspace-relayer:latest .
+docker build -t ghcr.io/subspace/relayer:latest .
 ```
 
-### Run account funding
+### List account balances
 
 Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
 
@@ -231,21 +145,38 @@ docker run --rm -it \
     -e FUNDS_ACCOUNT_SEED="//Alice" \
     --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
     --network host \
-    subspacelabs/subspace-relayer \
-    fund-accounts
+    --entrypoint "node" \
+    ghcr.io/subspace/relayer /dist/tools/list-account-balances.js
 ```
 
-### Run feed creation
+### Run feeds creation
+Creates feeds for all chains specified in `config.json`.
 
 Replace `DIR_WITH_CONFIG` with directory where `config.json` is located.
 
 ```bash
 docker run --rm -it \
-    -e CHAIN_CONFIG_PATH="/config.json" \
+    -e CHAIN_CONFIG_PATH="/config/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
     --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
-    --network host \
-    subspacelabs/subspace-relayer \
+    ghcr.io/subspace/relayer \
     create-feeds
+```
+
+### Run single feed creation
+Creates feed for particular chain, used when adding a new chain to existing relayer.
+
+Replace:
+* `DIR_WITH_CONFIG` with directory where `config.json` is located
+* `PARA_ID` with para id specified in the `config.json`
+
+```bash
+docker run --rm -it \
+    -e CHAIN_CONFIG_PATH="/config/config.json" \
+    -e FUNDS_ACCOUNT_SEED="//Alice" \
+    --volume /DIR_WITH_CONFIG/config.json:/config.json:ro \
+    --entrypoint "node" \
+    ghcr.io/subspace/relayer /dist/tools/create-single-feed.js PARA_ID
 ```
 
 ### Run relayer
@@ -259,7 +190,7 @@ docker run --rm -it --init \
     --volume /DIR_WITH_CONFIG:/config:ro \
     --network host \
     --name subspace-relayer \
-    subspacelabs/subspace-relayer
+    ghcr.io/subspace/relayer
 ```
 
 </details>
