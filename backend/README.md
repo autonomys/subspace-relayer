@@ -27,7 +27,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
             "wss://pub.elara.patract.io/kusama",
             "wss://kusama.geometry.io/websockets"
         ],
-        "feedId": 0
+        "feedId": 0,
+        "bestGrandpaFinalizedBlockNumber": 12518416
     },
     "parachains": [
         {
@@ -97,6 +98,7 @@ Where:
 * `wsUrls` - WebSocket JSON-RPC endpoint URLs of the main Substrate-based chain (in most cases relay chain like Kusama or Polkadot, but can be used with any other chain too)
 * `paraId` - ID of a parachain or parathread under above relay chain
 * `feedId` - ID of the feed already created on Subspace chain into which archived blocks will go (`tools/create-feeds` script can be used to create feeds for accounts in the config file)
+* `bestGrandpaFinalizedBlockNumber` - relay chain block number from which [pallet-grandpa-finality-verifier](https://github.com/subspace/subspace/tree/main/crates/pallet-grandpa-finality-verifier) starts GRANDPA verification. It has to be a block when GRANDPA authorities changed 
 
 </details>
 
