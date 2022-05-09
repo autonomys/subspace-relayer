@@ -8,21 +8,19 @@ import { bytesToSize } from "./utils";
 const Header: React.FC = (): ReactElement => {
   const { version } = useContext(SystemContext);
   const { feeds } = useContext(RelayerContext);
-  const [accumulatedSizes, setAccumulatedSizes] = useState<number>(0);
-  const [accumulatedObjects, setAccumulatedObjects] = useState<number>(0);
+  const [totalSize, setTotalSize] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState<number>(0);
 
   useEffect(() => {
     if (feeds.length === 0) return;
     let newSize = 0;
     let newCount = 0;
     for (const feedTotal of feeds) {
-      if (feedTotal) {
-        newSize += feedTotal.size;
-        newCount += feedTotal.count;
-      }
+      newSize += feedTotal.size;
+      newCount += feedTotal.count;
     }
-    setAccumulatedSizes(newSize);
-    setAccumulatedObjects(newCount);
+    setTotalSize(newSize);
+    setTotalCount(newCount);
   }, [feeds]);
 
   return (
@@ -37,13 +35,13 @@ const Header: React.FC = (): ReactElement => {
           <CardHeader
             md="4"
             title="Storage"
-            content={accumulatedSizes > 0 ? bytesToSize(accumulatedSizes) : ""}
+            content={totalSize > 0 ? bytesToSize(totalSize) : ""}
           />
           <CardHeader
             md="4"
             title="Blocks Archived"
             content={
-              accumulatedObjects > 0 ? accumulatedObjects.toLocaleString() : ""
+              totalCount > 0 ? totalCount.toLocaleString() : ""
             }
           />
           <CardHeader

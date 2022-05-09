@@ -6,23 +6,20 @@ import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
 import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
 import { Hash, BlockNumber, Header } from "@polkadot/types/interfaces";
 import type { ITuple } from '@polkadot/types-codec/types';
-import type { AnyTuple } from '@polkadot/types/types';
+import { EventRecord } from "@polkadot/types/interfaces/system";
+import { Vec } from "@polkadot/types";
+import type { Codec } from '@polkadot/types-codec/types';
+import { U64 } from "@polkadot/types";
+import { VoidFn } from "@polkadot/api/types";
+
+// TODO: implement tests
+const decodeMetadata = (api: ApiPromise, rawMetadata: Codec) => {
+  const metadataBytes = rawMetadata.toU8a(true);
+  const metadataType = api.createType("(Hash, BlockNumber)", metadataBytes);
+  return metadataType as ITuple<[Hash, BlockNumber]>;
+}
 
 const feedIds: number[] = allChains.map((chain) => chain.feedId);
-
-function extractFeed(api: ApiPromise, args: AnyTuple): ParachainFeed {
-  const id: number = api.registry.createType("u64", args[0]).toNumber();
-  const metadata = api.registry.createType("Bytes", args[2]).toHuman();
-  const { hash, number } = JSON.parse(metadata?.toString() || "{}");
-  return {
-    feedId: id,
-    hash: hash || "",
-    number: number || "",
-    size: 0,
-    count: 0,
-    subspaceHash: "",
-  };
-}
 
 async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   const feedsTotals: FeedTotals[] = [];
@@ -56,12 +53,10 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
     const total = totals.find((t) => t.feedId === feedId);
 
     if (!rawMetadata.isEmpty && total) {
-      const metadataBytes = rawMetadata.toU8a(true);
-      const metadataType = api.createType("(Hash, BlockNumber)", metadataBytes);
-      const [hash, number] = metadataType as ITuple<[Hash, BlockNumber]>;
+      const [hash, number] = decodeMetadata(api, rawMetadata);
 
       feeds.push({
-        feedId: feedId,
+        feedId,
         number: number.toNumber(),
         hash: hash.toString(),
         subspaceHash: '', // empty by default, updated when new header is received
@@ -73,52 +68,45 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   return feeds;
 }
 
-async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
+async function getNewFeeds(api: ApiPromise, { hash }: Header, feeds: ParachainFeed[]): Promise<ParachainFeed[]> {
   const subspaceHash = hash.toString();
+  const blockApi = await api.at(hash);
+  const eventRecords = await blockApi.query.system.events() as Vec<EventRecord>;
+  const updatedFeeds = eventRecords
+    .filter(({ event }) => event.method === 'ObjectSubmitted')
+    .map(({ event }) => {
+      // TODO: use second param as feedId after runtime upgrade
+      const [metadata, , size] = event.data;
+      const [hash, number] = decodeMetadata(api, metadata);
 
-  const [{ block }, totals] = await Promise.all([
-    api.rpc.chain.getBlock(subspaceHash),
-    getFeedTotals(api)
-  ]);
-
-  const newFeeds: ParachainFeed[] = [...oldFeeds];
-
-  block.extrinsics.forEach(({ method: { method, section, args } }) => {
-    let newFeed: ParachainFeed | undefined;
-    if (section === "utility" && method === "batchAll") {
-      // It assumes that a batchAll contains a Vec of put calls, for one feedId.
-      // This way it is possible to get the feedId from the first argument of the put call
-      // TODO: remove no-explicit-any.
-      const batchCalls: any = args[0];
-      for (const { args } of batchCalls) {
-        // Using 3 args feedId, data, metadata.
-        if (args?.length === 3) {
-          newFeed = extractFeed(api, args);
-          break;
-        }
-      }
-    } else if (section === "feeds" && method === "put" && args.length === 3) {
-      newFeed = extractFeed(api, args as AnyTuple);
-    }
-
-    if (newFeed) {
-      const { feedId } = newFeed;
-      const feedIndex = newFeeds.findIndex((f) => f.feedId === feedId);
-      const total = totals.find((total) => total.feedId === feedId);
-      newFeeds[feedIndex] = {
-        ...newFeed,
-        ...total,
+      return {
+        feedId: 0,
+        size: (size as U64).toNumber(),
+        hash: hash.toString(),
+        number: number.toNumber(),
         subspaceHash,
-      };
+      }
+    })
+
+  // TODO: use Map instead of array to store feeds for faster update
+  return feeds.map(feed => {
+    const feedUpdate = updatedFeeds.find(({ feedId }) => feedId === feed.feedId);
+
+    if (feedUpdate) {
+      return {
+        ...feedUpdate,
+        size: feed.size + feedUpdate.size,
+        count: feed.count + 1,
+      }
     }
+
+    return feed;
   });
-  return newFeeds;
 }
 
 export const RelayerContext: React.Context<RelayerContextType> = React.createContext({} as RelayerContextType);
 
-export function RelayerContextProvider(props: RelayerContextProviderProps): React.ReactElement {
-  const { children = null } = props;
+export function RelayerContextProvider({ children }: RelayerContextProviderProps): React.ReactElement {
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const [header, setHeader] = useState<Header>();
   const [feeds, setFeeds] = useState<ParachainFeed[]>([]);
@@ -134,12 +122,16 @@ export function RelayerContextProvider(props: RelayerContextProviderProps): Reac
     return (): void => sub.unsubscribe();
   }, [isApiReady, api, firstLoad]);
 
+  // TODO: no need to store header in the state, only process and update feeds
   // Get new header using a subscription, to avoid missing blocks.
   useEffect(() => {
     if (!isApiReady || !api || firstLoad) return;
-    api.rpc.chain.subscribeNewHeads((header) => {
-      setHeader(header);
-    });
+    let unsubscribe: VoidFn;
+
+    api.rpc.chain.subscribeNewHeads((header) => setHeader(header))
+      .then(unsub => { unsubscribe = unsub; });
+
+    return () => unsubscribe();
   }, [isApiReady, api, firstLoad]);
 
   // If we get a new header, get new feeds.
