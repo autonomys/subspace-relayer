@@ -11,10 +11,10 @@ const ParachainTable: React.FC = (): ReactElement => {
   const [filter, setFilter] = useState<number>(0);
   const [sortByBlock, setSortByBlock] = useState<boolean>(true);
   const [sortedFeeds, setSortedFeeds] = useState<ParachainFeed[]>([]);
-  const { parachainFeeds } = useContext(RelayerContext);
+  const { feeds } = useContext(RelayerContext);
 
   useEffect(() => {
-    const sortedFeeds = parachainFeeds.sort((a, b) => {
+    const sortedFeeds = feeds.sort((a, b) => {
       // Set Polkadot to the top position on table
       if (a.feedId === 17 ) return -1;
       if (b.feedId === 17 ) return 1;
@@ -29,7 +29,7 @@ const ParachainTable: React.FC = (): ReactElement => {
       }
     });
     setSortedFeeds(sortedFeeds);
-  }, [parachainFeeds, sortByBlock]);
+  }, [feeds, sortByBlock]);
 
   const updateSortByBlock = () => {
     setSortByBlock(!sortByBlock);

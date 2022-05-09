@@ -75,7 +75,12 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
 
 async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
   const subspaceHash = hash.toString();
-  const [{ block }, totals] = await Promise.all([api.rpc.chain.getBlock(subspaceHash), getFeedTotals(api)]);
+
+  const [{ block }, totals] = await Promise.all([
+    api.rpc.chain.getBlock(subspaceHash),
+    getFeedTotals(api)
+  ]);
+
   const newFeeds: ParachainFeed[] = [...oldFeeds];
 
   block.extrinsics.forEach(({ method: { method, section, args } }) => {
@@ -116,14 +121,14 @@ export function RelayerContextProvider(props: RelayerContextProviderProps): Reac
   const { children = null } = props;
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const [header, setHeader] = useState<Header>();
-  const [parachainFeeds, setParachainFeeds] = useState<ParachainFeed[]>([]);
+  const [feeds, setFeeds] = useState<ParachainFeed[]>([]);
   const [firstLoad, setFirstLoad] = useState<boolean>(true);
 
   // Get feeds for the first load.
   useEffect(() => {
     if (!isApiReady || !api || !firstLoad) return;
     const sub = from(getInitFeeds(api)).subscribe((initFeeds) => {
-      setParachainFeeds(initFeeds);
+      setFeeds(initFeeds);
       setFirstLoad(false);
     });
     return (): void => sub.unsubscribe();
@@ -140,13 +145,13 @@ export function RelayerContextProvider(props: RelayerContextProviderProps): Reac
   // If we get a new header, get new feeds.
   useEffect(() => {
     if (!isApiReady || !api || !header) return;
-    if (header && parachainFeeds.length > 0) {
-      const sub = from(getNewFeeds(api, header, parachainFeeds)).subscribe((newFeeds) => {
-        setParachainFeeds(newFeeds);
+    if (header && feeds.length > 0) {
+      const sub = from(getNewFeeds(api, header, feeds)).subscribe((newFeeds) => {
+        setFeeds(newFeeds);
       });
       return (): void => sub.unsubscribe();
     }
-  }, [isApiReady, api, header, parachainFeeds]);
+  }, [isApiReady, api, header]);
 
-  return <RelayerContext.Provider value={{ parachainFeeds }}>{children}</RelayerContext.Provider>;
+  return <RelayerContext.Provider value={{ feeds }}>{children}</RelayerContext.Provider>;
 }
