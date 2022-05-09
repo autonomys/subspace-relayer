@@ -1,13 +1,14 @@
 import React, { useContext, useEffect, useState } from "react";
 import { ApiPromise } from "@polkadot/api";
-import { Header } from "@polkadot/types/interfaces";
 import { from } from "rxjs";
 import { allChains } from "config/AvailableParachain";
 import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
 import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
+import { Hash, BlockNumber, Header } from "@polkadot/types/interfaces";
+import type { ITuple } from '@polkadot/types-codec/types';
 import type { AnyTuple } from '@polkadot/types/types';
 
-const feedIds: number[] = allChains.map((chain) => chain.feedId)
+const feedIds: number[] = allChains.map((chain) => chain.feedId);
 
 function extractFeed(api: ApiPromise, args: AnyTuple): ParachainFeed {
   const id: number = api.registry.createType("u64", args[0]).toNumber();
@@ -41,15 +42,29 @@ async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
 
 async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   const feeds: ParachainFeed[] = [];
-  const [feedsMetadata, totals] = await Promise.all([api.query.feeds.metadata.multi(feedIds), getFeedTotals(api)]);
+  const [
+    feedsMetadata,
+    totals
+  ] = await Promise.all([
+    api.query.feeds.metadata.multi(feedIds),
+    getFeedTotals(api)
+  ]);
+
   for (let i = 0; i < feedIds.length; i++) {
     const feedId = feedIds[i];
-    const feedMetadata = feedsMetadata[i];
+    const rawMetadata = feedsMetadata[i];
     const total = totals.find((t) => t.feedId === feedId);
-    if (!feedMetadata.isEmpty && total) {
+
+    if (!rawMetadata.isEmpty && total) {
+      const metadataBytes = rawMetadata.toU8a(true);
+      const metadataType = api.createType("(Hash, BlockNumber)", metadataBytes);
+      const [hash, number] = metadataType as ITuple<[Hash, BlockNumber]>;
+
       feeds.push({
         feedId: feedId,
-        ...JSON.parse(feedMetadata.toHuman()?.toString() || "{}"),
+        number: number.toNumber(),
+        hash: hash.toString(),
+        subspaceHash: '', // empty by default, updated when new header is received
         size: total.size,
         count: total.count,
       });
