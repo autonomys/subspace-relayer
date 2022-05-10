@@ -75,12 +75,18 @@ async function getNewFeeds(api: ApiPromise, { hash }: Header, feeds: ParachainFe
   const updatedFeeds = eventRecords
     .filter(({ event }) => event.method === 'ObjectSubmitted')
     .map(({ event }) => {
-      // TODO: use second param as feedId after runtime upgrade
-      const [metadata, , size] = event.data;
+      // assuming event has following structure:
+      //   Event::ObjectSubmitted {
+      //     feed_id,
+      //     who: owner,
+      //     metadata,
+      //     object_size,
+      // });
+      const [feedId, , metadata, size] = event.data;
       const [hash, number] = decodeMetadata(api, metadata);
 
       return {
-        feedId: 0,
+        feedId: (feedId as U64).toNumber(),
         size: (size as U64).toNumber(),
         hash: hash.toString(),
         number: number.toNumber(),
@@ -122,7 +128,7 @@ export function RelayerContextProvider({ children }: RelayerContextProviderProps
     return (): void => sub.unsubscribe();
   }, [isApiReady, api, firstLoad]);
 
-  // TODO: no need to store header in the state, only process and update feeds
+  // TODO: ideally no need to store header in the state, only process and update feeds
   // Get new header using a subscription, to avoid missing blocks.
   useEffect(() => {
     if (!isApiReady || !api || firstLoad) return;
