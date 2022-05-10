@@ -37,8 +37,8 @@ async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   return feedsTotals;
 }
 
-async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
-  const feeds: ParachainFeed[] = [];
+async function getInitFeeds(api: ApiPromise): Promise<Map<number, ParachainFeed>> {
+  const feeds = new Map();
   const [
     feedsMetadata,
     totals
@@ -55,8 +55,7 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
     if (!rawMetadata.isEmpty && total) {
       const [hash, number] = decodeMetadata(api, rawMetadata);
 
-      feeds.push({
-        feedId,
+      feeds.set(feedId, {
         number: number.toNumber(),
         hash: hash.toString(),
         subspaceHash: '', // empty by default, updated when new header is received
@@ -68,13 +67,16 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   return feeds;
 }
 
-async function getNewFeeds(api: ApiPromise, { hash }: Header, feeds: ParachainFeed[]): Promise<ParachainFeed[]> {
+// TODO: implement tests
+async function updateFeedsFromEvents(api: ApiPromise, { hash }: Header, feeds: Map<number, ParachainFeed>): Promise<Map<number, ParachainFeed>> {
+  const feedsClone = new Map(feeds);
   const subspaceHash = hash.toString();
   const blockApi = await api.at(hash);
   const eventRecords = await blockApi.query.system.events() as Vec<EventRecord>;
-  const updatedFeeds = eventRecords
+
+  eventRecords
     .filter(({ event }) => event.method === 'ObjectSubmitted')
-    .map(({ event }) => {
+    .forEach(({ event }) => {
       // assuming event has following structure:
       //   Event::ObjectSubmitted {
       //     feed_id,
@@ -83,31 +85,23 @@ async function getNewFeeds(api: ApiPromise, { hash }: Header, feeds: ParachainFe
       //     object_size,
       // });
       const [feedId, , metadata, size] = event.data;
+      const feedIdAsNumber = (feedId as U64).toNumber();
       const [hash, number] = decodeMetadata(api, metadata);
+      const existing = feedsClone.get(feedIdAsNumber);
 
-      return {
-        feedId: (feedId as U64).toNumber(),
-        size: (size as U64).toNumber(),
-        hash: hash.toString(),
-        number: number.toNumber(),
-        subspaceHash,
+      if (existing) {
+        feedsClone.set(feedIdAsNumber, {
+          feedId: feedIdAsNumber,
+          size: existing.size + (size as U64).toNumber(),
+          hash: hash.toString(),
+          number: number.toNumber(),
+          subspaceHash,
+          count: existing.count + 1,
+        })
       }
-    })
+    });
 
-  // TODO: use Map instead of array to store feeds for faster update
-  return feeds.map(feed => {
-    const feedUpdate = updatedFeeds.find(({ feedId }) => feedId === feed.feedId);
-
-    if (feedUpdate) {
-      return {
-        ...feedUpdate,
-        size: feed.size + feedUpdate.size,
-        count: feed.count + 1,
-      }
-    }
-
-    return feed;
-  });
+  return feedsClone;
 }
 
 export const RelayerContext: React.Context<RelayerContextType> = React.createContext({} as RelayerContextType);
@@ -115,7 +109,7 @@ export const RelayerContext: React.Context<RelayerContextType> = React.createCon
 export function RelayerContextProvider({ children }: RelayerContextProviderProps): React.ReactElement {
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const [header, setHeader] = useState<Header>();
-  const [feeds, setFeeds] = useState<ParachainFeed[]>([]);
+  const [feeds, setFeeds] = useState<Map<number, ParachainFeed>>(new Map());
   const [firstLoad, setFirstLoad] = useState<boolean>(true);
 
   // Get feeds for the first load.
@@ -140,11 +134,11 @@ export function RelayerContextProvider({ children }: RelayerContextProviderProps
     return () => unsubscribe();
   }, [isApiReady, api, firstLoad]);
 
-  // If we get a new header, get new feeds.
+  // Update feeds based on the new block events.
   useEffect(() => {
     if (!isApiReady || !api || !header) return;
-    if (header && feeds.length > 0) {
-      const sub = from(getNewFeeds(api, header, feeds)).subscribe((newFeeds) => {
+    if (header && feeds.size > 0) {
+      const sub = from(updateFeedsFromEvents(api, header, feeds)).subscribe((newFeeds) => {
         setFeeds(newFeeds);
       });
       return (): void => sub.unsubscribe();

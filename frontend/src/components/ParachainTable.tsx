@@ -10,24 +10,25 @@ const ParachainTable: React.FC = (): ReactElement => {
   const [parachainProps] = useState<ParachainProps[]>([...allChains]);
   const [filter, setFilter] = useState<number>(0);
   const [sortByBlock, setSortByBlock] = useState<boolean>(true);
-  const [sortedFeeds, setSortedFeeds] = useState<ParachainFeed[]>([]);
+  const [sortedFeeds, setSortedFeeds] = useState<[number, ParachainFeed][]>([]);
   const { feeds } = useContext(RelayerContext);
 
   useEffect(() => {
-    const sortedFeeds = feeds.sort((a, b) => {
-      // Set Polkadot to the top position on table
-      if (a.feedId === 17 ) return -1;
-      if (b.feedId === 17 ) return 1;
-      // Set Kusama to the second position on table
-      if (a.feedId === 0 ) return -1;
-      if (b.feedId === 0 ) return 1;
+    const sortedFeeds = [...feeds.entries()]
+      .sort(([feedIdA, feedDataA], [feedIdB, feedDataB]) => {
+        // Set Polkadot to the top position on table
+        if (feedIdA === 17) return -1;
+        if (feedIdB === 17) return 1;
+        // Set Kusama to the second position on table
+        if (feedIdA === 0) return -1;
+        if (feedIdB === 0) return 1;
 
-      if (sortByBlock) {
-        return b.number - a.number;
-      } else {
-        return a.number - b.number;
-      }
-    });
+        if (sortByBlock) {
+          return feedDataB.number - feedDataA.number;
+        } else {
+          return feedDataA.number - feedDataB.number;
+        }
+      });
     setSortedFeeds(sortedFeeds);
   }, [feeds, sortByBlock]);
 
@@ -83,9 +84,9 @@ const ParachainTable: React.FC = (): ReactElement => {
               </tr>
             </thead>
             <tbody>
-              {sortedFeeds.map((feed) => {
-                const prop = parachainProps.find((p) => p.feedId === feed.feedId);
-                if (prop) return <ParachainRow key={feed.feedId} filter={filter} {...prop} {...feed} />;
+              {sortedFeeds.map(([feedId, feed]) => {
+                const prop = parachainProps.find((p) => p.feedId === feedId);
+                if (prop) return <ParachainRow key={feedId} filter={filter} {...prop} {...feed} />;
               })}
               {sortedFeeds.length === 0 && (
                 <tr>

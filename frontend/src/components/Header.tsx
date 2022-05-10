@@ -12,10 +12,10 @@ const Header: React.FC = (): ReactElement => {
   const [totalCount, setTotalCount] = useState<number>(0);
 
   useEffect(() => {
-    if (feeds.length === 0) return;
+    if (feeds.size === 0) return;
     let newSize = 0;
     let newCount = 0;
-    for (const feedTotal of feeds) {
+    for (const feedTotal of feeds.values()) {
       newSize += feedTotal.size;
       newCount += feedTotal.count;
     }
@@ -30,7 +30,7 @@ const Header: React.FC = (): ReactElement => {
           <CardHeader
             md="2"
             title="Chains"
-            content={feeds.length > 0 ? feeds.length.toString() : ""}
+            content={feeds.size > 0 ? feeds.size.toString() : ""}
           />
           <CardHeader
             md="4"
