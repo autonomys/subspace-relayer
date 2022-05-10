@@ -1,27 +1,25 @@
 import React, { useContext, useEffect, useState } from "react";
 import { ApiPromise } from "@polkadot/api";
-import { Header } from "@polkadot/types/interfaces";
 import { from } from "rxjs";
 import { allChains } from "config/AvailableParachain";
 import { Totals, ParachainFeed, FeedTotals } from "config/interfaces/Parachain";
 import { RelayerContextProviderProps, RelayerContextType, ApiPromiseContext } from "context";
-import type { AnyTuple } from '@polkadot/types/types';
+import { Hash, BlockNumber, Header } from "@polkadot/types/interfaces";
+import type { ITuple } from '@polkadot/types-codec/types';
+import { EventRecord } from "@polkadot/types/interfaces/system";
+import { Vec } from "@polkadot/types";
+import type { Codec } from '@polkadot/types-codec/types';
+import { U64 } from "@polkadot/types";
+import { VoidFn } from "@polkadot/api/types";
 
-const feedIds: number[] = allChains.map((chain) => chain.feedId)
-
-function extractFeed(api: ApiPromise, args: AnyTuple): ParachainFeed {
-  const id: number = api.registry.createType("u64", args[0]).toNumber();
-  const metadata = api.registry.createType("Bytes", args[2]).toHuman();
-  const { hash, number } = JSON.parse(metadata?.toString() || "{}");
-  return {
-    feedId: id,
-    hash: hash || "",
-    number: number || "",
-    size: 0,
-    count: 0,
-    subspaceHash: "",
-  };
+// TODO: implement tests
+const decodeMetadata = (api: ApiPromise, rawMetadata: Codec) => {
+  const metadataBytes = rawMetadata.toU8a(true);
+  const metadataType = api.createType("(Hash, BlockNumber)", metadataBytes);
+  return metadataType as ITuple<[Hash, BlockNumber]>;
 }
+
+const feedIds: number[] = allChains.map((chain) => chain.feedId);
 
 async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   const feedsTotals: FeedTotals[] = [];
@@ -39,17 +37,28 @@ async function getFeedTotals(api: ApiPromise): Promise<FeedTotals[]> {
   return feedsTotals;
 }
 
-async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
-  const feeds: ParachainFeed[] = [];
-  const [feedsMetadata, totals] = await Promise.all([api.query.feeds.metadata.multi(feedIds), getFeedTotals(api)]);
+async function getInitFeeds(api: ApiPromise): Promise<Map<number, ParachainFeed>> {
+  const feeds = new Map();
+  const [
+    feedsMetadata,
+    totals
+  ] = await Promise.all([
+    api.query.feeds.metadata.multi(feedIds),
+    getFeedTotals(api)
+  ]);
+
   for (let i = 0; i < feedIds.length; i++) {
     const feedId = feedIds[i];
-    const feedMetadata = feedsMetadata[i];
+    const rawMetadata = feedsMetadata[i];
     const total = totals.find((t) => t.feedId === feedId);
-    if (!feedMetadata.isEmpty && total) {
-      feeds.push({
-        feedId: feedId,
-        ...JSON.parse(feedMetadata.toHuman()?.toString() || "{}"),
+
+    if (!rawMetadata.isEmpty && total) {
+      const [hash, number] = decodeMetadata(api, rawMetadata);
+
+      feeds.set(feedId, {
+        number: number.toNumber(),
+        hash: hash.toString(),
+        subspaceHash: '', // empty by default, updated when new header is received
         size: total.size,
         count: total.count,
       });
@@ -58,80 +67,83 @@ async function getInitFeeds(api: ApiPromise): Promise<ParachainFeed[]> {
   return feeds;
 }
 
-async function getNewFeeds(api: ApiPromise, { hash }: Header, oldFeeds: ParachainFeed[]): Promise<ParachainFeed[]> {
+// TODO: implement tests
+async function updateFeedsFromEvents(api: ApiPromise, { hash }: Header, feeds: Map<number, ParachainFeed>): Promise<Map<number, ParachainFeed>> {
+  const feedsClone = new Map(feeds);
   const subspaceHash = hash.toString();
-  const [{ block }, totals] = await Promise.all([api.rpc.chain.getBlock(subspaceHash), getFeedTotals(api)]);
-  const newFeeds: ParachainFeed[] = [...oldFeeds];
+  const blockApi = await api.at(hash);
+  const eventRecords = await blockApi.query.system.events() as Vec<EventRecord>;
 
-  block.extrinsics.forEach(({ method: { method, section, args } }) => {
-    let newFeed: ParachainFeed | undefined;
-    if (section === "utility" && method === "batchAll") {
-      // It assumes that a batchAll contains a Vec of put calls, for one feedId.
-      // This way it is possible to get the feedId from the first argument of the put call
-      // TODO: remove no-explicit-any.
-      const batchCalls: any = args[0];
-      for (const { args } of batchCalls) {
-        // Using 3 args feedId, data, metadata.
-        if (args?.length === 3) {
-          newFeed = extractFeed(api, args);
-          break;
-        }
+  eventRecords
+    .filter(({ event }) => event.method === 'ObjectSubmitted')
+    .forEach(({ event }) => {
+      // assuming event has following structure:
+      //   Event::ObjectSubmitted {
+      //     feed_id,
+      //     who: owner,
+      //     metadata,
+      //     object_size,
+      // });
+      const [feedId, , metadata, size] = event.data;
+      const feedIdAsNumber = (feedId as U64).toNumber();
+      const [hash, number] = decodeMetadata(api, metadata);
+      const existing = feedsClone.get(feedIdAsNumber);
+
+      if (existing) {
+        feedsClone.set(feedIdAsNumber, {
+          feedId: feedIdAsNumber,
+          size: existing.size + (size as U64).toNumber(),
+          hash: hash.toString(),
+          number: number.toNumber(),
+          subspaceHash,
+          count: existing.count + 1,
+        })
       }
-    } else if (section === "feeds" && method === "put" && args.length === 3) {
-      newFeed = extractFeed(api, args as AnyTuple);
-    }
+    });
 
-    if (newFeed) {
-      const { feedId } = newFeed;
-      const feedIndex = newFeeds.findIndex((f) => f.feedId === feedId);
-      const total = totals.find((total) => total.feedId === feedId);
-      newFeeds[feedIndex] = {
-        ...newFeed,
-        ...total,
-        subspaceHash,
-      };
-    }
-  });
-  return newFeeds;
+  return feedsClone;
 }
 
 export const RelayerContext: React.Context<RelayerContextType> = React.createContext({} as RelayerContextType);
 
-export function RelayerContextProvider(props: RelayerContextProviderProps): React.ReactElement {
-  const { children = null } = props;
+export function RelayerContextProvider({ children }: RelayerContextProviderProps): React.ReactElement {
   const { api, isApiReady } = useContext(ApiPromiseContext);
   const [header, setHeader] = useState<Header>();
-  const [parachainFeeds, setParachainFeeds] = useState<ParachainFeed[]>([]);
+  const [feeds, setFeeds] = useState<Map<number, ParachainFeed>>(new Map());
   const [firstLoad, setFirstLoad] = useState<boolean>(true);
 
   // Get feeds for the first load.
   useEffect(() => {
     if (!isApiReady || !api || !firstLoad) return;
     const sub = from(getInitFeeds(api)).subscribe((initFeeds) => {
-      setParachainFeeds(initFeeds);
+      setFeeds(initFeeds);
       setFirstLoad(false);
     });
     return (): void => sub.unsubscribe();
   }, [isApiReady, api, firstLoad]);
 
+  // TODO: ideally no need to store header in the state, only process and update feeds
   // Get new header using a subscription, to avoid missing blocks.
   useEffect(() => {
     if (!isApiReady || !api || firstLoad) return;
-    api.rpc.chain.subscribeNewHeads((header) => {
-      setHeader(header);
-    });
+    let unsubscribe: VoidFn;
+
+    api.rpc.chain.subscribeNewHeads((header) => setHeader(header))
+      .then(unsub => { unsubscribe = unsub; });
+
+    return () => unsubscribe();
   }, [isApiReady, api, firstLoad]);
 
-  // If we get a new header, get new feeds.
+  // Update feeds based on the new block events.
   useEffect(() => {
     if (!isApiReady || !api || !header) return;
-    if (header && parachainFeeds.length > 0) {
-      const sub = from(getNewFeeds(api, header, parachainFeeds)).subscribe((newFeeds) => {
-        setParachainFeeds(newFeeds);
+    if (header && feeds.size > 0) {
+      const sub = from(updateFeedsFromEvents(api, header, feeds)).subscribe((newFeeds) => {
+        setFeeds(newFeeds);
       });
       return (): void => sub.unsubscribe();
     }
-  }, [isApiReady, api, header, parachainFeeds]);
+  }, [isApiReady, api, header]);
 
-  return <RelayerContext.Provider value={{ parachainFeeds }}>{children}</RelayerContext.Provider>;
+  return <RelayerContext.Provider value={{ feeds }}>{children}</RelayerContext.Provider>;
 }

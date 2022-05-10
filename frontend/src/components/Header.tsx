@@ -7,23 +7,21 @@ import { bytesToSize } from "./utils";
 
 const Header: React.FC = (): ReactElement => {
   const { version } = useContext(SystemContext);
-  const { parachainFeeds } = useContext(RelayerContext);
-  const [accumulatedSizes, setAccumulatedSizes] = useState<number>(0);
-  const [accumulatedObjects, setAccumulatedObjects] = useState<number>(0);
+  const { feeds } = useContext(RelayerContext);
+  const [totalSize, setTotalSize] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState<number>(0);
 
   useEffect(() => {
-    if (parachainFeeds.length === 0) return;
+    if (feeds.size === 0) return;
     let newSize = 0;
     let newCount = 0;
-    for (const feedTotal of parachainFeeds) {
-      if (feedTotal) {
-        newSize += feedTotal.size;
-        newCount += feedTotal.count;
-      }
+    for (const feedTotal of feeds.values()) {
+      newSize += feedTotal.size;
+      newCount += feedTotal.count;
     }
-    setAccumulatedSizes(newSize);
-    setAccumulatedObjects(newCount);
-  }, [parachainFeeds]);
+    setTotalSize(newSize);
+    setTotalCount(newCount);
+  }, [feeds]);
 
   return (
     <div className="header bg-gradient-gray-dark p-4">
@@ -32,18 +30,18 @@ const Header: React.FC = (): ReactElement => {
           <CardHeader
             md="2"
             title="Chains"
-            content={parachainFeeds.length > 0 ? parachainFeeds.length.toString() : ""}
+            content={feeds.size > 0 ? feeds.size.toString() : ""}
           />
           <CardHeader
             md="4"
             title="Storage"
-            content={accumulatedSizes > 0 ? bytesToSize(accumulatedSizes) : ""}
+            content={totalSize > 0 ? bytesToSize(totalSize) : ""}
           />
           <CardHeader
             md="4"
             title="Blocks Archived"
             content={
-              accumulatedObjects > 0 ? accumulatedObjects.toLocaleString() : ""
+              totalCount > 0 ? totalCount.toLocaleString() : ""
             }
           />
           <CardHeader

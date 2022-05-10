@@ -36,7 +36,7 @@ export interface ApiPromiseContextType {
 }
 
 export interface RelayerContextType {
-  parachainFeeds: ParachainFeed[];
+  feeds: Map<number, ParachainFeed>;
 }
 
 export interface SystemContextType {

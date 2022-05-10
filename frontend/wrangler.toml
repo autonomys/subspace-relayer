@@ -1,6 +1,6 @@
 name = "relayer"
 type = "webpack"
-route = "testnet-relayer.subspace.network/*"
+route = "aries-dev-relayer.subspace.network/*"
 usage_model = ""
 compatibility_flags = []
 workers_dev = false
