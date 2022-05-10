@@ -53,7 +53,7 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
       const chainAccount = getAccount(`${fundsAccountSeed}//${chainConfig.feedId}`);
       logger.info(`Creating feed for account ${chainAccount.address}...`);
 
-      const isRelayChain = chainConfig.feedId === 0 || chainConfig.feedId === 17; // Kusama feeId: 0, Polkadot feedId: 17
+      const isRelayChain = chainConfig.feedId === config.primaryChain.feedId;
 
       let initialValidation;
 

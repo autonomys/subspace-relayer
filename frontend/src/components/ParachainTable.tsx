@@ -14,14 +14,17 @@ const ParachainTable: React.FC = (): ReactElement => {
   const { feeds } = useContext(RelayerContext);
 
   useEffect(() => {
+    // feedIds may change, so we find feedId by chain name before sorting
+    const kusamaFeedId = allChains.find(chain => chain.chainName === 'Kusama')?.feedId;
+    const polkadotFeedId = allChains.find(chain => chain.chainName === 'Polkadot')?.feedId;
     const sortedFeeds = [...feeds.entries()]
       .sort(([feedIdA, feedDataA], [feedIdB, feedDataB]) => {
         // Set Polkadot to the top position on table
-        if (feedIdA === 17) return -1;
-        if (feedIdB === 17) return 1;
+        if (feedIdA === polkadotFeedId) return -1;
+        if (feedIdB === polkadotFeedId) return 1;
         // Set Kusama to the second position on table
-        if (feedIdA === 0) return -1;
-        if (feedIdB === 0) return 1;
+        if (feedIdA === kusamaFeedId) return -1;
+        if (feedIdB === kusamaFeedId) return 1;
 
         if (sortByBlock) {
           return feedDataB.number - feedDataA.number;
