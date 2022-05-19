@@ -28,7 +28,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
             "wss://kusama.geometry.io/websockets"
         ],
         "feedId": 0,
-        "bestGrandpaFinalizedBlockNumber": 12518416
+        "bestGrandpaFinalizedBlockNumber": 12518416,
+        "feedProcessor": "PolkadotLike"
     },
     "parachains": [
         {
@@ -38,7 +39,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
                 "wss://statemine.api.onfinality.io/public-ws"
             ],
             "paraId": 1000,
-            "feedId": 1
+            "feedId": 1,
+            "feedProcessor": "ParachainLike"
         },
         {
             "wsUrls": [
@@ -51,7 +53,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
                 "wss://pub.elara.patract.io/karura"
             ],
             "paraId": 2000,
-            "feedId": 2
+            "feedId": 2,
+            "feedProcessor": "ParachainLike"
         },
         {
             "wsUrls": [
@@ -60,7 +63,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
                 "wss://pub.elara.patract.io/bifrost"
             ],
             "paraId": 2001,
-            "feedId": 3
+            "feedId": 3,
+            "feedProcessor": "ParachainLike"
         },
         {
             "wsUrls": [
@@ -68,7 +72,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
                 "wss://khala.api.onfinality.io/public-ws"
             ],
             "paraId": 2004,
-            "feedId": 4
+            "feedId": 4,
+            "feedProcessor": "ParachainLike"
         },
         {
             "wsUrls": [
@@ -76,7 +81,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
                 "wss://rpc.pinknode.io/shiden/explorer"
             ],
             "paraId": 2007,
-            "feedId": 5
+            "feedId": 5,
+            "feedProcessor": "ParachainLike"
         },
         {
             "wsUrls": [
@@ -86,7 +92,8 @@ FUNDS_ACCOUNT_SEED="//Alice"
                 "wss://pub.elara.patract.io/moonriver"
             ],
             "paraId": 2023,
-            "feedId": 6
+            "feedId": 6,
+            "feedProcessor": "ParachainLike"
         }
     ]
 }
@@ -99,6 +106,7 @@ Where:
 * `paraId` - ID of a parachain or parathread under above relay chain
 * `feedId` - ID of the feed already created on Subspace chain into which archived blocks will go (`tools/create-feeds` script can be used to create feeds for accounts in the config file)
 * `bestGrandpaFinalizedBlockNumber` - relay chain block number from which [pallet-grandpa-finality-verifier](https://github.com/subspace/subspace/tree/main/crates/pallet-grandpa-finality-verifier) starts GRANDPA verification. It has to be a block when GRANDPA authorities changed 
+* `feedProcessor` - one of the available feed processors: `"PolkadotLike"` (for relay chain), `"ParachainLike"` or `"ContentAddressable"`. For more details, please, check [pallet-feeds](https://github.com/subspace/subspace/tree/main/crates/pallet-feeds)
 
 </details>
 
