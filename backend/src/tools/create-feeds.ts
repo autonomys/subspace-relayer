@@ -35,7 +35,6 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
     provider: new WsProvider(config.targetChainUrl),
     types: {
       InitialValidation: {
-        genesisHash: "Hash",
         bestKnownFinalizedHeader: "Vec<u8>",
         setId: "SetId",
       }
@@ -61,19 +60,17 @@ async function getSetId(api: ApiPromise, blockHash: BlockHash) {
       if (isRelayChain) {
         // get header to start verification from
         const blockNumber = (chainConfig as PrimaryChainConfig).bestGrandpaFinalizedBlockNumber;
-        const genesisHash = await sourceApi.rpc.chain.getBlockHash(0);
         const hash = await sourceApi.rpc.chain.getBlockHash(blockNumber);
         const bestKnownFinalizedHeader = (await sourceApi.rpc.chain.getHeader(hash)).toHex();
         const setId = await getSetId(sourceApi, hash);
 
         initialValidation = targetApi.createType("InitialValidation", {
-          genesisHash,
           bestKnownFinalizedHeader,
           setId,
         });
       }
 
-      const chainType = await targetApi.createType("SubspaceRuntimeFeedProcessorKind", isRelayChain ? "PolkadotLike" : "ParachainLike");
+      const chainType = await targetApi.createType("SubspaceRuntimeFeedProcessorKind", chainConfig.feedProcessor);
       const feedId = await createFeed(targetApi, chainAccount, chainType.toHex(), initialValidation?.toHex());
 
       if (feedId !== chainConfig.feedId) {

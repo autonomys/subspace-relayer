@@ -6,6 +6,7 @@ const AnyChainConfig = z.object({
   downloadedArchivePath: z.string().optional(),
   feedId: z.number().refine((number) => number >= 0),
   wsUrls: z.array(z.string()),
+  feedProcessor: z.string(),
 });
 
 const PrimaryChainConfig = AnyChainConfig.extend({
