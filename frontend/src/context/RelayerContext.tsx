@@ -64,6 +64,7 @@ async function getInitFeeds(api: ApiPromise): Promise<Map<number, ParachainFeed>
       });
     }
   }
+
   return feeds;
 }
 
