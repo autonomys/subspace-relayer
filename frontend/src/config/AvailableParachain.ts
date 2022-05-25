@@ -262,6 +262,15 @@ const kusamaParachains: ParachainProps[] = [
     web: "https://sora.org/",
     ecosystem: "kusama",
   },
+  {
+    wss: "wss://mangata-x.api.onfinality.io/public-ws",
+    paraId: 21100,
+    chainName: "Mangata",
+    chain: "mangata",
+    feedId: 44,
+    web: "https://x.mangata.finance/",
+    ecosystem: "kusama",
+  },
 ];
 
 const polkadotParachains: ParachainProps[] = [
