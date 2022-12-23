@@ -10225,4 +10225,8 @@ article figure {
 article h5 + figure {
   margin-top: 0; }
 
-/*# sourceMappingURL=subspace-relayer.css.map */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; }
