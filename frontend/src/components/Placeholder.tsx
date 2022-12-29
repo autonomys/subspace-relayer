@@ -8,8 +8,15 @@ const Placeholder: React.FC = (): ReactElement => {
       </div>
       <br />
       <h1>
-        Subspace Relayer is currently being updated. Please bear with us as we
-        make improvements.
+        Subspace Relayer is not under active development right now. Join us on{' '}
+        <a
+          href="https://discord.gg/subspace-network"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Discord
+        </a>{' '}
+        to know when we are working on the new version!
       </h1>
     </div>
   );
