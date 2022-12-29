@@ -1,15 +1,16 @@
-import React, { useState, ReactElement } from "react";
-import { WsProvider } from "@polkadot/rpc-provider";
-import { getApiUrl } from "config/RpcSettings";
-import NavBar from "components/NavBar";
-import ParachainTable from "components/ParachainTable";
-import Footer from "components/Footer";
+import React, { useState, ReactElement } from 'react';
+import { WsProvider } from '@polkadot/rpc-provider';
+import { getApiUrl } from 'config/RpcSettings';
+import NavBar from 'components/NavBar';
+import ParachainTable from 'components/ParachainTable';
+import Footer from 'components/Footer';
 import {
   RelayerContextProvider,
   ApiPromiseContextProvider,
   ProviderContextProvider,
   SystemContextProvider,
-} from "context";
+} from 'context';
+import Placeholder from 'components/Placeholder';
 
 const App: React.FC = (): ReactElement => {
   const [provider] = useState<WsProvider>(new WsProvider(getApiUrl()));
@@ -21,7 +22,13 @@ const App: React.FC = (): ReactElement => {
           <RelayerContextProvider>
             <>
               <NavBar />
-              <ParachainTable />
+              <div className='mainContent'>
+              {process.env.REACT_APP_SHOW_PLACEHOLDER === '1' ? (
+                <Placeholder />
+              ) : (
+                <ParachainTable />
+              )}
+              </div>
               <Footer />
             </>
           </RelayerContextProvider>

@@ -25,3 +25,24 @@
 
 
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap');
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mainContent {
+  flex: 1 1 auto;
+}
+
+.placeholder {
+  text-align: center;
+  width: 500px;
+  margin: 100px auto;
+}
+
+.fa-5 {
+  font-size: 5em;
+}

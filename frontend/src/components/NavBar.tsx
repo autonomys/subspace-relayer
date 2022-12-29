@@ -50,7 +50,7 @@ const NavBar: React.FC = (): ReactElement => {
         )}
       </Nav>
       <Nav className="mr-2 ml-4">
-        {width > 920 && (
+        {(width > 920 && process.env.REACT_APP_SHOW_PLACEHOLDER === '0') && (
           <NavItem>
             <Badge className="ml-4 badge-dot">
               <i className={isSystemReady ? "bg-success" : "bg-warning"} />
